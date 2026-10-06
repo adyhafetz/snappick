@@ -58,11 +58,7 @@ Install with `winget` or the vendors' installers. Close and reopen PowerShell af
   $p = [Environment]::GetEnvironmentVariable("Path","User")
   [Environment]::SetEnvironmentVariable("Path", "$p;$env:LOCALAPPDATA\Android\Sdk\platform-tools", "User")
   ```
-- [ ] **Accept Android SDK licences:**
-  ```powershell
-  & "$env:ANDROID_HOME\cmdline-tools\latest\bin\sdkmanager.bat" --licenses
-  ```
-  Answer `y` to all.
+- [ ] **SDK licences.** If you install SDK components with Google's newer **Android CLI** (`android sdk install ...`), it manages the licences and saves them in a format Gradle accepts, so no separate step is needed. If you use Android Studio's SDK Manager instead, accepting the licence prompts there is enough. Only if a build later reports unaccepted licences, run `sdkmanager --licenses` from `cmdline-tools\latest\bin` (the older tool still exists) and answer `y`.
 - [ ] **Python (Miniconda):** `winget install Anaconda.Miniconda3`, then two **separate** environments:
   ```powershell
   conda create -n snappick python=3.11 -y
