@@ -1,0 +1,11 @@
+{
+  "name": "snappick-supabase-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:rls": "node rls.test.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.117.2"
+  }
+}
