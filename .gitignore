@@ -1,12 +1,17 @@
-  node_modules/
-  .env
-  .env.*
-  !.env.example
-  ml/data/
-  apps/mobile/android/
-  apps/mobile/ios/
-  *.jks
-  *.keystore
-  google-services.json
-  __pycache__/
-  .venv/
+node_modules/
+.env
+.env.*
+!.env.example
+ml/data/
+.expo/
+dist/
+web-build/
+coverage/
+build/
+apps/mobile/android/
+apps/mobile/ios/
+*.jks
+*.keystore
+google-services.json
+__pycache__/
+.venv/
