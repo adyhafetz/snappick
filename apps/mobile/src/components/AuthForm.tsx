@@ -8,7 +8,7 @@ import { colors, spacing } from '@/theme';
 type AuthFormProps = { mode: 'sign-in' | 'sign-up' };
 
 export function AuthForm({ mode }: AuthFormProps) {
-  const { signIn, signUp } = useAuth();
+  const { signIn, signInWithGoogle, signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -42,6 +42,19 @@ export function AuthForm({ mode }: AuthFormProps) {
     }
   }
 
+  async function submitGoogle() {
+    setError(null);
+    setNotice(null);
+    setBusy(true);
+    try {
+      await signInWithGoogle();
+    } catch (googleError) {
+      setError(googleError instanceof Error ? googleError.message : 'Google sign-in failed. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.brandMark}><Text style={styles.brandMarkText}>S</Text></View>
@@ -57,6 +70,10 @@ export function AuthForm({ mode }: AuthFormProps) {
         {notice && <Text style={styles.notice}>{notice}</Text>}
         <Pressable disabled={busy} onPress={() => void submit()} style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}>
           {busy ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.buttonText}>{isSignIn ? 'Sign in' : 'Create account'}</Text>}
+        </Pressable>
+        <View style={styles.divider}><View style={styles.dividerLine} /><Text style={styles.dividerText}>OR</Text><View style={styles.dividerLine} /></View>
+        <Pressable disabled={busy} onPress={() => void submitGoogle()} style={({ pressed }) => [styles.googleButton, pressed && styles.googleButtonPressed]}>
+          {busy ? <ActivityIndicator color={colors.ink} /> : <Text style={styles.googleButtonText}>Continue with Google</Text>}
         </Pressable>
       </View>
       <Text style={styles.switchText}>
@@ -82,6 +99,12 @@ const styles = StyleSheet.create({
   button: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: 10, justifyContent: 'center', marginTop: spacing.lg, minHeight: 52 },
   buttonPressed: { backgroundColor: colors.primaryDark },
   buttonText: { color: colors.surface, fontSize: 16, fontWeight: '800' },
+  divider: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginVertical: spacing.md },
+  dividerLine: { backgroundColor: colors.border, flex: 1, height: 1 },
+  dividerText: { color: colors.muted, fontSize: 12, fontWeight: '800' },
+  googleButton: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 10, borderWidth: 1, justifyContent: 'center', minHeight: 52 },
+  googleButtonPressed: { backgroundColor: '#f1f5f9' },
+  googleButtonText: { color: colors.ink, fontSize: 16, fontWeight: '800' },
   switchText: { color: colors.muted, fontSize: 14, marginTop: spacing.xl, textAlign: 'center' },
   link: { color: colors.primary, fontWeight: '800' },
 });

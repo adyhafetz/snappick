@@ -106,6 +106,7 @@ Record the exact installed versions here after each install (`npm ls <package>`)
 | react-native | 0.86.3 | Phase 1 |
 | react | 19.2.3 | Phase 1 |
 | @supabase/supabase-js | 2.117.2 | Phase 1 |
+| @react-native-google-signin/google-signin | 16.1.5 | Phase 3 |
 | Supabase CLI | 2.119.0 | Phase 2 |
 | react-native-fast-tflite | | Phase 5 (see `docs/SPIKE_RESULTS.md` for the version that worked) |
 | react-native-nitro-modules | | Phase 5 |
@@ -148,3 +149,4 @@ Record the exact installed versions here after each install (`npm ls <package>`)
 | 2026-10-06 | Confirmed `snappick-label` env and `adb devices`; accepted JDK 21 and Node 24 (spike ran); licences handled by the new Android CLI |
 | 2026-10-06 | Phase 1 installed Expo 57.0.27, React Native 0.86.3, React 19.2.3, Expo Router 57.0.25, Expo Dev Client 57.0.19, AsyncStorage 2.2.0, and Supabase JS 2.117.2; native Android build/install passed on the connected phone |
 | 2026-10-07 | Phase 2 added the database/security migrations, seed, RLS isolation test package, and phase checklist; the first migration was applied to the linked project and all public tables report RLS enabled |
+| 2026-10-07 | Phase 3 installed `@react-native-google-signin/google-signin` 16.1.5 and the native Android build passed |

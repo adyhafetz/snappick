@@ -1,12 +1,16 @@
 import { Redirect, Tabs } from 'expo-router';
 import { Text, View } from 'react-native';
 
+import { LoadingScreen } from '@/components/LoadingScreen';
+import { hasRequiredConsents } from '@/lib/consent';
 import { useAuth } from '@/providers/AuthProvider';
 import { colors } from '@/theme';
 
 export default function TabsLayout() {
-  const { loading, session } = useAuth();
+  const { loading, session, profile, profileLoading } = useAuth();
   if (!loading && !session) return <Redirect href="/(auth)/sign-in" />;
+  if (session && profileLoading) return <LoadingScreen />;
+  if (session && !hasRequiredConsents(profile)) return <Redirect href="/(consent)/image-storage" />;
   return <Tabs screenOptions={{ headerShown: false, tabBarActiveTintColor: colors.primary, tabBarInactiveTintColor: colors.muted, tabBarLabelStyle: { fontSize: 11, fontWeight: '700' }, tabBarStyle: { borderTopColor: colors.border, height: 72, paddingBottom: 8, paddingTop: 8 } }}>
     <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>⌂</Text> }} />
     <Tabs.Screen name="activity" options={{ title: 'Activity', tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>≡</Text> }} />
