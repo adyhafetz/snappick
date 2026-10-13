@@ -1,4 +1,4 @@
-# SnapPick Implementation Plan (Revision 4: fresh start, continuous-learning focus, spike-validated)
+# SnapPick Implementation Plan (Revision 5: temporary baseline and gated local learning)
 
 **Project:** SnapPick is a Perak community recycling app. Residents photograph household waste, receive sorting guidance, request pickup for accepted recyclable materials, and see privacy-safe recycling statistics.
 
@@ -30,28 +30,28 @@
 
 ## Phase 0: Spike findings (completed). These override earlier assumptions
 
-A throwaway spike was run on a real Android phone before the real project started. It tested the riskiest technical pieces. **The real project is built from scratch in a new monorepo and a new Supabase project.** Nothing from earlier attempts is carried over except the spike code and these findings. The spike code is archived under `scripts/spike/` and is reused in Phase 5.
+A separate `waste-app` smoke app was run on a real Android phone before the SnapPick scanner was built. It proves that the temporary YOLOv8n float32 TFLite model loads and draws multi-object boxes on device. **The real project is built from scratch in this repository and a new Supabase project.** The smoke model and its verified seven-label order are carried forward as the initial model contract and immutable bundled fallback. The temporary dataset/model prove the product and continuous-learning flow; they are not presented as the final research dataset/model.
 
 | Check | Result |
 |---|---|
 | Build on Expo SDK 57, React Native 0.86, new architecture, Android | Pass |
-| On-device inference (CPU, 640 px input, YOLO nano float32) | about 350 ms |
-| Preprocessing (resize, JPEG decode, tensor) | about 1.5 s. This is the slowest step. |
-| Output decode and NMS | about 110 ms |
-| Multi-object boxes | Pass |
+| On-device inference (CPU, 384 px input, YOLOv8n float32) | Pass in `waste-app`; timing must be measured again in SnapPick |
+| Preprocessing (centre crop, resize, JPEG decode, tensor) | Pass; timing must be measured again in SnapPick |
+| Output decode and NMS | Pass; timing must be measured again in SnapPick |
+| Multi-object boxes | Pass in the smoke app |
 | Map pins, tap, remove, Navigate (MapLibre, no API key) | Pass |
 
 **Decisions taken because of the spike**
 
 1. **Detector is YOLO (Ultralytics) exported to TFLite**, replacing EfficientDet-Lite. The spike proved it on-device, and TFLite Model Maker (the old training route) is deprecated.
-2. **Export format is not fixed by the library.** The spike model took input `[1, 3, 640, 640]` (channels-first) and returned raw `[1, 84, 8400]` output, so the app must decode and run NMS itself. The model manifest therefore declares input layout, output layout, and whether post-processing is included. An export-contract test in the pipeline checks this on every model.
-3. **Preprocessing is the performance bottleneck, not the model.** Phase 5 includes an optimisation task (single resize, no double JPEG encode) and records stage timings.
-4. **Letterbox is kept**, but done in code on decoded pixels. The spike used stretch resizing, and YOLO trains on letterboxed images. Letterbox vs stretch is measured in experiment E6.
+2. **Export format is not fixed by the library.** The smoke app handles a channels-first or channels-last input and raw YOLO output, then runs NMS itself. The exact shipped artifact metadata remains unverified until inspected with a TFLite interpreter. The model manifest therefore declares input shape/layout, output layout, box units, and whether post-processing is included. An export-contract test checks every model.
+3. **The temporary baseline stays at 384 x 384.** It was trained/exported at that size and is already phone-tested. A 640 candidate is an experiment only after enough local data exists; it ships only if accuracy gains justify its measured device cost.
+4. **The bundled fallback keeps centre-crop preprocessing.** It must not silently change. Future manifests may declare `centre_crop` or `letterbox`; candidates are trained and evaluated with their declared path. Letterbox is a later controlled experiment because it preserves edge objects, not a prerequisite for continuing development.
 5. **Maps use MapLibre with the OpenFreeMap style (no key)**. MapTiler is the fallback. `Marker` has no built-in clustering, so pin counts per grid cell come from the server.
 6. **Android only.** iOS items (APNs, TestFlight, CoreML) are dropped. FCM is kept.
-7. **Public data first.** Development runs on public datasets. The local Perak dataset is swapped in later by retraining. See Section 3.
+7. **Temporary baseline first.** Development begins with the verified temporary Kaggle dataset/model. The owner later collects a local training set and a separate frozen golden evaluation set, then retrains without changing the seven labels. See Section 3 and `docs/MODEL_IMPROVEMENT_GUIDE.md`.
 8. **Confident false detections exist.** The generic model called a random object "bicycle" at 0.90 confidence. Training and the golden set therefore include a negatives set, and false positives per image on negatives is a release-gate metric.
-9. **Battery stays manual-only**, confirmed by the spike: a generic model never detected a battery.
+9. **Hazards stay manual-only.** Batteries, bulbs, e-waste, and other hazards are safety declarations; the seven-label detector does not claim to detect them.
 10. **Licence note.** Ultralytics code and weights are AGPL-3.0. This is acceptable for an academic FYP, must be stated in the report, and should be confirmed with the supervisor because the app is distributed to pilot users.
 
 **Known gotchas (also recorded in `AGENTS.md`)**
@@ -146,41 +146,34 @@ To keep scanning fast, conditional items default to "clean and dry" with a singl
 
 ## 3. Household-waste class taxonomy and realistic training scope
 
-The model uses broad, easy-to-understand household-waste labels. The purpose is to cover the common things found in a home—not to distinguish PET from HDPE, aluminium from steel, or every package subtype.
+The temporary dataset's class IDs were visually verified by the owner in the working smoke app. SnapPick preserves these seven labels and their exact order. **Do not rename, merge, or remap them during import, training, export, feedback capture, or display.**
 
-| App class | Examples | How it enters the app | Default pickup decision |
-|---|---|---:|---|
-| plastic_bottle | Water, soft-drink, shampoo, detergent bottles | Detector | Accepted |
-| glass_bottle | Glass drink bottles and jars | Detector | Conditional |
-| can | Drink cans and food cans | Detector | Accepted |
-| cardboard | Shipping boxes, cereal boxes, clean cartons | Detector | Accepted |
-| paper | Newspaper, office paper, flyers, paper bags | Detector | Accepted |
-| plastic_container | Food tubs, takeaway containers, cups, rigid packaging | Detector | Conditional |
-| plastic_bag_wrapper | Shopping bags, snack wrappers, cling film | Detector | Not accepted in MVP |
-| beverage_carton | Milk, juice, and drink cartons | Detector | Conditional |
-| food_waste | Leftovers, fruit/vegetable scraps | User-added only | Not accepted in pickup |
-| textile | Clothes, fabric, shoes | User-added only | Conditional |
-| e_waste | Small electronics, chargers, cables | User-added safety declaration | Restricted |
-| battery_bulb | Batteries, bulbs, fluorescent tubes | User-added safety declaration | Restricted |
-| general_waste | Mixed or non-recyclable household waste | User-added only | Not accepted in pickup |
+| ID | Detector/app class | Dataset meaning used by the verified baseline | Default pickup decision |
+|---|---|---|---|
+| 0 | `metal` | Metal items, including cans | Conditional: confirm locally accepted, clean, and safe |
+| 1 | `trash` | Masks, diapers, wrappers, and mixed trash represented by the source dataset | Not accepted |
+| 2 | `glass` | Jars, glasses, and other glass represented by the source dataset | Conditional: confirm locally accepted and not broken/unsafe |
+| 3 | `paper` | Magazines, newspapers, and paper | Conditional: clean and dry |
+| 4 | `cardboard` | Cardboard, cartons, and boxes represented by the source dataset | Conditional: clean, dry, and locally accepted |
+| 5 | `plastic` | Plastic items represented by the source dataset | Conditional: user/local-rule confirmation is required because the class is broad |
+| 6 | `biological` | Food and biological waste represented by the source dataset | Not accepted |
 
-The MVP vision model therefore has **eight**, not thirteen, trained object-detection classes. Food waste, textile, e-waste, battery/bulb, and general waste remain in the app as manual labels, safety declarations, and static guidance; the model does not claim to detect them. The pickup-review checklist always asks “Any batteries, bulbs, e-waste, or hazardous items not shown?” before submission.
+Broad visual labels do not by themselves prove pickup eligibility. The rule set combines class, condition, and local rules. Safety declarations for batteries, bulbs, e-waste, chemicals, sharp objects, and other hazards stay manual; the detector does not claim to recognize them. The review checklist always asks whether restricted or hazardous items are present.
 
-### Baseline dataset and FYP training plan (public data first)
+### Baseline dataset and FYP training plan (temporary model first)
 
-**Strategy.** The whole app is built and tested with public data first. The first model, **M0, is trained on public data only**. The local Perak dataset is added later by creating a new dataset version and retraining from the M0 champion. No app change is needed, because labels, input size, and thresholds are read from the model manifest. This also gives the research a clean before and after: M0 (public only) against later models that add local data.
+**Strategy.** The existing `waste-app` model is **M0**, the initial champion, and the immutable model bundled with the APK. It was trained from `sumn2u/garbage-classification-v2-bbox-384` with the seven verified labels, YOLOv8n, 384 x 384 input, float32 TFLite export, and centre-crop inference. It proves the scanner and model-lifecycle flow while the owner collects local data. It is temporary and is not claimed to be the final research model.
 
-- Start from Ultralytics YOLO nano weights pretrained on COCO (the family tested in the spike).
-- Merge the relevant TACO labels into the eight broad classes. TACO contains 1,500 images and 9,823 labelled objects, but its maintainers note that many original classes have too few annotations and should be merged, which is why SnapPick uses broad labels. [TACO dataset](https://github.com/pedropro/TACO)
-- Phase 4 proposes additional public datasets (bottles, cans, cartons, household waste) **with their licences, for approval before use**. Public mirrors can carry different licences from the original, so check each one.
-- Add **negatives**: public images of non-waste objects and clutter, so the model learns to stay quiet. The spike showed confident false detections on random objects.
-- **Two evaluation sets.** A held-out slice of the public data serves as the development gate. The **local golden test set** is the one reported in the research.
-- **Collect the local golden set early, not at the end.** Public data cannot show whether the model works on household scenes. Start with at least 20 to 30 instances per class over several sessions and different days, then grow to at least 50 per class before the experiments. Annotate it in Label Studio or CVAT, freeze it, and hash it.
-- Expect a domain gap: TACO is mostly outdoor litter. Gate rules are relative to the current champion, so a weak M0 does not block development.
-- Minimum milestone: at least 150 verified training instances per trained class (public plus local), aiming for 300 or more on the weakest classes.
-- Record the licence and source of every dataset in `dataset_versions`. Keep download scripts in the repository, not the images.
-- Report per-class results honestly and expand the weakest classes rather than promising a high mAP for every label.
-- Google Colab or Kaggle free GPU is used for finite, checkpointed runs. Resume a run if a session ends.
+- Preserve the label strings and order for every future model unless a separately approved breaking taxonomy revision is performed.
+- Audit and record the temporary dataset's source, licence, version/download identifier, class counts, split seed, and known limitations. Verification by the owner resolves the class-order question but not licence or representativeness.
+- Copy the exact working model as a versioned, checksum-verified bundled fallback. Never overwrite it with a downloaded model.
+- Build a **local training set** from owner and consented-user photos. It may grow and be retrained on.
+- Build a separate **local golden evaluation set** from different capture sessions. Freeze and hash it; never train on it or tune against individual images. Start with 20 to 30 instances per class and grow to at least 50 per class before final experiments.
+- Collect a frozen negatives set of non-waste scenes and confusing household objects to measure false positives.
+- Minimum training milestone: at least 150 verified instances per class, aiming for 300 or more and expanding the weakest/most varied classes first. These are instance counts, not photo counts.
+- Record provenance and consent for every source in `dataset_versions`; manifests contain random sample/session IDs, never user IDs or private pickup data.
+- Use Google Colab or Kaggle for finite, checkpointed runs. Warm-start later candidates from the current champion while retaining replay data.
+- Follow `docs/DATASET_COLLECTION_GUIDE.md` when taking photos and `docs/MODEL_IMPROVEMENT_GUIDE.md` when building, evaluating, and promoting a candidate.
 
 Each class maps to a recyclable state and instruction through the local rule set. National guidance includes paper/cardboard, glass, plastic, and metal as recyclable material families, but the active PBT rule set remains the operational source of truth. [SWCorp material categories](https://www.swcorp.gov.my/sisa-domestik-dan-pembersihan-awam/)
 
@@ -202,7 +195,7 @@ Start with the broad classes above. Only split a class into more detailed labels
 | Repository | One Git monorepo with independent package roots: `apps/mobile`, `apps/dashboard`, `ml` (Python), `supabase`, `docs`, `scripts`. There is no shared JavaScript workspace, so Expo's exact React Native and React versions never conflict with the dashboard. Expo supports npm workspaces if code sharing is ever needed. |
 | Navigation | Expo Router. Keep non-route files (models, assets) outside `src/app`. |
 | Camera and image | expo-camera, expo-image-manipulator, plus jpeg-js and base64-js for pixel decoding (spike-proven). Revisit a faster decode path if preprocessing stays above 1 s. |
-| On-device detection | react-native-fast-tflite with react-native-nitro-modules. **Pin the versions installed in the spike.** YOLO nano exported to TFLite (float32, 640 px baseline). CPU first; the GPU delegate is evaluated in E6. NNAPI is deprecated on Android 15 and is not used. |
+| On-device detection | react-native-fast-tflite with react-native-nitro-modules. **Pin the versions installed in the smoke app.** YOLOv8n exported to TFLite (float32, 384 px bundled baseline). CPU first; 640 px and GPU are later measured experiments. NNAPI is deprecated on Android 15 and is not used. |
 | Detection overlay | React Native Views positioned over the photo (spike-proven). SVG only if dashed borders misbehave. |
 | Maps and location | MapLibre React Native (Expo config plugin, new architecture, not Expo Go) with the **OpenFreeMap** style (no key; confirm its terms and attribution for the pilot). MapTiler is the fallback. expo-location for GPS. Navigate uses the Android navigation link with a generic map link as fallback. |
 | Backend | Supabase Auth, Postgres, PostGIS, Storage, Realtime, Row Level Security, Edge Functions, and database RPC. Supabase JS **2.117.2**. |
@@ -240,24 +233,24 @@ This means location is optional for scanning but mandatory for creating a pickup
 
 ### Image preparation
 
-Use **aspect-ratio-preserving letterboxing**, done in code on decoded pixels:
+Preprocessing is **model-contract driven**, done in code on decoded pixels:
 
-1. Resize the photo proportionally so its largest side fits the model input (640 px baseline; the size comes from the manifest).
-2. Decode to RGB and write the pixels into a square buffer, filling the remaining area with neutral grey padding.
-3. Arrange the channels as the model expects. **Read the layout from the model's input tensor shape** (channels-first `[1, 3, H, W]` or channels-last `[1, H, W, 3]`), and check it against the manifest. A mismatch shows a readable error instead of silent garbage.
-4. Run inference, then decode. The spike model returns raw `[1, 4 + classes, anchors]` values (box centre, width, height, then one score per class). The app decodes them, applies class-wise NMS (IoU 0.5, at most 30 boxes), and skips NMS only when the manifest says post-processing is already inside the model. Never apply NMS twice.
-5. Remove the padding offset and apply the inverse scale when drawing boxes on the displayed image. Store normalised boxes relative to the EXIF-corrected original photo.
+1. Read input width, height, resize mode, normalization, dtype, and expected layout from `model_manifest.json`.
+2. For the immutable M0 fallback, centre-crop the largest square from the EXIF-corrected photo and resize it to 384 x 384. The UI shows the analysed square. Do not silently change this model to letterbox.
+3. A future candidate may declare `letterbox`: resize the whole photo proportionally and pad the unused area. Train and evaluate that candidate with the same declared path.
+4. Arrange channels as the model expects. Read the actual input tensor shape (channels-first `[1, 3, H, W]` or channels-last `[1, H, W, 3]`) and check it against the manifest. A mismatch is a readable model-level error.
+5. Decode according to the declared output contract, apply class-wise NMS only when post-processing is not embedded, then invert the declared image transform when drawing boxes. Store boxes normalized to the full EXIF-corrected original photo.
 
-Letterboxing avoids distorted bottles and cans and avoids cropping items at the photo edge. The spike used stretch resizing, so letterbox vs stretch is compared in experiment E6.
+Centre crop has the strongest evidence for M0 because it works in the smoke app, but it excludes edge content. Letterbox preserves the whole scene and is the preferred later experiment for mixed/multi-object photos. Compare 384 centre crop, 384 letterbox, and optionally 640 letterbox on the same frozen golden set and reference phone; promote only through the normal gate.
 
 ### Performance budget
 
-| Stage | Spike baseline | Target |
+| Stage | Current M0 evidence | Target |
 |---|---|---|
-| Preprocess | about 1.5 s | under 1 s (single resize, no double JPEG encode) |
-| Inference (CPU) | about 350 ms | 500 ms or less |
-| Decode + NMS | about 110 ms | 150 ms or less |
-| End to end | about 2 s | 3 s or less |
+| Preprocess | Works in smoke app; not timed in current audit | Establish baseline, then target under 1 s |
+| Inference (CPU) | Works in smoke app; not timed in current audit | 500 ms or less |
+| Decode + NMS | Works in smoke app; not timed in current audit | 150 ms or less |
+| End to end | Works in smoke app; not timed in current audit | 3 s or less |
 
 Every scan records `preprocess_ms` and `inference_ms`, which also feed the drift statistics.
 
@@ -405,6 +398,7 @@ SnapPick's detector improves from consented user images through a reproducible, 
 3. **Humans stay in the loop** for annotation of hard samples and for release approval.
 4. **Everything is versioned and reproducible:** dataset, config, code commit, and model hash.
 5. **The pipeline is code, not a server.** It runs on free CI plus a free GPU notebook, and the same scripts can move to a paid server later without redesign.
+6. **The fallback is immutable.** The exact bundled M0 model remains inside every compatible APK and is never replaced on disk.
 
 ### 10.2 Pipeline architecture
 
@@ -456,7 +450,7 @@ The admin annotates a fixed budget per cycle (initially 100–200 images). Activ
 
 - **Golden test set:** local Perak photos, at least 50 instances per trained class, annotated by the admin, frozen, hashed, and never used for training. A new golden set is created only as a new version, and all models are re-evaluated on both.
 - **Validation set:** separate from the golden set, used for threshold tuning and early stopping.
-- **Public held-out set:** a slice of the public data, never trained on, used as the development gate while local data is still small. The local golden set remains the reported result.
+- **Temporary-source held-out set:** the original temporary dataset validation/held-out slice, never trained on in that run. It documents M0 but does not replace the local golden set used for champion/candidate decisions.
 - **Negatives set:** non-waste and clutter images used to measure false positives per image. It is part of both the validation and golden evaluation.
 - **Compression path:** training images are stored at 800 px JPEG quality about 0.65, while the app resizes full photos at inference. Evaluate the golden set through the same compression path to expose any train/serve gap.
 - **Split rules:** split by user or scan session, and remove near-duplicates across splits using perceptual hashing, so similar images never sit in both train and test.
@@ -476,7 +470,7 @@ Guards: a minimum of 7 days between automatic runs, and the golden test set must
 ### 10.7 Training recipe
 
 - **Framework:** Ultralytics YOLO (PyTorch). Record the Ultralytics version in every run.
-- **Warm start** from the current champion model, not from COCO each time. M0 starts from COCO-pretrained nano weights.
+- **Warm start** from the current champion model, not from COCO each time. M0 was trained from COCO-pretrained YOLOv8n weights.
 - **Rehearsal** with the replay buffer, and a class-balanced sampler. Include the negatives set in every build.
 - **Augmentation** matched to phone photos: brightness, blur, flip, and scale (tuned on top of the framework defaults).
 - **Reproducibility:** fixed seeds and a frozen YAML config committed to the repository.
@@ -493,14 +487,14 @@ Every candidate is evaluated on the golden set and compared with the current cha
 |---|---|
 | Overall accuracy | mAP@0.5 at least 0.5 points above the champion, or within the bootstrap 95% CI and clearly better on the targeted weak class |
 | No regression | No class AP falls more than 3 points below the champion |
-| Eligible-class recall | Recall for accepted recyclable classes does not drop |
+| Pickup-relevant recall | Recall for `metal`, `glass`, `paper`, `cardboard`, and `plastic` does not drop beyond the approved tolerance |
 | Export parity | The TFLite model is within 1 mAP@0.5 point of the PyTorch model on the golden set (applies to any fp16 or int8 variant too) |
 | Export contract | Input and output tensor shapes and layout match the manifest, and TFLite outputs match PyTorch on 10 reference images |
 | Negatives | False positives per image on the negatives set do not increase |
-| Size and latency | Size within budget. Median on-device model inference at most 500 ms and end-to-end scan at most 3 s on the reference phone (spike baseline: 350 ms and about 2 s) |
+| Size and latency | Size within budget. Median on-device model inference at most 500 ms and end-to-end scan at most 3 s on the reference phone; establish the SnapPick M0 baseline before comparing candidates |
 | Smoke test | Model loads in the app harness and reproduces expected boxes on 10 reference images within tolerance |
 
-These thresholds are starting values to be justified and adjusted in the report. A candidate that fails is marked `rejected`, the champion stays, and the failure reason is stored. Failed cycles are also research data.
+These thresholds are starting values to be justified and adjusted in the report. A candidate that fails is marked `rejected`, the champion stays, and the metrics, configuration, hashes, and failure reason are stored. The rejected model artifact may be archived or removed according to storage policy, but the audit record remains. Verified consented samples return to the eligible data pool for later cycles; they are not deleted merely because one candidate failed. Failed cycles are also research data.
 
 ### 10.9 Registration, approval, and rollout
 
@@ -508,8 +502,10 @@ These thresholds are starting values to be justified and adjusted in the report.
 - Status path: `candidate` → `approved` (admin) → `rolling_out` → `stable`, or `rolled_back`.
 - The model manifest also carries labels, input size, output tensor specification, and thresholds, so the app never hard-codes them.
 - Rollout uses the deterministic rule from Section 6: stable hash of user ID modulo 100 is below the rollout percentage.
-- The demonstration shows 10% → 100% and a rollback (percentage set to 0), with the app falling back to the previous known-good model.
+- The demonstration shows 10% → 100% and a rollback (percentage set to 0), with the app falling back first to a validated previous champion and always retaining the bundled M0 as the final fallback.
 - Admin approval can start as an edit in Supabase Studio and later become a simple admin screen.
+
+At activation, verify the manifest schema, SHA-256, exact seven labels and order, minimum app version, input/output tensor contract, and bundled-reference smoke test before switching atomically. A download, checksum, contract, load, smoke-test, or repeated inference failure disables that downloaded version locally and returns to the bundled fallback. A single unreadable photograph, no-detection result, or ordinary preprocessing error does not permanently roll back a model.
 
 ### 10.10 Monitoring and drift
 
@@ -532,7 +528,7 @@ Every run is identified by a run ID that links the dataset hash, config hash, gi
 
 The pilot will have few users, so the evidence combines real and simulated cycles, and the report states clearly which is which.
 
-- **M0 (baseline):** TACO-merged classes plus the local seed set.
+- **M0 (baseline):** the verified temporary seven-class `waste-app` model and dataset. It is also the immutable bundled fallback.
 - **Simulated stream:** split the local and collected images into four chronological batches that arrive as cycles, producing M1 to M4. This shows pipeline behaviour under controlled data arrival.
 - **Real pilot cycles:** at least one or two cycles from actual pilot users, reporting correction rate before and after.
 
@@ -543,7 +539,7 @@ The pilot will have few users, so the evidence combines real and simulated cycle
 | E3 | Sample selection: uncertainty-based vs random, same annotation budget | RQ2, RQ4 |
 | E4 | Forgetting: with vs without replay | RQ3 |
 | E5 | Real pilot: correction rate and per-class change across model versions | RQ1 |
-| E6 | On-device: stage timings (preprocess, inference, decode), model size, letterbox vs stretch, fp32 vs fp16 (int8 optional), CPU vs GPU delegate, across versions | Feasibility |
+| E6 | On-device: stage timings, model size, 384 centre crop vs 384 letterbox vs optional 640 letterbox, fp32 vs fp16 (int8 optional), CPU vs GPU delegate, across versions | Feasibility |
 
 The expected direction (M4 better than M0 on the golden set and on a temporal hold-out of later images) is stated before running the experiments.
 
@@ -599,8 +595,8 @@ These can be considered only after partner agreements, verified local rules, use
 - Claim race: concurrent claims on one request produce exactly one winner; a user cannot claim their own request.
 - Geofence: points inside, outside, and on the Perak boundary behave correctly on both client and server.
 - Offline: scanning works with no connection; request and claim are disabled with the correct message.
-- Model update: bad hash, failed load, tensor-shape mismatch, and failed smoke test all fall back to the previous model.
-- Detector contract: letterbox and inverse box mapping round-trip correctly, decode handles both output layouts, and NMS is not applied twice.
+- Model update: bad hash, failed load, tensor-shape mismatch, and failed smoke test fall back to the previous validated model, with the bundled M0 as the final fallback.
+- Detector contract: centre-crop and letterbox inverse mapping round-trip correctly, decode handles both output layouts, and NMS is not applied twice.
 - Negatives: false positives per image on the negatives set are reported for every model version.
 - Retention: a scan with a past retention date is pruned, and a training-approved scan is not.
 
@@ -612,7 +608,7 @@ These can be considered only after partner agreements, verified local rules, use
 
 | Weeks | Focus |
 |---|---|
-| 1–2 | Repository foundation, auth, schema, and consent (Phases 1 to 3) alongside public dataset assembly, baseline model M0 (public only), and the start of the local golden set (the spike is already done) |
+| 1–2 | Repository foundation, auth, schema, and consent (Phases 1 to 3), formalize the temporary M0, and start separate local training and golden collection sessions |
 | 3–4 | Scan UI by porting the spike code, preprocessing optimisation, and pipeline skeleton with dummy data |
 | 5–6 | Guidance engine, pickup request with geofence and masked locations |
 | 7–8 | Collector map, claim, activity, proof, and checklist verification |
@@ -630,10 +626,10 @@ These can be considered only after partner agreements, verified local rules, use
 | Noisy or wrong labels | Label tiers, count-match filter, admin review, and the E2 ablation |
 | Free GPU limits or session timeouts | Resumable checkpoints, small warm-start runs, and a Colab fallback |
 | TFLite export shapes vary between export routes | Pin the export command and Ultralytics version, read the layout from the tensor shape, and run the export-contract test on every model |
-| Slow preprocessing on device | Measured baseline (about 1.5 s), optimisation task in Phase 5, and a target of under 1 s |
+| Slow preprocessing on device | Measure the 384 centre-crop M0 path in Phase 5, optimize redundant image conversions, and target under 1 s where the reference phone permits |
 | Confident false detections on non-waste objects | Negatives set in training and the golden set, per-class thresholds, and the review sheet |
 | AGPL licence of the detector | State it in the report, confirm with the supervisor, and keep source available |
-| Weak public-only baseline due to domain gap | Relative gate rules, and an early local golden set to measure the gap honestly |
+| Temporary-model domain gap | Relative gate rules, and an early local golden set to measure the gap honestly |
 | Low accuracy on glass vs plastic and small items | Per-class reporting, per-class thresholds, and more local data for weak classes |
 | Scope creep | Delivery tiers (Research focus and delivery priorities), with simplified implementations of retained features |
 | Supabase Free pausing before a demo | Keep the project active, and check it before demonstrations |

@@ -230,34 +230,29 @@ Used only for Google sign-in (no Maps API, no billing).
 
 ## Part M. Data collection protocol (start now)
 
-The **local golden test set** is the one dataset you cannot postpone. Every research result is measured on it. Public data trains M0; the golden set tells you whether it works on real household scenes.
+Follow `docs/DATASET_COLLECTION_GUIDE.md`; it is the canonical collection protocol. Create two isolated streams from different sessions: a growing local training set and a frozen local golden evaluation set. Never move a golden photo, near-duplicate, burst neighbour, or same-scene alternate into training.
 
-**Targets**
-- Start: 20 to 30 instances per trained class. Grow to at least 50 per class before Phase 15.
-- Classes: `plastic_bottle`, `glass_bottle`, `can`, `cardboard`, `paper`, `plastic_container`, `plastic_bag_wrapper`, `beverage_carton`.
-- Also collect **30 to 50 negatives**: clutter and non-waste objects (cups of other kinds, toys, tools, furniture corners, plants) so the model can learn to stay quiet.
-
-**How to photograph**
-- [ ] Several sessions on **different days and places**. Golden-set sessions must be **different** from any photos you later use for training.
-- [ ] Vary lighting (daylight, kitchen light, evening), backgrounds (kitchen floor, table, bin bags, gate area), distance, and angle. Include single items and mixed piles. Hold the phone at normal height.
-- [ ] Keep the **original phone resolution**. Do not edit, crop, or filter.
-- [ ] **Privacy:** no faces, identity documents, vehicle plates, or children in frame. Photograph only your own items or items from people who agreed.
-- [ ] Store raw files in `ml\data\local\golden\raw\` (git-ignored) with names like `20261012_s01_0001.jpg`.
-- [ ] Keep a `session_log.csv` with: date, place, lighting, phone, number of photos, notes.
-- [ ] Do not annotate yet. Annotation starts in Phase 4.
+**Minimum readiness targets**
+- [ ] Exact labels/order: `metal`, `trash`, `glass`, `paper`, `cardboard`, `plastic`, `biological`; do not remap them.
+- [ ] Golden start: 20 to 30 annotated object instances per class; grow to at least 50 per class before final experiments.
+- [ ] Training milestone: at least 150 verified instances per class; aim for 300 or more with the collection-guide variation matrix.
+- [ ] Negatives: start with 30 to 50 photos and grow to at least 100 varied non-target scenes.
+- [ ] Preserve originals, strip EXIF only in derived/exported copies, and store all data under git-ignored `ml/data/`.
+- [ ] No faces, children, identity documents, vehicle plates, screens with personal data, addresses, or other identifying content. Photograph only owned/consented items.
+- [ ] Record anonymous session ID, split purpose, date, broad setting type, lighting, phone, distance/angle mix, class counts, and notes. Never record user ID, exact coordinates, address, or pickup notes.
 
 ---
 
 ## Part N. Spike archive (before Phase 1)
 
-- [ ] Copy the spike's main screen file (the `App.tsx` content from your spike project, which lives in `src\app\index.tsx` there) into `scripts\spike\App.tsx` in the new repo.
+- [ ] Archive the relevant smoke-app detector code or a provenance note under `scripts\spike\` without copying secrets or large model artifacts into git.
 - [ ] Create `docs\SPIKE_RESULTS.md` containing:
-  - the results table (preprocess about 1.5 s, inference about 350 ms, decode about 110 ms, multi-object boxes, map pins and Navigate passed);
+  - the verified results table (384 x 384 centre-crop seven-label model loads and draws multi-object boxes on the Android phone; re-measure stage timings in SnapPick);
   - the output of `npm ls react-native-fast-tflite react-native-nitro-modules @maplibre/maplibre-react-native expo react-native` run inside the spike project;
-  - the **export details**: the exact Ultralytics export command, the output of `pip show ultralytics`, and the tensor shapes the app printed (`[1,3,640,640]` in, `[1,84,8400]` out);
+  - the **export details**: exact Ultralytics export command/version, model SHA-256, and actual input/output tensor details inspected from `waste_model.tflite`; do not copy unrelated 640/COCO tensor shapes;
   - whether the map showed real tiles with the OpenFreeMap style, or a blank map (a screenshot helps);
   - the phone model.
-- [ ] Optional: copy the spike's `.tflite` file to a safe place outside git. It is the placeholder model for Phase 5.
+- [ ] Copy the exact working `waste_model.tflite` to a safe versioned location outside git and record its SHA-256. It becomes the immutable bundled fallback in Phase 5.
 
 ---
 

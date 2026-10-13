@@ -1,6 +1,6 @@
 # SNAPPICK_BUILD_GUIDE
 
-> **Status (Revision 4, fresh start):** new repository, new Supabase project. The Phase 0 spike was done in a separate throwaway project and is archived under `scripts/spike/`. Phases 1 to 15 are all still to be built. Detector: YOLO (Ultralytics) exported to TFLite. Android only. Public data first.
+> **Status (Revision 5, temporary baseline first):** new repository and Supabase project. The working `waste-app` smoke model is the initial champion and immutable bundled fallback. Detector: YOLOv8n (Ultralytics) exported to float32 TFLite, Android only, seven verified labels, 384 x 384 centre-crop baseline. The temporary dataset/model prove the flow while local training and golden data are collected.
 
 Phase-by-phase instructions for building SnapPick with an AI coding assistant. Each phase produces working code **and** a verification checklist you run yourself. Design details live in `SNAPPICK_PLAN.md`. Machine setup lives in `SNAPPICK_PREREQUISITE.md` (finish it first).
 
@@ -27,7 +27,7 @@ When finished, create docs/phases/PHASE-N-CHECKLIST.md following section 3 of th
 and list every assumption you made.
 ```
 
-**Critical path note.** Phase 4 (ML baseline) is built on **public datasets first**, so it no longer waits on photo collection. The one thing to start on day 1 is the **local golden test set** (a few photo sessions, protocol in Prerequisite Part M), because every research result is measured on it. The rest of the local dataset can be collected later and swapped in by retraining.
+**Critical path note.** Phase 4 formalizes the already working temporary M0 rather than inventing a new taxonomy. Start the separate local golden evaluation set and local training set early, using different capture sessions. See `docs/DATASET_COLLECTION_GUIDE.md`. Later candidates keep the seven labels and are promoted only through `docs/MODEL_IMPROVEMENT_GUIDE.md`.
 
 ---
 
@@ -39,7 +39,7 @@ and list every assumption you made.
 | 1 | Repository foundation and email auth | Monorepo skeleton, app on your phone with 5 tabs, email sign-in | Low |
 | 2 | Database and security foundation | All core tables (with detection boxes), RLS, seeds, tests | Low |
 | 3 | Google sign-in, consent, profile | Google login, consent screens, profile edit | Medium (Google Cloud) |
-| 4 | ML baseline M0 (public data) | First YOLO `.tflite` model, export-contract tested, measured accuracy | **Medium** (dataset approval, local golden set) |
+| 4 | ML baseline M0 (temporary verified model) | Existing YOLO `.tflite` formalized, manifest/contract tested, measured baseline | **Medium** (artifact audit, local golden set) |
 | 5 | On-device scan and review sheet | Working offline scanner with coloured boxes, timings recorded | Low |
 | 6 | Guidance engine | Local rules plus cached LLM advice | Medium (OpenAI) |
 | 7 | Pickup request | Map pin, geofence, masked location | Medium (map key, boundaries) |
@@ -126,16 +126,15 @@ Model label order (verify against the trained model's manifest):
 
 | ID | Class | Default decision |
 |---|---|---|
-| 0 | plastic_bottle | Accepted |
-| 1 | glass_bottle | Conditional |
-| 2 | can | Accepted |
-| 3 | cardboard | Accepted |
-| 4 | paper | Accepted |
-| 5 | plastic_container | Conditional |
-| 6 | plastic_bag_wrapper | Not accepted |
-| 7 | beverage_carton | Conditional |
+| 0 | `metal` | Conditional: local acceptance, cleanliness, and safety confirmation |
+| 1 | `trash` | Not accepted |
+| 2 | `glass` | Conditional: local acceptance and not broken/unsafe |
+| 3 | `paper` | Conditional: clean and dry |
+| 4 | `cardboard` | Conditional: clean, dry, and locally accepted |
+| 5 | `plastic` | Conditional: user/local-rule confirmation because the label is broad |
+| 6 | `biological` | Not accepted |
 
-Manual-only labels (never detected by the model): `food_waste` (not accepted), `textile` (conditional), `e_waste` (restricted), `battery_bulb` (restricted), `general_waste` (not accepted).
+The order above was visually verified by the owner in `waste-app`. Do not remap it. Manual safety declarations (never claimed as detector output) cover batteries, bulbs, e-waste, chemicals, sharp objects, and other hazards. The existing Phase 2 seed contains the former taxonomy; update it only through a new migration/seed change in the appropriate implementation phase, never by rewriting an applied migration.
 
 Condition states: `clean_dry`, `contaminated_wet`, `broken_unsafe`, `unknown`.
 
@@ -178,10 +177,11 @@ Every app has a committed `.env.example` listing the names without values. `EXPO
   "file": "snappick_det_v0.tflite",
   "sha256": "...",
   "framework": { "name": "ultralytics", "version": "..." },
-  "input": { "width": 640, "height": 640, "layout": "NCHW", "dtype": "float32", "normalize": "0-1", "resize": "letterbox", "pad_value": 114 },
-  "output": { "format": "yolo_raw", "shape": [1, 12, 8400], "layout": "attributes_first", "box_format": "cx,cy,w,h", "box_units": "normalised", "postprocess_in_model": false },
+  "role": "bundled_fallback",
+  "input": { "width": 384, "height": 384, "layout": "NCHW", "dtype": "float32", "normalize": "0-1", "resize": "centre_crop" },
+  "output": { "format": "yolo_raw", "shape": [1, 11, 3024], "layout": "attributes_first", "box_format": "cx,cy,w,h", "box_units": "normalised", "postprocess_in_model": false },
   "nms": { "iou": 0.5, "max_boxes": 30 },
-  "labels": ["plastic_bottle", "glass_bottle", "can", "cardboard", "paper", "plastic_container", "plastic_bag_wrapper", "beverage_carton"],
+  "labels": ["metal", "trash", "glass", "paper", "cardboard", "plastic", "biological"],
   "thresholds": { "default": { "confident": 0.80, "uncertain": 0.40 }, "per_class": {} },
   "min_app_version": "1.0.0",
   "dataset_version": "...",
@@ -190,9 +190,10 @@ Every app has a committed `.env.example` listing the names without values. `EXPO
 ```
 
 Notes:
-- The values above are placeholders. The real values come from the export of the actual model. The spike model had input `[1, 3, 640, 640]` and output `[1, 84, 8400]`; an 8-class model gives `[1, 12, 8400]`.
+- The label order, 384 input size, float32 dtype, normalized input, and centre-crop path reflect the working smoke app. Tensor layout, output shape/layout, box units, framework version, metrics, and hash shown above are expected/example values until the exact shipped `.tflite` is inspected. Replace placeholders only with measured artifact metadata. Seven raw-output classes normally imply `4 + 7 = 11` attributes, but never infer the whole contract from that alone.
 - The app reads labels, input size, layout, output format, NMS settings, and thresholds from this file and **also checks them against the loaded model's tensor shapes**. A mismatch is a readable error, never silent garbage.
 - The app never hard-codes any of these values.
+- Supported resize modes begin with `centre_crop` and `letterbox`. The immutable bundled fallback declares `centre_crop`; a candidate may declare `letterbox` only when training, evaluation, inverse box mapping, and the manifest all agree.
 
 ---
 
@@ -204,13 +205,13 @@ Notes:
 | Check | Result |
 |---|---|
 | Expo SDK 57 / RN 0.86 / new architecture build on Android | Pass |
-| On-device inference (CPU, 640 px, YOLO nano float32) | about 350 ms |
-| Preprocess (resize, JPEG decode, tensor) | about 1.5 s |
-| Decode + NMS | about 110 ms |
+| On-device inference (CPU, 384 px, YOLOv8n float32) | Pass in `waste-app`; re-measure in SnapPick |
+| Preprocess (centre crop, resize, JPEG decode, tensor) | Pass in `waste-app`; re-measure in SnapPick |
+| Decode + NMS | Pass in `waste-app`; re-measure in SnapPick |
 | Multi-object boxes | Pass |
 | MapLibre pins, tap, remove, Navigate (no API key) | Pass |
 
-What it taught: the exported model had channels-first input and raw `[1, 84, 8400]` output (so the app decodes and runs NMS); preprocessing, not the model, is the bottleneck; generic models give confident wrong answers on non-waste objects; battery is not detected by a generic model; the fast-tflite API takes a delegates list and `ArrayBuffer`s; MapLibre uses `[lng, lat]`.
+What it taught: the seven-label 384 x 384 float32 model works on the target phone with centre-crop preprocessing and app-side raw-output decoding/NMS; exact tensor metadata and stage timings must be captured again rather than copied from an older unrelated spike; the fast-tflite API takes a delegates list and `ArrayBuffer`s; MapLibre uses `[lng, lat]`.
 
 ---
 
@@ -313,40 +314,41 @@ Implement Phase 3 (Google sign-in, consent and profile) as described in the guid
 
 ---
 
-## Phase 4: ML baseline M0 (research track, public data first)
+## Phase 4: ML baseline M0 (formalize the temporary verified model)
 
-**Goal.** A trained YOLO model (M0, eight classes) built from public datasets, exported to TFLite, passing the export-contract test, with measured per-class accuracy.
+**Goal.** Preserve the working seven-class `waste-app` YOLOv8n model as M0 and the immutable bundled fallback, reproduce/audit its temporary dataset recipe, generate its manifest and measured baseline, and pass the export-contract test.
 **Plan sections.** 3, 6, 10.5, 10.7, 10.8.
 **Depends on.** Phase 0 (done). Can run in parallel with Phases 1 to 3.
 
 **Manual work before**
 - Kaggle account with phone verification (needed for GPU). Colab is the fallback.
 - Label Studio installed in a **separate** conda environment (Prerequisite Part K).
-- Record the spike's export details in `docs/SPIKE_RESULTS.md`: `pip show ultralytics` output, the exact export command, and the tensor shapes the app printed. The AI needs these.
-- **Approve datasets.** The AI proposes public datasets with their licences. You approve, then download them into `ml/data/` (git-ignored). Note every licence for your report.
-- **Local golden set (start now, grow later).** Photograph local household waste on different days and places than any future training photos: at least 20 to 30 instances per class to start, growing to at least 50 per class before Phase 15. Annotate in Label Studio (bounding boxes, eight classes). It is **never** used for training. Protocol in Prerequisite Part M.
+- Make the working `waste-app/assets/waste_model.tflite`, `labels.json`, and training notebook available locally; do not commit large or unlicensed artifacts. Record SHA-256 before copying anything.
+- Record the notebook's exact package versions, training/export command, source dataset identifier and licence, split seed, metrics that can be reproduced, and the exact TFLite tensor details read by an interpreter. Mark anything unavailable as unverified.
+- **Local golden set (start now, grow later).** Follow `docs/DATASET_COLLECTION_GUIDE.md`: at least 20 to 30 instances per detector class to start, growing to at least 50 per class before final experiments, from sessions excluded from training. It is **never** trained on.
 - **Negatives.** Collect 30 to 50 photos of clutter and non-waste objects, plus public non-waste images the AI proposes.
 - Ask your supervisor about the AGPL licence of the detector (plan Phase 0, decision 10).
 
 **Prompt**
 ```
-Implement Phase 4 (ML baseline M0) as described in the guide. Before coding, check the
-current Ultralytics training and TFLite export tooling, find the export route that
-produces the tensor layout recorded in docs/SPIKE_RESULTS.md, check Label Studio's
-YOLO-format export, and propose the route, a fallback, and a list of public datasets
-with licences for me to approve.
+Implement Phase 4 (formalize the temporary M0 baseline) as described in the guide.
+Preserve the verified labels metal, trash, glass, paper, cardboard, plastic, biological
+in that exact order; do not remap them. Inspect the actual TFLite tensor contract,
+reproduce/audit the notebook, and follow docs/DATASET_COLLECTION_GUIDE.md and
+docs/MODEL_IMPROVEMENT_GUIDE.md. Verify current Ultralytics, TFLite export, and Label
+Studio YOLO-export APIs before coding.
 ```
 
 **The AI builds** (in `ml/`)
-- `configs/classes.yaml`, a TACO-to-eight-class mapping script writing YOLO-format labels, adapters for the approved public datasets, a negatives set, and split scripts that produce train, validation, and a **public held-out** set.
+- `configs/classes.yaml` with the exact seven-label order, a non-remapping adapter/audit for the temporary Kaggle dataset, a negatives set, and deterministic split scripts that produce train, validation, and a temporary-source held-out set without session/near-duplicate leakage.
 - Label Studio import and export helpers for the local golden set.
-- A Kaggle notebook (thin wrapper over `src/`) that trains from COCO-pretrained nano weights with resumable checkpoints, evaluates on the public held-out set (and on the local golden set when present, reported separately), exports TFLite with a pinned command and fixed input size, runs the **export-contract test** (tensor shapes and layout match the manifest; TFLite outputs match the PyTorch model on 10 reference images), and runs a smoke test.
+- A Kaggle notebook (thin wrapper over `src/`) that reproduces M0 from COCO-pretrained YOLOv8n weights with resumable checkpoints, evaluates the temporary held-out set (and local golden set separately when present), exports float32 384 x 384 TFLite, runs the **export-contract test** and PyTorch/TFLite parity check on 10 reference images, and runs a smoke test.
 - Outputs: `snappick_det_v0.tflite`, `model_manifest.json` (section 5.6), `metrics.json` (mAP@0.5, mAP@[.5:.95], per-class AP and recall, false positives per image on the negatives set, model size), and a README with the exact Kaggle steps.
 - A script that evaluates the golden set through the same compression path as uploaded images (800 px, JPEG quality about 0.65).
 
 **Verify**
 - The notebook runs end to end on Kaggle with GPU.
-- `metrics.json` shows per-class AP on the public held-out set. Low values are acceptable: this is the M0 baseline and domain gap is expected.
+- `metrics.json` shows per-class AP on the temporary-source held-out set. Low values are acceptable: M0 is a temporary baseline and domain gap is expected.
 - If a local golden set exists, its results are reported separately and labelled as such.
 - TFLite export is within 1 mAP@0.5 point of the PyTorch model, or the gap is documented.
 - The export-contract test passes, and the `.tflite` loads in a Python interpreter and detects objects on a sample image.
@@ -359,11 +361,11 @@ with licences for me to approve.
 
 **Goal.** Take a photo, see coloured boxes, edit items in the review sheet, and reach the Request button, all offline, with stage timings recorded.
 **Plan sections.** 2 (scan), 3, 6.
-**Depends on.** Phases 1 and 2 (model from Phase 4, or the spike's COCO model as a placeholder).
+**Depends on.** Phases 1 and 2 (formalized M0 from Phase 4, or the exact working smoke model with an explicitly provisional manifest).
 
 **Manual work before**
 - Copy `snappick_det_v0.tflite` and `model_manifest.json` into `apps/mobile/assets/models/` (outside `src/app`).
-- If Phase 4 is not ready, copy the spike's COCO YOLO `.tflite` into the same folder and tell the AI. It will use a temporary manifest that maps COCO classes such as bottle and cup to app classes, so you can test the plumbing.
+- If Phase 4 is not ready, copy the exact working `waste-app` `.tflite` and labels into the same folder and use an explicitly provisional manifest. Do not remap labels. Keep this artifact as the immutable bundled fallback.
 - Record `npm ls react-native-fast-tflite react-native-nitro-modules` in `docs/ENVIRONMENT.md` after install.
 
 **Prompt**
@@ -373,9 +375,9 @@ Implement Phase 5 (On-device scan and review sheet) as described in the guide.
 
 **The AI builds**
 - `react-native-fast-tflite` with `react-native-nitro-modules` (pin the installed versions), Metro config for `.tflite`, `expo-camera`, gallery picker (for testing), `expo-image-manipulator`, `jpeg-js`, and `base64-js`. Load models with the delegates list (`[]`) and pass and receive `ArrayBuffer`s. Read `scripts/spike/App.tsx` as the working reference.
-- Pure TypeScript modules with unit tests: **letterbox preprocessing and inverse box mapping**, channel layout from the model's input tensor shape, output decoding for the manifest's format (both attributes-first and transposed layouts, normalised or pixel units), class-wise NMS, the confidence policy with per-class thresholds, and a manifest-versus-tensor-shape check with a readable error. NMS is skipped only when the manifest says post-processing is in the model.
-- A letterbox-or-stretch switch (from the manifest or a debug flag) so experiment E6 can compare them.
-- **Preprocessing optimisation:** resize once, avoid the double JPEG encode the spike used, and target under 1 s (spike baseline about 1.5 s).
+- Pure TypeScript modules with unit tests: **centre-crop and letterbox preprocessing plus inverse box mapping**, channel layout from the model input tensor shape, output decoding for both declared layouts and units, class-wise NMS, confidence policy with per-class thresholds, and manifest-versus-tensor checks with readable errors. NMS is skipped only when the manifest says post-processing is in the model.
+- A manifest-selected `centre_crop` or `letterbox` path. M0 uses centre crop at 384; no debug flag may silently override an approved model's manifest.
+- **Preprocessing optimisation:** resize once, avoid unnecessary JPEG re-encoding, measure the M0 baseline, and target under 1 s where the device permits.
 - Rules engine (class + condition + rule set → decision) using bundled `perak_general` rules, with unit tests.
 - Detection overlay using positioned Views (dashed border for uncertain boxes), with labels and scores.
 - **Review items** bottom sheet: one row per detected box, tap-to-highlight in both directions, condition selector defaulting to clean and dry with a single **Everything looks clean and dry** confirmation, change label, remove, **Add item not in photo**, a read-only aggregate header, and the "any batteries, bulbs, e-waste not shown?" question.
@@ -388,10 +390,10 @@ Implement Phase 5 (On-device scan and review sheet) as described in the guide.
 - Colours follow the rules; a low-score detection appears grey dashed and can be confirmed, changed, or removed.
 - Setting an item to wet or broken turns it red and removes it from the pickup list.
 - Tapping a row highlights its box and tapping a box scrolls to its row.
-- Stage timings are shown. Record preprocess, inference, and decode in `docs/results/` and compare with the spike baseline (1.5 s, 350 ms, 110 ms).
+- Stage timings are shown. Record preprocess, inference, and decode in `docs/results/`; compare candidates with the measured SnapPick M0 baseline and label any historical smoke-app timings separately.
 - A deliberately mismatched manifest shows a readable error instead of wrong boxes.
 - Denying camera permission shows a helpful message rather than crashing.
-- Unit tests pass (letterbox round trip, decode, NMS, rules).
+- Unit tests pass (centre-crop and letterbox round trips, decode, NMS, rules).
 
 ---
 
@@ -580,6 +582,7 @@ export-contract code rather than rewriting it.
 **The AI builds** (in `ml/`)
 - Migration for `dataset_versions`, `training_runs`, `model_versions`, `drift_daily`.
 - Stages: export (opted-in only), quality filter (blur, perceptual-hash duplicates, consent), label-tier resolution with Label Studio import and export, dataset build (splits by user or session, golden set excluded, negatives included, replay buffer, versioning), trigger checker, Ultralytics training with warm start from the champion and replay, evaluate-and-gate (rules from plan section 10.8, including export parity, the export contract, and false positives on negatives), TFLite export with the contract test and smoke test, registration (upload to the `models` bucket and a `candidate` row with SHA-256), and a model card generator.
+- A rejected candidate never replaces the champion. Preserve its metrics, config and data/model/code hashes, and rejection reason; the rejected binary may be archived or removed by retention policy. Verified consented samples remain eligible for later cycles rather than being deleted because one run failed.
 - GitHub Actions workflow `ml-pipeline.yml` (scheduled and manual dispatch) and a Kaggle runner that pushes, polls, and pulls outputs.
 - A **dry-run mode** with a tiny synthetic dataset that exercises every stage in under 10 minutes.
 - Unit tests for filters, label logic, and gate logic.
@@ -611,7 +614,8 @@ Implement Phase 12 (Model delivery, rollout and monitoring) as described in the 
 ```
 
 **The AI builds**
-- App model manager: check for an eligible version (approved and `hash(user_id) mod 100 < rollout_percent`), verify `min_app_version` and free space, download, verify SHA-256, check the model's input and output tensor shapes against its manifest, run a smoke test on a bundled reference image, then switch atomically. Downloaded models are loaded from a `file://` URL. It keeps the previous model and falls back to the bundled model on any failure.
+- App model manager: check for an eligible version (approved and `hash(user_id) mod 100 < rollout_percent`), verify `min_app_version` and free space, download to a separate versioned path, verify SHA-256, enforce the exact seven-label order, check input/output tensors against the manifest, and run a bundled-reference smoke test before an atomic switch. Downloaded models never overwrite the bundled M0 asset. It may keep a validated previous champion, but the immutable bundled M0 is the final fallback.
+- Roll back for model-level failures: download/checksum/manifest/contract/load/smoke-test failures or repeated inference failures. A single corrupt photo, preprocessing error, or no-detection result does not permanently blacklist or roll back a model.
 - Active model version recorded on every scan, and an About or debug screen showing it.
 - SQL function and daily job filling `drift_daily` (mean top score, uncertain share, correction rate per class, collector mismatch rate).
 - Admin helpers (approve, rollback) that write to `audit_log`, with a minimal admin-only screen if practical.
@@ -620,6 +624,7 @@ Implement Phase 12 (Model delivery, rollout and monitoring) as described in the 
 - Approve at 100%: the app downloads and reports the new version.
 - A tampered file (wrong hash) is rejected and the old model stays.
 - A model that fails the smoke test falls back automatically.
+- A deliberately corrupt photo produces a scan-level error without permanently rolling back a valid model.
 - Setting rollout to 0 returns the app to the previous known-good model.
 - A unit test proves the rollout bucket is deterministic for a given user.
 - `drift_daily` fills for the active version.
@@ -704,7 +709,7 @@ Implement Phase 15 (Experiments, testing, pilot and release) as described in the
 ```
 
 **The AI builds**
-- Experiment scripts E1–E6 in `ml/experiments/` (learning curve, label strategy, sampling strategy, forgetting with and without replay, real pilot comparison, on-device stage timings with letterbox vs stretch, fp32 vs fp16, and CPU vs GPU delegate), writing tables and plots to `docs/results/`, with the simulated stream clearly labelled as simulated.
+- Experiment scripts E1–E6 in `ml/experiments/` (learning curve, label strategy, sampling strategy, forgetting with and without replay, real pilot comparison, on-device stage timings with centre crop vs letterbox, optional 640 comparison, fp32 vs fp16, and CPU vs GPU delegate), writing tables and plots to `docs/results/`, with the simulated stream clearly labelled as simulated.
 - `scripts/run-all-tests` combining RLS, claim race, geofence, offline, model update, and retention tests.
 - Usability materials: task list and a System Usability Scale form.
 - Signed release APK build steps, a seeded demo dataset, a demo script, and final README and architecture documentation.

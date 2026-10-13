@@ -20,9 +20,10 @@ Single Git repository, **independent package roots** (no root JavaScript workspa
 ## Project facts that must not drift
 
 - **Android only.** No iOS code, CoreML, or APNs.
-- **Detector:** YOLO (Ultralytics) exported to TFLite, run on device with `react-native-fast-tflite`. Eight trained classes; five manual-only labels. Class names are **plain text, never database enums**.
+- **Detector:** YOLO (Ultralytics) exported to TFLite, run on device with `react-native-fast-tflite`. The detector labels, in fixed order, are `metal`, `trash`, `glass`, `paper`, `cardboard`, `plastic`, `biological`. Do not remap them. Batteries, bulbs, e-waste, and other hazards remain manual safety declarations. Class names are **plain text, never database enums**.
 - **Everything about the model comes from `model_manifest.json`** (labels, input size and layout, output format, NMS, thresholds) and is checked against the loaded model's tensor shapes. Never hard-code them.
-- **Public data first.** The local dataset is swapped in later by retraining. The local golden test set is never trained on.
+- **Temporary baseline first.** The verified `waste-app` YOLOv8n model and temporary Kaggle dataset prove the app and learning flow. The immutable bundled fallback uses 384 x 384 centre-crop preprocessing. Later models use the owner's local dataset, but the frozen local golden evaluation set is never trained on.
+- **Safe model lifecycle.** The bundled fallback is never overwritten. A candidate replaces the current champion only after the frozen-set gate, export-contract checks, and approval; any model-level load, validation, or repeated inference failure falls back to the bundled model.
 - **Statuses, RPCs, Edge Functions, tables, buckets, env var names:** guide section 5. Keep them identical across phases.
 
 ## Known gotchas (from the spike)
@@ -33,8 +34,8 @@ Single Git repository, **independent package roots** (no root JavaScript workspa
 - MapLibre: coordinates are `[longitude, latitude]`; new architecture only; development build, not Expo Go. `Marker` has no clustering.
 - A native library change needs a native rebuild (`npx expo run:android`), not a reload.
 - Keep the repository path short on Windows (path-length limits in Android native builds).
-- Preprocessing (not inference) was the slowest step in the spike (about 1.5 s vs 350 ms). Measure stages separately.
+- The working smoke path includes centre crop, resize, JPEG decode, tensor creation, inference, decode, and NMS. Measure every stage separately in SnapPick; do not copy timings from an unrelated model/spike.
 
 ## Style
 
-TypeScript strict. Small pure modules with unit tests for anything with logic (letterbox, decode, NMS, rules, gate). Clear error messages shown to users. Commit messages: `feat: phase N ...`, `fix: ...`, `docs: ...`.
+TypeScript strict. Small pure modules with unit tests for anything with logic (centre-crop/letterbox transforms, decode, NMS, rules, gate). Clear error messages shown to users. Commit messages: `feat: phase N ...`, `fix: ...`, `docs: ...`.
