@@ -1,0 +1,20 @@
+{
+  "model_version": "v0",
+  "status": "unverified",
+  "evaluation": {
+    "temporary_source_held_out": {
+      "dataset": "sumn2u/garbage-classification-v2-bbox-384",
+      "split": "not available in this checkout; notebook used random 80/20 validation",
+      "map50": null,
+      "map50_95": null,
+      "per_class_ap": {},
+      "per_class_recall": {}
+    },
+    "local_golden_v1": {"status": "not collected", "map50": null, "map50_95": null, "per_class_ap": {}, "per_class_recall": {}},
+    "negatives": {"status": "not collected", "false_positives_per_image": null}
+  },
+  "model_size_bytes": 12705251,
+  "latency": {"status": "not measured on Redmi Note 10", "preprocess_ms": null, "inference_ms": null, "decode_nms_ms": null, "end_to_end_ms": null},
+  "parity": {"status": "unverified: no PyTorch checkpoint/reference images and no TFLite runtime in this checkout", "map50_gap": null},
+  "notes": ["M0 is a temporary baseline; missing metrics are not zero and must not be presented as measured results."]
+}

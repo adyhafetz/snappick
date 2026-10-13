@@ -1,0 +1,22 @@
+{
+  "status": "partial_unverified_audit",
+  "source_identifier": "sumn2u/garbage-classification-v2-bbox-384",
+  "downloaded_in_this_checkout": false,
+  "source_licence": "unverified",
+  "immutable_dataset_version": "unverified",
+  "notebook_loader": {
+    "formats": ["YOLO", "COCO", "VOC"],
+    "normalisation": "converts boxes to normalized YOLO coordinates",
+    "split": "random 80/20 image split with seed 42",
+    "session_or_near_duplicate_control": "not implemented in source notebook; Phase 4 helper keeps session_id and supplied duplicate_group/perceptual_hash groups intact for a rerun"
+  },
+  "class_mapping": {
+    "labels": ["metal", "trash", "glass", "paper", "cardboard", "plastic", "biological"],
+    "numeric_mapping": "owner visually verified in the working smoke app; upstream dataset numeric mapping not independently reproduced"
+  },
+  "known_limitations": [
+    "temporary source may not represent Perak household scenes",
+    "no source counts or held-out metrics can be claimed until the dataset is downloaded with provenance",
+    "the source notebook hard-codes the approved labels after loading records"
+  ]
+}

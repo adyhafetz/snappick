@@ -1,0 +1,23 @@
+{
+  "artifact": "C:/Projects/waste-app/assets/waste_model.tflite",
+  "sha256": "ffb5240658fdffabbf27ee5de6a9cc33c27a20882467723a0f4771a41468dd7d",
+  "size_bytes": 12705251,
+  "schema_version": 3,
+  "subgraphs": 1,
+  "inputs": [{
+    "index": 0,
+    "name": "serving_default_args_0",
+    "shape": [1, 3, 384, 384],
+    "dtype": "float32",
+    "quantization": {"scale": [], "zero_point": []}
+  }],
+  "outputs": [{
+    "index": 414,
+    "name": "serving_default_output_0_output",
+    "shape": [1, 11, 3024],
+    "dtype": "float32",
+    "quantization": {"scale": [], "zero_point": []}
+  }],
+  "inspection_method": "tflite FlatBuffer metadata; runtime invocation not performed",
+  "output_semantics_source": "normalised cx,cy,w,h and app-side NMS are inferred from the preserved notebook/app decoder; these semantics are not encoded in the FlatBuffer"
+}

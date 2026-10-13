@@ -1,0 +1,9 @@
+names:
+  0: metal
+  1: trash
+  2: glass
+  3: paper
+  4: cardboard
+  5: plastic
+  6: biological
+nc: 7

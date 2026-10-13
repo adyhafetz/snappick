@@ -1,0 +1,5 @@
+{
+  "status": "unverified",
+  "reason": "The preserved source folder contains the exported TFLite and notebook, but no best.pt, reference image set, or recorded predictions.",
+  "required_before_candidate_promotion": "Run PyTorch and TFLite on the same ten fixed reference images and report numerical tolerance and mAP gap."
+}

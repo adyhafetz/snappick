@@ -111,7 +111,8 @@ Record the exact installed versions here after each install (`npm ls <package>`)
 | react-native-fast-tflite | | Phase 5 (see `docs/SPIKE_RESULTS.md` for the version that worked) |
 | react-native-nitro-modules | | Phase 5 |
 | @maplibre/maplibre-react-native | | Phase 7 |
-| ultralytics (Python) | | Phase 4 (use the version from the spike export) |
+| ultralytics (Python) | 8.4.173 | Phase 4 audit environment; source export version remains unverified |
+| tflite (Python FlatBuffer inspector) | 2.10.0 | Phase 4 |
 | next | | Phase 13 |
 
 ---
@@ -150,3 +151,4 @@ Record the exact installed versions here after each install (`npm ls <package>`)
 | 2026-10-06 | Phase 1 installed Expo 57.0.27, React Native 0.86.3, React 19.2.3, Expo Router 57.0.25, Expo Dev Client 57.0.19, AsyncStorage 2.2.0, and Supabase JS 2.117.2; native Android build/install passed on the connected phone |
 | 2026-10-07 | Phase 2 added the database/security migrations, seed, RLS isolation test package, and phase checklist; the first migration was applied to the linked project and all public tables report RLS enabled |
 | 2026-10-07 | Phase 3 installed `@react-native-google-signin/google-signin` 16.1.5 and the native Android build passed |
+| 2026-10-13 | Phase 4 inspected the preserved M0 FlatBuffer with `tflite` 2.10.0; audit environment records Ultralytics 8.4.173, while the source export version and runtime interpreter remain unverified |

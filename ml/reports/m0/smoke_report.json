@@ -1,0 +1,5 @@
+{
+  "status": "passed_structural_only",
+  "checks": ["SHA-256", "manifest schema", "input shape/dtype", "output shape/dtype", "label order"],
+  "runtime_inference": "unverified: TensorFlow/TFLite interpreter and reference images are unavailable in the current environment"
+}

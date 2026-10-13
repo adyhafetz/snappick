@@ -1,0 +1,4 @@
+# Phase 4 audit/inspection dependencies. The model binary itself is kept out of Git.
+tflite==2.10.0
+numpy==2.2.6
+ultralytics==8.4.173

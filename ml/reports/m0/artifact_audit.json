@@ -1,0 +1,36 @@
+{
+  "model": {
+    "source_path": "C:/Projects/waste-app/assets/waste_model.tflite",
+    "preserved_copy": "ml/artifacts/m0/snappick_det_v0.tflite",
+    "sha256": "ffb5240658fdffabbf27ee5de6a9cc33c27a20882467723a0f4771a41468dd7d",
+    "size_bytes": 12705251,
+    "role": "initial_champion_and_immutable_bundled_fallback"
+  },
+  "source_artifacts": {
+    "labels_json_sha256": "877270383e4af928008f29928fd65909675af951441f4e6f69768b33e0185fd3",
+    "training_notebook_sha256": "2249ae2b82e77f920e504569247205176f26092f696e1332396fb4f12fa70766"
+  },
+  "labels": {
+    "source": "C:/Projects/waste-app/assets/labels.json",
+    "values": ["metal", "trash", "glass", "paper", "cardboard", "plastic", "biological"],
+    "order_verification": "owner visual verification recorded in SPIKE_RESULTS.md"
+  },
+  "notebook": {
+    "source": "C:/Projects/waste-app/waste_detection_training.ipynb",
+    "dataset": "sumn2u/garbage-classification-v2-bbox-384",
+    "base_weights": "yolov8n.pt",
+    "epochs": 50,
+    "image_size": 384,
+    "batch": 16,
+    "patience": 10,
+    "split": "random 80/20 image split, seed 42",
+    "export": "Ultralytics TFLite float32 at imgsz 384"
+  },
+  "unverified": [
+    "dataset licence and immutable download/version identifier",
+    "exact Ultralytics/TensorFlow/export versions used to create the artifact",
+    "reproducible held-out metrics and per-class metrics",
+    "reference-image expected boxes and PyTorch/TFLite parity",
+    "reference-phone stage timings and memory"
+  ]
+}

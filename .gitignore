@@ -3,6 +3,7 @@ node_modules/
 .env.*
 !.env.example
 ml/data/
+ml/artifacts/
 .expo/
 dist/
 web-build/
