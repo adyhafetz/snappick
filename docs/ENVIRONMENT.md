@@ -108,8 +108,14 @@ Record the exact installed versions here after each install (`npm ls <package>`)
 | @supabase/supabase-js | 2.117.2 | Phase 1 |
 | @react-native-google-signin/google-signin | 16.1.5 | Phase 3 |
 | Supabase CLI | 2.119.0 | Phase 2 |
-| react-native-fast-tflite | | Phase 5 (see `docs/SPIKE_RESULTS.md` for the version that worked) |
-| react-native-nitro-modules | | Phase 5 |
+| react-native-fast-tflite | 3.0.1 | Phase 5 (exact installed; CPU delegate `[]`) |
+| react-native-nitro-modules | 0.37.1 | Phase 5 |
+| expo-camera | 57.0.6 | Phase 5 |
+| expo-image-manipulator | 57.0.21 | Phase 5 |
+| expo-image-picker | 57.0.4 | Phase 5 |
+| jpeg-js | 0.4.4 | Phase 5 |
+| base64-js | 1.5.1 | Phase 5 |
+| vitest | 3.2.4 | Phase 5 pure TypeScript unit tests |
 | @maplibre/maplibre-react-native | | Phase 7 |
 | ultralytics (Python) | 8.4.173 | Phase 4 audit environment; source export version remains unverified |
 | tflite (Python FlatBuffer inspector) | 2.10.0 | Phase 4 |
@@ -152,3 +158,4 @@ Record the exact installed versions here after each install (`npm ls <package>`)
 | 2026-10-07 | Phase 2 added the database/security migrations, seed, RLS isolation test package, and phase checklist; the first migration was applied to the linked project and all public tables report RLS enabled |
 | 2026-10-07 | Phase 3 installed `@react-native-google-signin/google-signin` 16.1.5 and the native Android build passed |
 | 2026-10-13 | Phase 4 inspected the preserved M0 FlatBuffer with `tflite` 2.10.0; audit environment records Ultralytics 8.4.173, while the source export version and runtime interpreter remain unverified |
+| 2026-10-13 | Phase 5 pinned fast-tflite 3.0.1 / Nitro 0.37.1 and added Expo camera, image processing, picker, JPEG decode, and Vitest versions listed above |

@@ -138,7 +138,7 @@ The order above was visually verified by the owner in `waste-app`. Do not remap 
 
 Condition states: `clean_dry`, `contaminated_wet`, `broken_unsafe`, `unknown`.
 
-Eligibility = f(class, condition, active rule set). Colours: green = accepted, amber = conditional or needs confirmation, red = not accepted or restricted, grey dashed = uncertain.
+Eligibility = f(class, condition, active rule set) and is displayed separately from material classification. Overlay colours: green = recyclable material, red = not recyclable, grey dashed = uncertain until confirmed. A conditional recyclable item stays green when wet or broken; its review row states that it is not eligible and gives the rule reason. Colour is never the sole status signal.
 
 Confidence policy (defaults, overridable per class in the model manifest): score at least 0.80 confident; 0.40 to 0.79 uncertain; below 0.40 hidden. A high score is not proof of correctness (the spike saw 0.90 on a wrong object), so the negatives set and the review sheet remain safeguards.
 
@@ -387,8 +387,8 @@ Implement Phase 5 (On-device scan and review sheet) as described in the guide.
 **Verify**
 - Airplane mode: scanning still works.
 - Boxes line up with real objects (test with a bottle and a can on a table, and a mixed pile).
-- Colours follow the rules; a low-score detection appears grey dashed and can be confirmed, changed, or removed.
-- Setting an item to wet or broken turns it red and removes it from the pickup list.
+- Recyclable materials are green and non-recyclable materials red; a low-score detection appears grey dashed and can be confirmed, changed, or removed.
+- Set a recyclable item to wet or broken -> expect its box to remain green, its row to say "Not eligible for pickup" with the reason, and its count to be excluded from pickup eligibility.
 - Tapping a row highlights its box and tapping a box scrolls to its row.
 - Stage timings are shown. Record preprocess, inference, and decode in `docs/results/`; compare candidates with the measured SnapPick M0 baseline and label any historical smoke-app timings separately.
 - A deliberately mismatched manifest shows a readable error instead of wrong boxes.

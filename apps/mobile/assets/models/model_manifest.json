@@ -1,0 +1,45 @@
+{
+  "version": "v0",
+  "file": "snappick_det_v0.tflite",
+  "sha256": "ffb5240658fdffabbf27ee5de6a9cc33c27a20882467723a0f4771a41468dd7d",
+  "framework": {
+    "name": "ultralytics",
+    "version": "unverified: source notebook did not record the installed version"
+  },
+  "role": "bundled_fallback",
+  "input": {
+    "width": 384,
+    "height": 384,
+    "layout": "NCHW",
+    "dtype": "float32",
+    "normalize": "0-1",
+    "resize": "centre_crop"
+  },
+  "output": {
+    "format": "yolo_raw",
+    "shape": [1, 11, 3024],
+    "layout": "attributes_first",
+    "box_format": "cx,cy,w,h",
+    "box_units": "normalised",
+    "postprocess_in_model": false
+  },
+  "nms": {
+    "iou": 0.5,
+    "max_boxes": 30
+  },
+  "labels": ["metal", "trash", "glass", "paper", "cardboard", "plastic", "biological"],
+  "thresholds": {
+    "default": {"confident": 0.8, "uncertain": 0.4},
+    "per_class": {}
+  },
+  "min_app_version": "1.0.0",
+  "dataset_version": "temporary-kaggle-sumn2u-garbage-classification-v2-bbox-384-unverified",
+  "metrics": {
+    "map50": null,
+    "map50_95": null,
+    "per_class_ap": {},
+    "per_class_recall": {},
+    "fp_per_image_negatives": null,
+    "model_size_bytes": 12705251
+  }
+}
