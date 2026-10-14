@@ -23,6 +23,7 @@
       "expo-dev-client",
       ["expo-camera", { "recordAudioAndroid": false }],
       ["expo-image-picker", { "microphonePermission": false }],
+      ["expo-location", { "locationWhenInUsePermission": "Allow SnapPick to use your location only when you request local recycling guidance." }],
       [
         "expo-splash-screen",
         {

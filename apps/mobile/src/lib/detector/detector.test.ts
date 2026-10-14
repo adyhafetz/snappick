@@ -79,10 +79,10 @@ describe('YOLO manifest contract', () => {
 
 describe('rules and review rows', () => {
   it('removes wet and broken conditional materials from eligibility', () => {
-    expect(evaluateEligibility('plastic', 'clean_dry').eligibility).toBe('eligible');
+    expect(evaluateEligibility('plastic', 'clean_dry').eligibility).toBe('needs_confirmation');
     expect(evaluateEligibility('plastic', 'contaminated_wet').eligibility).toBe('not_eligible');
-    expect(evaluateEligibility('glass', 'broken_unsafe').eligibility).toBe('not_eligible');
-    expect(evaluateEligibility('paper', 'unknown').eligibility).toBe('not_eligible');
+    expect(evaluateEligibility('glass', 'broken_unsafe').eligibility).toBe('restricted');
+    expect(evaluateEligibility('paper', 'unknown').eligibility).toBe('needs_confirmation');
   });
   it('creates exactly one review row for each detected box', () => {
     const rowDetections = [0, 1, 2].map((n) => ({ x1: 0, y1: 0, x2: 1, y2: 1, label: `label${n}`, classId: n, score: 0.9, confidence: 'confident' as const }));
@@ -99,7 +99,7 @@ describe('rules and review rows', () => {
     expect(materialPresentation('trash', false, false)).toMatchObject({ classification: 'not_recyclable', color: '#b42318' });
     expect(materialPresentation('plastic', true, false)).toMatchObject({ classification: 'unsure', color: '#64748b' });
     expect(pickupDecision('plastic', 'clean_dry', true, false).eligibility).toBe('needs_confirmation');
-    expect(pickupDecision('plastic', 'clean_dry', true, true).eligibility).toBe('eligible');
+    expect(pickupDecision('plastic', 'clean_dry', true, true).eligibility).toBe('needs_confirmation');
   });
 });
 

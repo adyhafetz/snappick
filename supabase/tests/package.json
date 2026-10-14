@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:rls": "node rls.test.mjs"
+    "test:rls": "node rls.test.mjs",
+    "test:edge": "node --experimental-strip-types guidance.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.2"

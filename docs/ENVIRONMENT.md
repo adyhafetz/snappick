@@ -110,6 +110,7 @@ Record the exact installed versions here after each install (`npm ls <package>`)
 | Supabase CLI | 2.119.0 | Phase 2 |
 | react-native-fast-tflite | 3.0.1 | Phase 5 (exact installed; CPU delegate `[]`) |
 | react-native-nitro-modules | 0.37.1 | Phase 5 |
+| expo-location | 57.0.21 | Phase 6 (`npx expo install`) |
 | expo-camera | 57.0.6 | Phase 5 |
 | expo-image-manipulator | 57.0.21 | Phase 5 |
 | expo-image-picker | 57.0.4 | Phase 5 |
@@ -159,3 +160,4 @@ Record the exact installed versions here after each install (`npm ls <package>`)
 | 2026-10-07 | Phase 3 installed `@react-native-google-signin/google-signin` 16.1.5 and the native Android build passed |
 | 2026-10-13 | Phase 4 inspected the preserved M0 FlatBuffer with `tflite` 2.10.0; audit environment records Ultralytics 8.4.173, while the source export version and runtime interpreter remain unverified |
 | 2026-10-13 | Phase 5 pinned fast-tflite 3.0.1 / Nitro 0.37.1 and added Expo camera, image processing, picker, JPEG decode, and Vitest versions listed above |
+| 2026-10-14 | Phase 6 added expo-location 57.0.21 with `npx expo install`; no OpenAI SDK or Supabase Edge SDK added (Responses API uses fetch and Supabase JS is imported at the pinned 2.117.2 version) |

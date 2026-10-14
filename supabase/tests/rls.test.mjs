@@ -51,7 +51,15 @@ try {
   assert.ifError(privateError);
   assert.deepEqual(privateRows, [], 'anonymous cannot read private pickup details');
 
-  console.log('RLS isolation passed: own profile/scan readable, cross-user rows and anonymous private details hidden.');
+  const { error: cacheWriteError } = await a.client.from('instruction_cache').insert({
+    cache_key: 'en-MY|perak_general|2|paper|clean_dry|1',
+    advice: { preparation: 'test', disposal: 'test', safety_warning: null, confirmation_required: false },
+    source: 'local',
+    expires_at: new Date(Date.now() + 60000).toISOString(),
+  });
+  assert.ok(cacheWriteError, 'authenticated clients cannot write directly to instruction_cache');
+
+  console.log('RLS isolation passed: own profile/scan readable, cross-user rows and anonymous private details hidden; direct guidance cache writes denied.');
 } finally {
   if (scanId) {
     const { error } = await a.client.from('scans').delete().eq('id', scanId);

@@ -1,4 +1,4 @@
-import { BUNDLED_RULE_SET, evaluateEligibility } from './rules';
+import { BUNDLED_RULE_SET, evaluateEligibility, type RuleSet } from './rules';
 import type { Condition, RuleDecision } from './types';
 
 export type MaterialPresentation = {
@@ -13,16 +13,16 @@ const CLASSIFICATION_COLORS = {
   unsure: '#64748b',
 } as const;
 
-export function materialPresentation(label: string, uncertain: boolean, confirmed: boolean): MaterialPresentation {
+export function materialPresentation(label: string, uncertain: boolean, confirmed: boolean, ruleSet: RuleSet = BUNDLED_RULE_SET): MaterialPresentation {
   if (uncertain && !confirmed) return { label, color: CLASSIFICATION_COLORS.unsure, classification: 'unsure' };
-  const rule = BUNDLED_RULE_SET.classes[label as keyof typeof BUNDLED_RULE_SET.classes];
-  const classification = rule === 'conditional' ? 'recyclable' : rule === 'not_accepted' ? 'not_recyclable' : 'unsure';
+  const rule = ruleSet.classes[label];
+  const classification = rule?.material ?? 'unsure';
   return { label, color: CLASSIFICATION_COLORS[classification], classification };
 }
 
-export function pickupDecision(label: string, condition: Condition, uncertain: boolean, confirmed: boolean): RuleDecision {
+export function pickupDecision(label: string, condition: Condition, uncertain: boolean, confirmed: boolean, ruleSet: RuleSet = BUNDLED_RULE_SET): RuleDecision {
   if (uncertain && !confirmed) {
     return { eligibility: 'needs_confirmation', reason: 'Confirm the detected label before pickup eligibility can be checked.' };
   }
-  return evaluateEligibility(label, condition);
+  return evaluateEligibility(label, condition, ruleSet);
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/providers/AuthProvider';
 import { colors, spacing } from '@/theme';
@@ -66,8 +67,8 @@ export default function ProfileScreen() {
 
   if (profileLoading || !profile) return <View style={styles.loading}><ActivityIndicator color={colors.primary} size="large" /></View>;
 
-  return <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-    <Text style={styles.eyebrow}>PROFILE</Text>
+  return <SafeAreaView edges={['top']} style={styles.safe}><ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <Text style={styles.brand}>SnapPick</Text>
     <Text style={styles.title}>Your account</Text>
     <Text style={styles.email}>{session?.user.email ?? 'Signed-in user'}</Text>
 
@@ -96,32 +97,34 @@ export default function ProfileScreen() {
       </View>
     </View>
 
-    <Pressable disabled style={styles.deleteButton}><Text style={styles.deleteText}>Delete account (coming later)</Text></Pressable>
-    <Pressable onPress={() => void signOut()} style={styles.signOut}><Text style={styles.signOutText}>Sign out</Text></Pressable>
-  </ScrollView>;
+    <Pressable disabled style={styles.deleteButton}><Text style={styles.deleteText}>Delete account is not available in this build.</Text></Pressable>
+    <Pressable accessibilityRole="button" onPress={() => void signOut()} style={({ pressed }) => [styles.signOut, pressed && styles.signOutPressed]}><Text style={styles.signOutText}>Sign out</Text></Pressable>
+  </ScrollView></SafeAreaView>;
 }
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: colors.canvas, padding: spacing.lg, paddingBottom: spacing.xl },
+  safe: { backgroundColor: colors.canvas, flex: 1 },
+  container: { padding: spacing.lg, paddingBottom: spacing.xl },
   loading: { alignItems: 'center', backgroundColor: colors.canvas, flex: 1, justifyContent: 'center' },
-  eyebrow: { color: colors.primary, fontSize: 12, fontWeight: '800', letterSpacing: 2, marginTop: spacing.lg },
-  title: { color: colors.ink, fontSize: 30, fontWeight: '800', marginTop: spacing.sm },
-  email: { color: colors.muted, fontSize: 15, marginTop: spacing.xs },
-  section: { marginTop: spacing.xl },
-  sectionTitle: { color: colors.ink, fontSize: 18, fontWeight: '800', marginBottom: spacing.sm },
-  label: { color: colors.ink, fontSize: 14, fontWeight: '700', marginBottom: spacing.xs, marginTop: spacing.md },
-  input: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 10, borderWidth: 1, color: colors.ink, fontSize: 16, paddingHorizontal: spacing.md, paddingVertical: 14 },
+  brand: { color: colors.ink, fontSize: 17, fontWeight: '800' },
+  title: { color: colors.ink, fontSize: 29, fontWeight: '800', marginTop: spacing.lg },
+  email: { color: colors.muted, fontSize: 14, marginTop: spacing.xxs },
+  section: { borderTopColor: colors.border, borderTopWidth: 1, marginTop: spacing.xl, paddingTop: spacing.md },
+  sectionTitle: { color: colors.ink, fontSize: 16, fontWeight: '700', marginBottom: spacing.sm },
+  label: { color: colors.ink, fontSize: 14, fontWeight: '700', marginBottom: spacing.xxs, marginTop: spacing.md },
+  input: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 8, borderWidth: 1, color: colors.ink, fontSize: 16, minHeight: 52, paddingHorizontal: spacing.md },
   error: { backgroundColor: colors.dangerSurface, borderRadius: 8, color: colors.danger, marginTop: spacing.md, padding: spacing.sm },
-  notice: { backgroundColor: '#ecfdf5', borderRadius: 8, color: colors.primaryDark, marginTop: spacing.md, padding: spacing.sm },
-  button: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: 10, justifyContent: 'center', marginTop: spacing.lg, minHeight: 50 },
+  notice: { backgroundColor: colors.successSurface, borderRadius: 8, color: colors.success, marginTop: spacing.md, padding: spacing.sm },
+  button: { alignItems: 'center', backgroundColor: colors.primaryDark, borderRadius: 8, justifyContent: 'center', marginTop: spacing.lg, minHeight: 50 },
   buttonPressed: { backgroundColor: colors.primaryDark },
   buttonText: { color: colors.surface, fontSize: 16, fontWeight: '800' },
-  row: { alignItems: 'center', borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
+  row: { alignItems: 'center', borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 78, paddingVertical: spacing.sm },
   rowCopy: { flex: 1 },
-  rowTitle: { color: colors.ink, fontSize: 15, fontWeight: '800' },
-  rowBody: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 4 },
-  deleteButton: { alignItems: 'center', borderColor: colors.border, borderRadius: 10, borderWidth: 1, justifyContent: 'center', marginTop: spacing.xl, minHeight: 50 },
-  deleteText: { color: colors.muted, fontSize: 15, fontWeight: '700' },
+  rowTitle: { color: colors.ink, fontSize: 14, fontWeight: '700' },
+  rowBody: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 3 },
+  deleteButton: { alignItems: 'flex-start', borderColor: colors.border, borderRadius: 8, borderWidth: 1, justifyContent: 'center', marginTop: spacing.xl, minHeight: 50, paddingHorizontal: spacing.md },
+  deleteText: { color: colors.muted, fontSize: 13, fontWeight: '600' },
   signOut: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.md, minHeight: 48 },
-  signOutText: { color: colors.danger, fontSize: 15, fontWeight: '800' },
+  signOutPressed: { backgroundColor: colors.dangerSurface },
+  signOutText: { color: colors.danger, fontSize: 14, fontWeight: '700' },
 });

@@ -1,6 +1,7 @@
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { CONSENT_VERSION, hasImageStorageConsent } from '@/lib/consent';
@@ -32,11 +33,12 @@ export default function ImageStorageConsentScreen() {
     }
   }
 
-  return <ScrollView contentContainerStyle={styles.container}>
-    <Text style={styles.step}>STEP 1 OF 2</Text>
+  return <SafeAreaView edges={['top']} style={styles.safe}><ScrollView contentContainerStyle={styles.container}>
+    <View accessibilityLabel="Step 1 of 2" style={styles.progress}><View style={styles.progressActive} /><View style={styles.progressTrack} /></View>
+    <Text style={styles.step}>Your photos</Text>
     <Text style={styles.title}>Keep your photos private by default</Text>
     <Text style={styles.body}>SnapPick can save a compressed copy of a scan for a short retention period so you can review it later. Photos stay in your private account and are not used for training unless you separately opt in.</Text>
-    <View style={styles.notice}><Text style={styles.noticeTitle}>Before you continue</Text><Text style={styles.noticeBody}>Avoid faces, identity documents, vehicle plates, and children in photos. SnapPick strips location metadata before an upload.</Text></View>
+    <View style={styles.notice}><View style={styles.noticeMark}><Text style={styles.noticeMarkText}>!</Text></View><View style={styles.noticeCopy}><Text style={styles.noticeTitle}>Protect personal details</Text><Text style={styles.noticeBody}>Avoid faces, identity documents, vehicle plates, and children in photos. SnapPick strips location metadata before an upload.</Text></View></View>
     {profileError && <Text accessibilityRole="alert" style={styles.error}>{profileError} Pull to retry or try again below.</Text>}
     {message && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
     <Pressable disabled={busy || !profile} onPress={() => void accept()} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
@@ -44,21 +46,28 @@ export default function ImageStorageConsentScreen() {
     </Pressable>
     <Pressable disabled={busy} onPress={() => setMessage('Image storage consent is required to use SnapPick. Your choice has not been changed.')} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Decline for now</Text></Pressable>
     {profileError && <Pressable onPress={() => void refreshProfile()} style={styles.retry}><Text style={styles.retryText}>Try again</Text></Pressable>}
-  </ScrollView>;
+  </ScrollView></SafeAreaView>;
 }
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: colors.canvas, flexGrow: 1, justifyContent: 'center', padding: spacing.lg },
-  step: { color: colors.primary, fontSize: 12, fontWeight: '800', letterSpacing: 2 },
-  title: { color: colors.ink, fontSize: 30, fontWeight: '800', lineHeight: 37, marginTop: spacing.sm },
-  body: { color: colors.muted, fontSize: 16, lineHeight: 24, marginTop: spacing.md },
-  notice: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 10, borderWidth: 1, marginTop: spacing.xl, padding: spacing.md },
-  noticeTitle: { color: colors.ink, fontSize: 15, fontWeight: '800' },
-  noticeBody: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: spacing.xs },
+  safe: { backgroundColor: colors.canvas, flex: 1 },
+  container: { flexGrow: 1, justifyContent: 'center', padding: spacing.lg, paddingBottom: spacing.xl },
+  progress: { flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.lg },
+  progressActive: { backgroundColor: colors.primary, borderRadius: 2, height: 4, width: 54 },
+  progressTrack: { backgroundColor: colors.border, borderRadius: 2, height: 4, width: 54 },
+  step: { color: colors.primaryDark, fontSize: 14, fontWeight: '700' },
+  title: { color: colors.ink, fontSize: 29, fontWeight: '800', lineHeight: 35, marginTop: spacing.xs },
+  body: { color: colors.muted, fontSize: 15, lineHeight: 23, marginTop: spacing.md },
+  notice: { alignItems: 'flex-start', backgroundColor: colors.warningSurface, borderRadius: 8, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl, padding: spacing.md },
+  noticeMark: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: 12, height: 24, justifyContent: 'center', width: 24 },
+  noticeMarkText: { color: colors.ink, fontSize: 14, fontWeight: '800' },
+  noticeCopy: { flex: 1 },
+  noticeTitle: { color: colors.ink, fontSize: 14, fontWeight: '700' },
+  noticeBody: { color: colors.ink, fontSize: 13, lineHeight: 20, marginTop: spacing.xxs },
   error: { backgroundColor: colors.dangerSurface, borderRadius: 8, color: colors.danger, marginTop: spacing.md, padding: spacing.sm },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: 10, justifyContent: 'center', marginTop: spacing.xl, minHeight: 52 },
+  primaryButton: { alignItems: 'center', backgroundColor: colors.primaryDark, borderRadius: 8, justifyContent: 'center', marginTop: spacing.xl, minHeight: 52 },
   pressed: { backgroundColor: colors.primaryDark },
-  primaryButtonText: { color: colors.surface, fontSize: 16, fontWeight: '800' },
+  primaryButtonText: { color: colors.surface, fontSize: 15, fontWeight: '700' },
   secondaryButton: { alignItems: 'center', minHeight: 48, justifyContent: 'center', marginTop: spacing.sm },
   secondaryButtonText: { color: colors.muted, fontSize: 15, fontWeight: '700' },
   retry: { alignItems: 'center', marginTop: spacing.sm },

@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { PlaceholderScreen } from '@/components/PlaceholderScreen';
 
-export default function RequestScreen() { return <PlaceholderScreen title="Request pickup" description="Nearby pickup requests and your active requests will appear here." />; }
+export default function RequestScreen() { return <PlaceholderScreen title="Pickup requests" description="Pickup requests are not available in this build yet." actionLabel="Scan materials" onAction={() => router.push('/(tabs)/scan')} />; }
