@@ -117,6 +117,10 @@ Record the exact installed versions here after each install (`npm ls <package>`)
 | jpeg-js | 0.4.4 | Phase 5 |
 | base64-js | 1.5.1 | Phase 5 |
 | vitest | 3.2.4 | Phase 5 pure TypeScript unit tests |
+| nativewind | 4.2.7 | UI Redesign (React Native Reusables) |
+| tailwindcss | 3.4.19 | UI Redesign |
+| lucide-react-native | 1.56.0 | UI Redesign (vector iconography) |
+| @rn-primitives (core components) | 1.5.2 | UI Redesign (accessible primitives) |
 | @maplibre/maplibre-react-native | | Phase 7 |
 | ultralytics (Python) | 8.4.173 | Phase 4 audit environment; source export version remains unverified |
 | tflite (Python FlatBuffer inspector) | 2.10.0 | Phase 4 |
@@ -161,3 +165,4 @@ Record the exact installed versions here after each install (`npm ls <package>`)
 | 2026-10-13 | Phase 4 inspected the preserved M0 FlatBuffer with `tflite` 2.10.0; audit environment records Ultralytics 8.4.173, while the source export version and runtime interpreter remain unverified |
 | 2026-10-13 | Phase 5 pinned fast-tflite 3.0.1 / Nitro 0.37.1 and added Expo camera, image processing, picker, JPEG decode, and Vitest versions listed above |
 | 2026-10-14 | Phase 6 added expo-location 57.0.21 with `npx expo install`; no OpenAI SDK or Supabase Edge SDK added (Responses API uses fetch and Supabase JS is imported at the pinned 2.117.2 version) |
+| 2026-10-14 | UI redesign: integrated React Native Reusables with NativeWind 4.2.7, Tailwind CSS 3.4.19, Lucide React Native 1.56.0, and @rn-primitives 1.5.2; preserved tflite Metro asset resolver and 100% of detection/guidance business logic |
