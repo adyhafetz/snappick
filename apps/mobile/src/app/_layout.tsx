@@ -1,8 +1,10 @@
 import '../global.css';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
-import { useColorScheme } from 'react-native';
+import { LogBox, useColorScheme } from 'react-native';
 
 import { AuthProvider } from '@/providers/AuthProvider';
+
+LogBox.ignoreLogs(['[Mbgl]', 'Invalid geometry in line layer']);
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();

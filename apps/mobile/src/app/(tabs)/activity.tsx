@@ -1,14 +1,76 @@
 import * as React from 'react';
-import { ScrollView, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import { Inbox, Truck, ArrowRight } from 'lucide-react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { ArrowRight, Ban, Inbox, RefreshCw, Truck } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
+import { supabase } from '@/lib/supabase';
+
+type MyRequest = {
+  id: string;
+  status: string;
+  district_name: string | null;
+  material_summary: { class?: string; quantity?: number }[];
+  pickup_window_start: string | null;
+  pickup_window_end: string | null;
+  created_at: string;
+};
 
 export default function ActivityScreen() {
+  const [requests, setRequests] = useState<MyRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [cancelling, setCancelling] = useState<string | null>(null);
+
+  const loadRequests = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
+    const { data, error } = await supabase
+      .from('my_pickup_requests')
+      .select('id,status,district_name,material_summary,pickup_window_start,pickup_window_end,created_at')
+      .order('created_at', { ascending: false });
+    if (error) {
+      setLoadError('Your requests could not be loaded. Check your connection and try again.');
+      setRequests([]);
+    } else {
+      setRequests((data ?? []) as MyRequest[]);
+    }
+    setLoading(false);
+  }, []);
+
+  useFocusEffect(useCallback(() => {
+    void loadRequests();
+  }, [loadRequests]));
+
+  const cancelRequest = (requestId: string) => {
+    Alert.alert('Cancel pickup request?', 'This pending request will be cancelled.', [
+      { text: 'Keep request', style: 'cancel' },
+      {
+        text: 'Cancel request',
+        style: 'destructive',
+        onPress: () => {
+          setCancelling(requestId);
+          void (async () => {
+            try {
+              const { error } = await supabase.rpc('cancel_pickup_request', { request_id: requestId });
+              if (error) {
+                Alert.alert('Could not cancel', 'This request may no longer be cancellable. Refresh your requests and try again.');
+                return;
+              }
+              await loadRequests();
+            } finally {
+              setCancelling(null);
+            }
+          })();
+        },
+      },
+    ]);
+  };
+
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} className="px-6 pt-4">
@@ -21,9 +83,7 @@ export default function ActivityScreen() {
           <Text className="text-3xl font-extrabold tracking-tight text-foreground leading-tight">
             Activity
           </Text>
-          <Text className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-            Your recycling requests and claimed community pickups.
-          </Text>
+          <Text className="text-sm text-muted-foreground mt-1.5 leading-relaxed">Your pickup requests and claimed community pickups.</Text>
         </View>
 
         {/* Section 1: My requests */}
@@ -33,7 +93,17 @@ export default function ActivityScreen() {
             <Text className="text-base font-bold text-foreground">My requests</Text>
           </View>
 
-          <Card className="p-6 items-center justify-center border-dashed border-border/80 bg-card/60">
+          {loading ? (
+            <View className="py-8 items-center"><ActivityIndicator color="#19806d" /><Text className="mt-2 text-sm text-muted-foreground">Loading requests…</Text></View>
+          ) : loadError ? (
+            <View className="py-4 items-center">
+              <Text className="text-sm text-destructive text-center">{loadError}</Text>
+              <Button onPress={() => void loadRequests()} variant="outline" className="mt-3 gap-2">
+                <RefreshCw size={15} color="#176c60" /><Text className="text-sm font-semibold text-foreground">Retry</Text>
+              </Button>
+            </View>
+          ) : requests.length === 0 ? (
+            <Card className="p-6 items-center justify-center border-dashed border-border/80 bg-card/60">
             <View className="h-10 w-10 rounded-full bg-muted items-center justify-center mb-2">
               <Inbox size={20} color="#5b7072" />
             </View>
@@ -41,7 +111,7 @@ export default function ActivityScreen() {
               No active pickup requests
             </Text>
             <Text className="text-xs text-muted-foreground text-center mt-1 max-w-xs">
-              Pickup request history will be available once community pickups go live.
+              Requests you create will appear here with their current status.
             </Text>
             <Button
               onPress={() => router.push('/(tabs)/scan')}
@@ -50,7 +120,36 @@ export default function ActivityScreen() {
               <Text className="text-xs font-semibold text-white">Scan materials</Text>
               <ArrowRight size={14} color="#ffffff" />
             </Button>
-          </Card>
+            </Card>
+          ) : (
+            <View className="gap-3">
+              {requests.map((request) => (
+                <Card key={request.id} className="p-4">
+                  <View className="flex-row items-start justify-between gap-3">
+                    <View className="flex-1">
+                      <Text className="text-sm font-bold text-foreground">{request.district_name ?? 'Perak service area'}</Text>
+                      <Text className="mt-1 text-xs text-muted-foreground">{formatSummary(request.material_summary)}</Text>
+                    </View>
+                    <Text className="text-xs font-bold capitalize text-primary">{request.status.replaceAll('_', ' ')}</Text>
+                  </View>
+                  <Text className="mt-2 text-xs text-muted-foreground">{formatWindow(request.pickup_window_start, request.pickup_window_end)}</Text>
+                  <Text className="mt-1 text-[11px] text-muted-foreground">Created {new Date(request.created_at).toLocaleString()}</Text>
+                  {request.status === 'pending' && (
+                    <Button
+                      onPress={() => cancelRequest(request.id)}
+                      disabled={cancelling === request.id}
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 self-start gap-2"
+                    >
+                      {cancelling === request.id ? <ActivityIndicator size="small" color="#b42318" /> : <Ban size={14} color="#b42318" />}
+                      <Text className="text-xs font-semibold text-destructive">Cancel request</Text>
+                    </Button>
+                  )}
+                </Card>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Section 2: Pickups I claimed */}
@@ -75,4 +174,17 @@ export default function ActivityScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function formatSummary(summary: MyRequest['material_summary']): string {
+  if (!Array.isArray(summary) || summary.length === 0) return 'No item summary available';
+  return summary.map((item) => `${item.quantity ?? 1} × ${item.class ?? 'item'}`).join(', ');
+}
+
+function formatWindow(start: string | null, end: string | null): string {
+  if (!start || !end) return 'Pickup window unavailable';
+  const format = (value: string) => new Date(value).toLocaleString(undefined, {
+    weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit',
+  });
+  return `${format(start)} – ${new Date(end).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
 }

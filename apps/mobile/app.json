@@ -23,7 +23,7 @@
       "expo-dev-client",
       ["expo-camera", { "recordAudioAndroid": false }],
       ["expo-image-picker", { "microphonePermission": false }],
-      ["expo-location", { "locationWhenInUsePermission": "Allow SnapPick to use your location only when you request local recycling guidance." }],
+      ["expo-location", { "locationWhenInUsePermission": "Allow SnapPick to use your location only when you request local recycling guidance or choose a pickup point." }],
       [
         "expo-splash-screen",
         {
@@ -32,7 +32,8 @@
           "imageWidth": 76
         }
       ],
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      "@maplibre/maplibre-react-native"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1,0 +1,13 @@
+{
+  "attribution": "Department of Statistics Malaysia (DOSM), data-open administrative district boundaries",
+  "attribution_requirement": "No specific credit wording stated in the repository license; retain this source credit and do not imply DOSM endorsement.",
+  "coordinate_reference_system": "CRS84 (WGS84 longitude, latitude; GeoJSON coordinates are [longitude, latitude]).",
+  "district_count": 13,
+  "downloaded_date": "2026-10-16",
+  "license": "DOSM Open Data License (repository LICENSE.md)",
+  "license_url": "https://github.com/dosm-malaysia/data-open/blob/b057365ccbf26cbe3db1c043668f6a0efe811cb2/LICENSE.md",
+  "source": "Department of Statistics Malaysia, dosm-malaysia/data-open administrative_2_district.geojson",
+  "source_commit": "b057365ccbf26cbe3db1c043668f6a0efe811cb2",
+  "source_commit_date": "2022-06-22",
+  "source_url": "https://raw.githubusercontent.com/dosm-malaysia/data-open/b057365ccbf26cbe3db1c043668f6a0efe811cb2/datasets/geodata/administrative_2_district.geojson"
+}

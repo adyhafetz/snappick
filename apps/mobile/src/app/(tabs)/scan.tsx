@@ -14,6 +14,7 @@ import { CameraView, useCameraPermissions, type CameraCapturedPicture } from 'ex
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 import {
   Camera,
   Image as ImageIcon,
@@ -52,6 +53,8 @@ import {
 import bundledAdviceData from '@/assets/bundled_advice.json';
 import { supabase } from '@/lib/supabase';
 import modelManifest from '@/assets/models/model_manifest.json';
+import { savePickupDraft } from '@/lib/pickup/draft-storage';
+import { type PickupDraft } from '@/lib/pickup/pickup';
 
 type Photo = { uri: string; width: number; height: number };
 type ReviewItem = {
@@ -969,12 +972,25 @@ export default function ScanScreen() {
             {/* Request Pickup Button */}
             <Button
               disabled={eligibleCount === 0 || !safetyConfirmed}
-              onPress={() =>
-                Alert.alert(
-                  'Pickup request',
-                  'Pickup request details will be collected in the pickup phase.'
-                )
-              }
+              onPress={() => {
+                const draft: PickupDraft = {
+                  items: items.filter((item) => !item.removed).map((item) => ({
+                    id: item.id,
+                    className: item.label,
+                    source: item.userAdded ? 'user_added' : 'detector',
+                    condition: item.condition,
+                    quantity: 1,
+                  })),
+                  restrictedItems: Object.entries(hazards)
+                    .filter(([, selected]) => selected)
+                    .map(([key]) => key as ManualSafetyKey),
+                  restrictedItemsConfirmed: safetyConfirmed,
+                  ruleSet: activeRuleSet,
+                };
+                void savePickupDraft(draft)
+                  .then(() => router.push('/(tabs)/request'))
+                  .catch(() => Alert.alert('Pickup request', 'The reviewed items could not be prepared. Please try again.'));
+              }}
               className={`w-full mt-4 ${
                 eligibleCount === 0 || !safetyConfirmed ? 'bg-muted opacity-50' : 'bg-primary'
               }`}

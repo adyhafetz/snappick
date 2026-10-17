@@ -8,3 +8,4 @@
 | 4 - ML baseline M0 (public data) | ✅ Complete — manual verification passed |
 | 5 - On-device scan and review sheet | ✅ Complete — manual verification passed |
 | 6 - Guidance engine | ✅ Complete — manual verification passed |
+| 7 - Pickup request | ✅ Complete — manual verification passed |
