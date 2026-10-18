@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,7 +14,7 @@ import { CameraView, useCameraPermissions, type CameraCapturedPicture } from 'ex
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
+import { useIsFocused } from 'expo-router';
 import {
   Camera,
   Image as ImageIcon,
@@ -53,8 +53,7 @@ import {
 import bundledAdviceData from '@/assets/bundled_advice.json';
 import { supabase } from '@/lib/supabase';
 import modelManifest from '@/assets/models/model_manifest.json';
-import { savePickupDraft } from '@/lib/pickup/draft-storage';
-import { type PickupDraft } from '@/lib/pickup/pickup';
+import { PickupRequestSection } from '@/components/pickup/PickupRequestSection';
 
 type Photo = { uri: string; width: number; height: number };
 type ReviewItem = {
@@ -78,7 +77,17 @@ const CONDITIONS: { value: Condition; label: string }[] = [
   { value: 'unknown', label: 'Unknown' },
 ];
 
+const INITIAL_HAZARDS: Record<ManualSafetyKey, boolean> = {
+  batteries: false,
+  bulbs: false,
+  e_waste: false,
+  chemicals: false,
+  sharp_objects: false,
+  other_hazards: false,
+};
+
 export default function ScanScreen() {
+  const isFocused = useIsFocused();
   const camera = useRef<CameraView>(null);
   const rows = useRef<Record<string, number>>({});
   const sheetTop = useRef(0);
@@ -92,16 +101,33 @@ export default function ScanScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [safetyConfirmed, setSafetyConfirmed] = useState(false);
-  const [hazards, setHazards] = useState<Record<ManualSafetyKey, boolean>>({
-    batteries: false,
-    bulbs: false,
-    e_waste: false,
-    chemicals: false,
-    sharp_objects: false,
-    other_hazards: false,
-  });
+  const [hazards, setHazards] = useState<Record<ManualSafetyKey, boolean>>(INITIAL_HAZARDS);
   const [activeRuleSet, setActiveRuleSet] = useState<RuleSet>(BUNDLED_ACTIVE_RULE_SET);
   const [ruleSetMessage, setRuleSetMessage] = useState('General Perak guidance');
+
+  const handlePickupSuccess = useCallback(() => {
+    setPhoto(undefined);
+    setResult(undefined);
+    setItems([]);
+    setSelectedId(undefined);
+    setError(undefined);
+    setSafetyConfirmed(false);
+    setHazards(INITIAL_HAZARDS);
+  }, []);
+
+  const draftItems = useMemo(
+    () =>
+      items
+        .filter((item) => !item.removed)
+        .map((item) => ({
+          id: item.id,
+          className: item.label,
+          source: (item.userAdded ? 'user_added' : 'detector') as 'detector' | 'user_added',
+          condition: item.condition,
+          quantity: 1,
+        })),
+    [items]
+  );
 
   useEffect(() => {
     void AsyncStorage.getItem(RULE_SET_STORAGE_KEY).then((serialized) => {
@@ -458,12 +484,15 @@ export default function ScanScreen() {
     <View style={{ flex: 1 }} className="flex-1 bg-background">
       {!photo ? (
         <View style={{ flex: 1, backgroundColor: '#020617', position: 'relative' }}>
-          <CameraView
-            ref={camera}
-            style={StyleSheet.absoluteFill}
-            facing="back"
-            onMountError={(event) => setError(event.message)}
-          />
+          {isFocused && (
+            <CameraView
+              key={isFocused ? 'camera-focused' : 'camera-blurred'}
+              ref={camera}
+              style={StyleSheet.absoluteFill}
+              facing="back"
+              onMountError={(event) => setError(event.message)}
+            />
+          )}
 
           {/* Top guidance overlay */}
           <View className="absolute top-12 left-4 right-4 rounded-2xl bg-slate-900/80 p-4 border border-white/10">
@@ -969,46 +998,13 @@ export default function ScanScreen() {
               </Text>
             </Pressable>
 
-            {/* Request Pickup Button */}
-            <Button
-              disabled={eligibleCount === 0 || !safetyConfirmed}
-              onPress={() => {
-                const draft: PickupDraft = {
-                  items: items.filter((item) => !item.removed).map((item) => ({
-                    id: item.id,
-                    className: item.label,
-                    source: item.userAdded ? 'user_added' : 'detector',
-                    condition: item.condition,
-                    quantity: 1,
-                  })),
-                  restrictedItems: Object.entries(hazards)
-                    .filter(([, selected]) => selected)
-                    .map(([key]) => key as ManualSafetyKey),
-                  restrictedItemsConfirmed: safetyConfirmed,
-                  ruleSet: activeRuleSet,
-                };
-                void savePickupDraft(draft)
-                  .then(() => router.push('/(tabs)/request'))
-                  .catch(() => Alert.alert('Pickup request', 'The reviewed items could not be prepared. Please try again.'));
-              }}
-              className={`w-full mt-4 ${
-                eligibleCount === 0 || !safetyConfirmed ? 'bg-muted opacity-50' : 'bg-primary'
-              }`}
-            >
-              <Text
-                className={`text-base font-semibold ${
-                  eligibleCount === 0 || !safetyConfirmed
-                    ? 'text-muted-foreground'
-                    : 'text-white'
-                }`}
-              >
-                Request pickup
-              </Text>
-            </Button>
-
-            <Text className="text-[11px] text-muted-foreground text-center mt-2.5">
-              Detector labels never identify hazards. Safety declarations are manual.
-            </Text>
+            {/* Unified Pickup Location & Address Form */}
+            <PickupRequestSection
+              items={draftItems}
+              safetyConfirmed={safetyConfirmed}
+              activeRuleSet={activeRuleSet}
+              onSuccess={handlePickupSuccess}
+            />
           </View>
         </ScrollView>
       )}

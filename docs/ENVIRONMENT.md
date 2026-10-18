@@ -2,7 +2,7 @@
 
 Machine and toolchain facts for SnapPick. The AI assistant reads this file in every session (see `AGENTS.md`). **Only the values marked Recorded come from commands run on this machine.** Anything marked To verify has not been checked yet; do not treat it as confirmed.
 
-Last updated: 2026-10-16 (Phase 7 native dependency rebuild)
+Last updated: 2026-10-18 (Phase 8 collector marketplace)
 
 ---
 
@@ -108,6 +108,7 @@ Record the exact installed versions here after each install (`npm ls <package>`)
 | @supabase/supabase-js | 2.117.2 | Phase 1 |
 | @react-native-google-signin/google-signin | 16.1.5 | Phase 3 |
 | Supabase CLI | 2.119.0 | Phase 2 |
+| pg_cron (local Supabase extension) | 1.6.4 | Phase 8 expiry schedule |
 | react-native-fast-tflite | 3.0.1 | Phase 5 (exact installed; CPU delegate `[]`) |
 | react-native-nitro-modules | 0.37.1 | Phase 5 |
 | expo-location | 57.0.21 | Phase 6 (`npx expo install`) |
@@ -168,3 +169,4 @@ Record the exact installed versions here after each install (`npm ls <package>`)
 | 2026-10-14 | Phase 6 added expo-location 57.0.21 with `npx expo install`; no OpenAI SDK or Supabase Edge SDK added (Responses API uses fetch and Supabase JS is imported at the pinned 2.117.2 version) |
 | 2026-10-14 | UI redesign: integrated React Native Reusables with NativeWind 4.2.7, Tailwind CSS 3.4.19, Lucide React Native 1.56.0, and @rn-primitives 1.5.2; preserved tflite Metro asset resolver and 100% of detection/guidance business logic |
 | 2026-10-16 | Phase 7 installed @maplibre/maplibre-react-native 11.5.0 and expo-network 57.0.2 through `npx expo install`, configured the MapLibre plugin, completed the post-dependency Android rebuild/install on Redmi Note 10, and launched Metro; map tile display remains unverified |
+| 2026-10-18 | Phase 8 added no JavaScript/native packages. `npm ls` reconfirmed MapLibre React Native 11.5.0, Supabase JS 2.117.2, and Expo Network 57.0.2. Local pg_cron 1.6.4 schedules unstarted-claim expiry every 15 minutes; Android rebuilt and installed after adding the `google.navigation` intent query. |
