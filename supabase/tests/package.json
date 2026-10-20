@@ -6,7 +6,8 @@
     "test:rls": "node rls.test.mjs",
     "test:edge": "node --experimental-strip-types guidance.test.mjs",
     "test:pickup": "node pickup.test.mjs",
-    "test:marketplace": "node marketplace.test.mjs"
+    "test:marketplace": "node marketplace.test.mjs",
+    "test:completion": "node completion.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.2"

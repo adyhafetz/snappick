@@ -7,9 +7,16 @@ export type MarketplaceRequest = {
   longitude: number;
   latitude: number;
   cell_count: number;
+  is_mine?: boolean;
 };
 
-export type MarketplaceCell = { key: string; coordinate: [number, number]; count: number; requests: MarketplaceRequest[] };
+export type MarketplaceCell = {
+  key: string;
+  coordinate: [number, number];
+  count: number;
+  hasMine: boolean;
+  requests: MarketplaceRequest[];
+};
 
 export function groupMarketplaceRequests(rows: MarketplaceRequest[]): MarketplaceCell[] {
   const cells = new Map<string, MarketplaceCell>();
@@ -20,9 +27,13 @@ export function groupMarketplaceRequests(rows: MarketplaceRequest[]): Marketplac
       key,
       coordinate: [row.longitude, row.latitude],
       count: row.cell_count,
+      hasMine: false,
       requests: [],
     };
     cell.requests.push(row);
+    if (row.is_mine) {
+      cell.hasMine = true;
+    }
     cells.set(key, cell);
   }
   return [...cells.values()];

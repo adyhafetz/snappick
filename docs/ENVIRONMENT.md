@@ -116,6 +116,7 @@ Record the exact installed versions here after each install (`npm ls <package>`)
 | expo-camera | 57.0.6 | Phase 5 |
 | expo-image-manipulator | 57.0.21 | Phase 5 |
 | expo-image-picker | 57.0.4 | Phase 5 |
+| expo-notifications | 57.0.23 | Phase 9 (`npx expo install`) |
 | jpeg-js | 0.4.4 | Phase 5 |
 | base64-js | 1.5.1 | Phase 5 |
 | vitest | 3.2.4 | Phase 5 pure TypeScript unit tests |
@@ -170,3 +171,4 @@ Record the exact installed versions here after each install (`npm ls <package>`)
 | 2026-10-14 | UI redesign: integrated React Native Reusables with NativeWind 4.2.7, Tailwind CSS 3.4.19, Lucide React Native 1.56.0, and @rn-primitives 1.5.2; preserved tflite Metro asset resolver and 100% of detection/guidance business logic |
 | 2026-10-16 | Phase 7 installed @maplibre/maplibre-react-native 11.5.0 and expo-network 57.0.2 through `npx expo install`, configured the MapLibre plugin, completed the post-dependency Android rebuild/install on Redmi Note 10, and launched Metro; map tile display remains unverified |
 | 2026-10-18 | Phase 8 added no JavaScript/native packages. `npm ls` reconfirmed MapLibre React Native 11.5.0, Supabase JS 2.117.2, and Expo Network 57.0.2. Local pg_cron 1.6.4 schedules unstarted-claim expiry every 15 minutes; Android rebuilt and installed after adding the `google.navigation` intent query. |
+| 2026-10-18 | Phase 9 installed `expo-notifications` 57.0.23 with `npx expo install`; Android FCM registration uses the verified SDK 57 device-token API. Firebase service credentials, `google-services.json`, and real delivery remain unverified until the manual Firebase setup is completed. |

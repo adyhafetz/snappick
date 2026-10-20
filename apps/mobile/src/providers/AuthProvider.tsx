@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { isErrorWithCode, isSuccessResponse, GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
 import { supabase } from '@/lib/supabase';
+import { registerForPushNotifications } from '@/lib/notifications';
 
 type AuthContextValue = {
   session: Session | null;
@@ -100,6 +101,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!session) return;
+    const timer = setTimeout(() => {
+      void registerForPushNotifications().then((token) => {
+        if (token) console.log('FCM push token registered successfully');
+      }).catch((err) => console.warn('Push registration failed:', err));
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [session]);
 
   const value = useMemo<AuthContextValue>(() => ({
     session,

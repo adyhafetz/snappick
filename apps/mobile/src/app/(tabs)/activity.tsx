@@ -1,9 +1,9 @@
 import * as React from 'react';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, type Href } from 'expo-router';
-import { ArrowRight, Ban, Inbox, RefreshCw, Truck } from 'lucide-react-native';
+import { ArrowRight, Ban, Camera, Check, Inbox, RefreshCw, RotateCcw, ShieldAlert, Truck } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -89,6 +89,35 @@ export default function ActivityScreen() {
     ]);
   };
 
+  const confirmPickup = async (requestId: string) => {
+    const { error } = await supabase.rpc('confirm_pickup', { request_id: requestId });
+    if (error) Alert.alert('Could not confirm pickup', 'The confirmation window may have closed. Refresh and try again.');
+    await loadRequests();
+  };
+  const disputePickup = (requestId: string) => {
+    Alert.alert('Report a problem', 'Report that the collection needs review?', [
+      { text: 'Keep pickup', style: 'cancel' },
+      { text: 'Report', style: 'destructive', onPress: () => void (async () => {
+      const { error } = await supabase.rpc('raise_dispute', { request_id: requestId, reason: 'Pickup proof disputed' });
+      if (error) Alert.alert('Could not report problem', 'The dispute window may have closed. Refresh and try again.');
+      await loadRequests();
+      })() },
+    ]);
+  };
+  const openProof = async (requestId: string) => {
+    const { data, error } = await supabase.functions.invoke('get-pickup-proof', { body: { request_id: requestId } });
+    if (error || typeof data?.signed_url !== 'string') {
+      Alert.alert('Proof unavailable', 'The collection proof could not be loaded.');
+      return;
+    }
+    await Linking.openURL(data.signed_url);
+  };
+  const relistPickup = async (requestId: string) => {
+    const { error } = await supabase.rpc('relist_pickup', { request_id: requestId });
+    if (error) Alert.alert('Could not relist pickup', 'Only requests marked as not collected can be relisted.');
+    await loadRequests();
+  };
+
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} className="px-6 pt-4">
@@ -162,6 +191,31 @@ export default function ActivityScreen() {
                     >
                       {cancelling === request.id ? <ActivityIndicator size="small" color="#b42318" /> : <Ban size={14} color="#b42318" />}
                       <Text className="text-xs font-semibold text-destructive">Cancel request</Text>
+                    </Button>
+                  )}
+                  {request.status === 'awaiting_confirmation' && (
+                    <View className="mt-3 gap-2">
+                      <Button size="sm" variant="outline" onPress={() => void openProof(request.id)} className="self-start gap-1.5">
+                        <Camera size={14} color="#176c60" /><Text className="text-xs font-semibold text-primary">View collection proof</Text>
+                      </Button>
+                      <View className="flex-row gap-2">
+                        <Button size="sm" onPress={() => void confirmPickup(request.id)} className="flex-1 gap-1">
+                          <Check size={14} color="#ffffff" /><Text className="text-xs font-semibold text-white">Confirm</Text>
+                        </Button>
+                        <Button size="sm" variant="outline" onPress={() => disputePickup(request.id)} className="flex-1 gap-1">
+                          <ShieldAlert size={14} color="#b42318" /><Text className="text-xs font-semibold text-destructive">Report problem</Text>
+                        </Button>
+                      </View>
+                    </View>
+                  )}
+                  {request.status === 'not_collected' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onPress={() => void relistPickup(request.id)}
+                      className="mt-3 self-start gap-1.5"
+                    >
+                      <RotateCcw size={14} color="#176c60" /><Text className="text-xs font-semibold text-primary">Relist pickup</Text>
                     </Button>
                   )}
                 </Card>

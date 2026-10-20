@@ -9,6 +9,7 @@
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.snappick.mobile",
+      "googleServicesFile": "./google-services.json",
       "permissions": ["android.permission.CAMERA"],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -24,6 +25,7 @@
       ["expo-camera", { "recordAudioAndroid": false }],
       ["expo-image-picker", { "microphonePermission": false }],
       ["expo-location", { "locationWhenInUsePermission": "Allow SnapPick to use your location only when you request local recycling guidance or choose a pickup point." }],
+      "expo-notifications",
       [
         "expo-splash-screen",
         {

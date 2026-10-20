@@ -70,10 +70,16 @@ describe('safe pickup marketplace data', () => {
   });
 
   it('groups each server-counted grid cell into one marker', () => {
-    const cells = groupMarketplaceRequests([row('one'), row('two'), row('three', 101.1)]);
+    const cells = groupMarketplaceRequests([
+      row('one'),
+      { ...row('two'), is_mine: true },
+      row('three', 101.1),
+    ]);
     expect(cells).toHaveLength(2);
     expect(cells[0]?.coordinate).toEqual([101.09, 4.59]);
     expect(cells[0]?.count).toBe(2);
+    expect(cells[0]?.hasMine).toBe(true);
+    expect(cells[1]?.hasMine).toBe(false);
     expect(cells[0]?.requests.map((request) => request.id)).toEqual(['one', 'two']);
   });
 

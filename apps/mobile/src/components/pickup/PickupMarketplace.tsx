@@ -2,9 +2,9 @@ import * as React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Camera as MapCamera, Map, Marker } from '@maplibre/maplibre-react-native';
-import { CircleAlert, LocateFixed, RefreshCw, WifiOff } from 'lucide-react-native';
+import { CircleAlert, LocateFixed, RefreshCw, User, WifiOff } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import * as Network from 'expo-network';
 
@@ -54,21 +54,30 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
     if (!online) { setRealtime('offline'); setLoading(false); return; }
     setLoadError('');
     const { data, error } = await supabase.from('pending_pickup_marketplace')
-      .select('id,district_name,material_summary,pickup_window_start,pickup_window_end,longitude,latitude,cell_count');
+      .select('id,district_name,material_summary,pickup_window_start,pickup_window_end,longitude,latitude,cell_count,is_mine');
     if (error) {
       setLoadError('Nearby requests could not be loaded. Check your connection and retry.');
       setRequests([]);
     } else {
       setRequests((data ?? []) as MarketplaceRequest[]);
-      setSelected(null);
+      setSelected((prev) => (prev ? (data ?? []).find((item: MarketplaceRequest) => item.id === prev.id) ?? null : null));
     }
     setLoading(false);
   }, [online]);
 
+  // Initial load
   useEffect(() => {
     const timer = setTimeout(() => { void refresh(); }, 0);
     return () => clearTimeout(timer);
   }, [refresh]);
+
+  // Refresh every time tab comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      void refresh();
+    }, [refresh])
+  );
+
   useEffect(() => {
     const stateTimer = setTimeout(() => setRealtime(online ? 'connecting' : 'offline'), 0);
     if (!online) return () => clearTimeout(stateTimer);
@@ -96,13 +105,37 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
           onDidFinishLoadingMap={() => { setMapError(false); setMapReady(true); }}
           onDidFailLoadingMap={() => { setMapError(true); setMapReady(false); }}>
           <MapCamera ref={camera} initialViewState={{ center: INITIAL_POINT, zoom: 10.5 }} minZoom={4} maxZoom={19} />
-          {cells.map((cell) => (
-            <Marker key={cell.key} id={cell.key} lngLat={cell.coordinate} onPress={() => setSelected(cell.requests[0] ?? null)}>
-              <View className="min-w-11 h-11 px-2 items-center justify-center rounded-full border-2 border-white bg-primary">
-                <Text className="text-sm font-bold text-white">{cell.count}</Text>
-              </View>
-            </Marker>
-          ))}
+          {cells.map((cell) => {
+            const isSelected = selectedCell?.key === cell.key;
+            return (
+              <Marker
+                key={cell.key}
+                id={cell.key}
+                lngLat={cell.coordinate}
+                onPress={() => {
+                  setSelected(cell.requests[0] ?? null);
+                  camera.current?.easeTo({ center: cell.coordinate, zoom: 13.5, duration: 450 });
+                }}
+              >
+                <View
+                  className={`min-w-11 h-11 px-2.5 items-center justify-center rounded-full border-2 shadow-md ${
+                    cell.hasMine
+                      ? isSelected
+                        ? 'border-amber-300 bg-amber-600'
+                        : 'border-white bg-amber-600'
+                      : isSelected
+                        ? 'border-emerald-300 bg-primary'
+                        : 'border-white bg-primary'
+                  }`}
+                >
+                  <View className="flex-row items-center gap-1">
+                    {cell.hasMine && <User size={13} color="#ffffff" strokeWidth={2.6} />}
+                    <Text className="text-sm font-bold text-white">{cell.count}</Text>
+                  </View>
+                </View>
+              </Marker>
+            );
+          })}
         </Map>
 
         {!mapReady && !mapError && <View pointerEvents="none" className="absolute top-3 left-3 flex-row items-center gap-2 rounded-md bg-white px-3 py-2"><ActivityIndicator size="small" color="#176c60" /><Text className="text-xs text-foreground">Loading map</Text></View>}
@@ -113,6 +146,7 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
           <Text className="text-xs font-medium text-foreground">{realtime === 'live' ? 'Live updates' : realtime === 'offline' ? 'Offline' : realtime === 'reconnecting' ? 'Reconnecting' : 'Connecting'}</Text>
         </View>
 
+        {/* Locate collector button */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Center map on your location"
@@ -123,28 +157,106 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
           {locating ? <ActivityIndicator size="small" color="#176c60" /> : <LocateFixed size={20} color="#176c60" />}
         </Pressable>
 
+        {/* Manual refresh button */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Refresh nearby pickups"
+          disabled={loading}
+          onPress={() => {
+            setLoading(true);
+            void refresh();
+          }}
+          className="absolute top-28 right-3 h-11 w-11 items-center justify-center rounded-full bg-white/95 shadow-md border border-border active:bg-muted"
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#176c60" />
+          ) : (
+            <RefreshCw size={18} color="#176c60" />
+          )}
+        </Pressable>
+
         {selected && selectedCell && (
-          <View className="absolute bottom-16 left-3 right-3 max-h-[46%] rounded-lg border border-border bg-background p-4">
+          <View className="absolute bottom-16 left-3 right-3 max-h-[52%] rounded-xl border border-border bg-background p-4 shadow-xl">
             <View className="flex-row items-start justify-between gap-3">
               <View className="flex-1">
-                <Text className="text-base font-bold text-foreground">{selected.district_name ?? 'Perak service area'}</Text>
-                <Text className="mt-1 text-sm text-muted-foreground">{formatPickupSummary(selected.material_summary)}</Text>
-                <Text className="mt-1 text-xs text-muted-foreground">{formatPickupWindow(selected.pickup_window_start, selected.pickup_window_end)}</Text>
+                <View className="flex-row items-center gap-2">
+                  <Text className="text-base font-bold text-foreground">{selected.district_name ?? 'Perak service area'}</Text>
+                  {selected.is_mine && (
+                    <View className="rounded-full bg-amber-100 px-2 py-0.5 border border-amber-300">
+                      <Text className="text-[11px] font-semibold text-amber-800">Your request</Text>
+                    </View>
+                  )}
+                </View>
+                <Text className="mt-1 text-sm font-medium text-foreground">{formatPickupSummary(selected.material_summary)}</Text>
+                <Text className="mt-0.5 text-xs text-muted-foreground">{formatPickupWindow(selected.pickup_window_start, selected.pickup_window_end)}</Text>
               </View>
-              <Pressable accessibilityRole="button" accessibilityLabel="Close request details" onPress={() => setSelected(null)} className="h-12 w-12 items-center justify-center rounded-full bg-muted"><Text className="text-lg text-foreground">×</Text></Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close request details"
+                onPress={() => setSelected(null)}
+                className="h-8 w-8 items-center justify-center rounded-full bg-muted active:bg-muted/80"
+              >
+                <Text className="text-base font-semibold text-foreground">×</Text>
+              </Pressable>
             </View>
-            <Text className="mt-2 text-xs text-muted-foreground">Approximate area · {selectedCell.count} {selectedCell.count === 1 ? 'request' : 'requests'} in this grid cell</Text>
-            <ScrollView className="mt-2 max-h-24" nestedScrollEnabled>
-              {selectedCell.requests.map((request, index) => (
-                <Pressable key={request.id} onPress={() => setSelected(request)} className="py-2 border-t border-border">
-                  <Text className="text-sm font-semibold text-foreground">{formatPickupSummary(request.material_summary)}</Text>
-                  {index === 0 && <Text className="text-xs text-primary">Selected request</Text>}
-                </Pressable>
-              ))}
-            </ScrollView>
-            <Button disabled={!online} onPress={() => void claim(selected.id, refresh)} className="mt-2 w-full">
-              <Text className="text-sm font-semibold text-white">{online ? 'Claim pickup' : 'Connect to claim pickup'}</Text>
-            </Button>
+
+            {/* List to switch between requests in this area/cell */}
+            {selectedCell.count > 1 && (
+              <View className="mt-3">
+                <Text className="text-xs font-semibold text-muted-foreground mb-1.5">
+                  {selectedCell.count} requests in this area — tap to view:
+                </Text>
+                <ScrollView className="max-h-28" nestedScrollEnabled showsVerticalScrollIndicator>
+                  {selectedCell.requests.map((request, index) => {
+                    const isItemActive = request.id === selected.id;
+                    return (
+                      <Pressable
+                        key={request.id}
+                        onPress={() => setSelected(request)}
+                        className={`p-2.5 rounded-lg mb-1.5 border flex-row items-center justify-between ${
+                          isItemActive
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border bg-card'
+                        }`}
+                      >
+                        <View className="flex-1 mr-2">
+                          <View className="flex-row items-center gap-1.5">
+                            <Text className={`text-xs font-semibold ${isItemActive ? 'text-primary' : 'text-foreground'}`}>
+                              Request #{index + 1}
+                            </Text>
+                            {request.is_mine && (
+                              <View className="rounded bg-amber-100 px-1.5 py-0.5 border border-amber-200">
+                                <Text className="text-[10px] font-semibold text-amber-800">You</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text className="text-xs text-muted-foreground mt-0.5" numberOfLines={1}>
+                            {formatPickupSummary(request.material_summary)}
+                          </Text>
+                        </View>
+                        {isItemActive && (
+                          <View className="rounded-full bg-primary px-2 py-0.5">
+                            <Text className="text-[10px] font-semibold text-white">Selected</Text>
+                          </View>
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+
+            {selected.is_mine ? (
+              <View className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2.5">
+                <Text className="text-xs font-semibold text-amber-800 text-center">
+                  This is your own pickup request. Other collectors will claim it.
+                </Text>
+              </View>
+            ) : (
+              <Button disabled={!online} onPress={() => void claim(selected.id, refresh)} className="mt-3 w-full">
+                <Text className="text-sm font-semibold text-white">{online ? 'Claim pickup' : 'Connect to claim pickup'}</Text>
+              </Button>
+            )}
           </View>
         )}
 
@@ -164,7 +276,9 @@ async function claim(requestId: string, refresh: () => Promise<void>) {
       ? 'You already have three active pickups.'
       : message.includes('cannot_claim_own')
         ? 'You cannot claim your own request.'
-        : 'This pickup is no longer available. Refresh the map and try another.');
+        : message.includes('request_') || message.includes('unavailable')
+          ? 'This pickup is no longer available. Refresh the map and try another.'
+          : error.message);
     await refresh();
     return;
   }
