@@ -25,9 +25,17 @@ import {
   AlertCircle,
   Plus,
   Sparkles,
-  ShieldAlert,
+  Trash2,
+  Edit3,
+  Battery,
+  Lightbulb,
+  Cpu,
+  FlaskConical,
+  Scissors,
+  HelpCircle,
 } from 'lucide-react-native';
 
+import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -36,7 +44,6 @@ import { Text } from '@/components/ui/text';
 import { scanPhoto, type ScanResult } from '@/lib/detector/scanner';
 import {
   BUNDLED_RULE_SET,
-  evaluateEligibility,
   MANUAL_SAFETY_LABELS,
   type ManualSafetyKey,
   type RuleSet,
@@ -47,10 +54,7 @@ import { hazardGuidanceKey, parseRuleSet, requestGuidance, type GuidanceCard } f
 import {
   bundledAdvice,
   resolveLocationRuleSet,
-  resolvePreferredRuleSet,
-  sourceBadge,
 } from '@/lib/guidance/presentation';
-import bundledAdviceData from '@/assets/bundled_advice.json';
 import { supabase } from '@/lib/supabase';
 import modelManifest from '@/assets/models/model_manifest.json';
 import { PickupRequestSection } from '@/components/pickup/PickupRequestSection';
@@ -71,11 +75,20 @@ const BUNDLED_ACTIVE_RULE_SET = BUNDLED_RULE_SET as RuleSet;
 
 const LABELS = modelManifest.labels;
 const CONDITIONS: { value: Condition; label: string }[] = [
-  { value: 'clean_dry', label: 'Clean & dry' },
+  { value: 'clean_dry', label: 'Clean' },
   { value: 'contaminated_wet', label: 'Wet' },
   { value: 'broken_unsafe', label: 'Broken' },
-  { value: 'unknown', label: 'Unknown' },
+  { value: 'unknown', label: 'Unsure' },
 ];
+
+const HAZARD_ICONS: Record<ManualSafetyKey, React.ComponentType<{ size: number; color: string }>> = {
+  batteries: Battery,
+  bulbs: Lightbulb,
+  e_waste: Cpu,
+  chemicals: FlaskConical,
+  sharp_objects: Scissors,
+  other_hazards: HelpCircle,
+};
 
 const INITIAL_HAZARDS: Record<ManualSafetyKey, boolean> = {
   batteries: false,
@@ -88,154 +101,51 @@ const INITIAL_HAZARDS: Record<ManualSafetyKey, boolean> = {
 
 export default function ScanScreen() {
   const isFocused = useIsFocused();
-  const camera = useRef<CameraView>(null);
+  const [permission, requestPermission] = useCameraPermissions();
+  const camera = useRef<CameraView | null>(null);
+
+  const [photo, setPhoto] = useState<Photo | undefined>();
+  const [result, setResult] = useState<ScanResult | undefined>();
+  const [items, setItems] = useState<ReviewItem[]>([]);
+  const [selectedId, setSelectedId] = useState<string | undefined>();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [activeRuleSet, setActiveRuleSet] = useState<RuleSet>(BUNDLED_ACTIVE_RULE_SET);
+  const [ruleSetMessage, setRuleSetMessage] = useState<string>('General Perak guidance');
+  const [hazards, setHazards] = useState<Record<ManualSafetyKey, boolean>>(INITIAL_HAZARDS);
+  const [safetyConfirmed, setSafetyConfirmed] = useState(false);
+
+  const reviewScroll = useRef<ScrollView | null>(null);
   const rows = useRef<Record<string, number>>({});
   const sheetTop = useRef(0);
-  const reviewScroll = useRef<ScrollView>(null);
   const { width: windowWidth } = useWindowDimensions();
-  const [permission, requestPermission] = useCameraPermissions();
-  const [photo, setPhoto] = useState<Photo>();
-  const [result, setResult] = useState<ScanResult>();
-  const [items, setItems] = useState<ReviewItem[]>([]);
-  const [selectedId, setSelectedId] = useState<string>();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
-  const [safetyConfirmed, setSafetyConfirmed] = useState(false);
-  const [hazards, setHazards] = useState<Record<ManualSafetyKey, boolean>>(INITIAL_HAZARDS);
-  const [activeRuleSet, setActiveRuleSet] = useState<RuleSet>(BUNDLED_ACTIVE_RULE_SET);
-  const [ruleSetMessage, setRuleSetMessage] = useState('General Perak guidance');
-
-  const handlePickupSuccess = useCallback(() => {
-    setPhoto(undefined);
-    setResult(undefined);
-    setItems([]);
-    setSelectedId(undefined);
-    setError(undefined);
-    setSafetyConfirmed(false);
-    setHazards(INITIAL_HAZARDS);
-  }, []);
-
-  const draftItems = useMemo(
-    () =>
-      items
-        .filter((item) => !item.removed)
-        .map((item) => ({
-          id: item.id,
-          className: item.label,
-          source: (item.userAdded ? 'user_added' : 'detector') as 'detector' | 'user_added',
-          condition: item.condition,
-          quantity: 1,
-        })),
-    [items]
-  );
 
   useEffect(() => {
-    void AsyncStorage.getItem(RULE_SET_STORAGE_KEY).then((serialized) => {
-      if (!serialized) return;
+    let unmounted = false;
+    (async () => {
       try {
-        const saved = parseRuleSet(JSON.parse(serialized));
-        const preferred = resolvePreferredRuleSet(saved, BUNDLED_ACTIVE_RULE_SET);
-        if (
-          preferred.id !== BUNDLED_ACTIVE_RULE_SET.id ||
-          preferred.version !== BUNDLED_ACTIVE_RULE_SET.version
-        ) {
-          setActiveRuleSet(preferred);
-          setRuleSetMessage(`${preferred.label} · v${preferred.version}`);
+        const stored = await AsyncStorage.getItem(RULE_SET_STORAGE_KEY);
+        if (!unmounted && stored) {
+          const parsed = parseRuleSet(JSON.parse(stored));
+          if (parsed) {
+            setActiveRuleSet(parsed);
+            setRuleSetMessage(parsed.label);
+          }
         }
       } catch {
-        /* Invalid local cache falls back to the bundled rule set. */
+        // Fall back to bundled
       }
-    });
+    })();
+    return () => {
+      unmounted = true;
+    };
   }, []);
-
-  const runScan = async (nextPhoto: Photo) => {
-    setPhoto(nextPhoto);
-    setResult(undefined);
-    setError(undefined);
-    setBusy(true);
-    setSafetyConfirmed(false);
-    try {
-      const nextResult = await scanPhoto(nextPhoto.uri, nextPhoto.width, nextPhoto.height);
-      const nextItems = nextResult.detections.map((detection, index) => ({
-        id: `det-${index}`,
-        detection,
-        label: detection.label,
-        condition: 'clean_dry' as Condition,
-        removed: false,
-        userAdded: false,
-        confirmed: false,
-        guidance: {
-          ...bundledAdvice(detection.label, 'clean_dry'),
-          source: 'fallback' as const,
-          ruleSetId: activeRuleSet.id,
-          ruleSetLabel: activeRuleSet.label,
-          ruleSetVersion: activeRuleSet.version,
-          offline: true,
-        },
-      }));
-      setResult(nextResult);
-      setItems(nextItems);
-      setSelectedId(nextItems[0]?.id);
-      void Promise.all(
-        nextItems.map(async (item) => ({
-          id: item.id,
-          label: item.label,
-          condition: item.condition,
-          guidance: await requestGuidance(item.label, item.condition, activeRuleSet),
-        }))
-      ).then((guidance) =>
-        setItems((current) =>
-          current.map((item) => {
-            const res = guidance.find((entry) => entry.id === item.id);
-            return res &&
-              item.label === res.label &&
-              item.condition === res.condition &&
-              item.guidance.ruleSetId === activeRuleSet.id &&
-              item.guidance.ruleSetVersion === activeRuleSet.version
-              ? { ...item, guidance: res.guidance }
-              : item;
-          })
-        )
-      );
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'The photo could not be scanned.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const capture = async () => {
-    if (!camera.current) return;
-    try {
-      const picture: CameraCapturedPicture = await camera.current.takePictureAsync({
-        quality: 0.9,
-      });
-      await runScan({ uri: picture.uri, width: picture.width, height: picture.height });
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Camera capture failed.');
-    }
-  };
-
-  const pick = async () => {
-    try {
-      const picked = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        quality: 1,
-      });
-      if (!picked.canceled && picked.assets[0]) {
-        const asset = picked.assets[0];
-        await runScan({ uri: asset.uri, width: asset.width, height: asset.height });
-      }
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'The photo could not be opened.');
-    }
-  };
 
   const selectItem = (id: string) => {
     setSelectedId(id);
-    const y = rows.current[id];
-    if (typeof y === 'number') {
-      reviewScroll.current?.scrollTo({ y: Math.max(0, y - 12), animated: true });
+    const targetY = rows.current[id];
+    if (targetY !== undefined && reviewScroll.current) {
+      reviewScroll.current.scrollTo({ y: Math.max(0, targetY - 120), animated: true });
     }
   };
 
@@ -245,40 +155,94 @@ export default function ScanScreen() {
     );
   };
 
-  const refreshGuidance = (
-    id: string,
-    label: string,
-    condition: Condition,
-    ruleSet = activeRuleSet
-  ) => {
-    void requestGuidance(label, condition, ruleSet).then((guidance) => {
-      setItems((current) =>
-        current.map((item) =>
-          item.id === id &&
-          item.label === label &&
-          item.condition === condition &&
-          item.guidance.ruleSetId === ruleSet.id &&
-          item.guidance.ruleSetVersion === ruleSet.version
-            ? { ...item, guidance }
-            : item
-        )
-      );
-    });
+  const refreshGuidance = useCallback(
+    async (id: string, label: string, condition: Condition) => {
+      try {
+        const nextGuidance = await requestGuidance(label, condition, activeRuleSet);
+        updateItem(id, { guidance: nextGuidance });
+      } catch {
+        // Fallback already assigned
+      }
+    },
+    [activeRuleSet]
+  );
+
+  const processPhoto = useCallback(
+    async (targetPhoto: Photo) => {
+      setBusy(true);
+      setError(null);
+      try {
+        const scan = await scanPhoto(targetPhoto.uri, targetPhoto.width, targetPhoto.height);
+        setResult(scan);
+
+        const initialItems: ReviewItem[] = scan.detections.map((detection, index) => {
+          const fallback = bundledAdvice(detection.label, 'unknown');
+          return {
+            id: `det-${index}-${detection.label}`,
+            detection,
+            label: detection.label,
+            condition: 'unknown',
+            removed: false,
+            userAdded: false,
+            confirmed: detection.confidence === 'confident',
+            guidance: {
+              ...fallback,
+              source: 'fallback',
+              ruleSetId: activeRuleSet.id,
+              ruleSetLabel: activeRuleSet.label,
+              ruleSetVersion: activeRuleSet.version,
+              offline: true,
+            },
+          };
+        });
+
+        setItems(initialItems);
+        setSelectedId(initialItems[0]?.id);
+
+        initialItems.forEach((item) => {
+          void refreshGuidance(item.id, item.label, item.condition);
+        });
+      } catch (scanError) {
+        setError(scanError instanceof Error ? scanError.message : 'Scan failed. Please retry.');
+      } finally {
+        setBusy(false);
+      }
+    },
+    [activeRuleSet, refreshGuidance]
+  );
+
+  const capture = async () => {
+    if (!camera.current || busy) return;
+    try {
+      const pic: CameraCapturedPicture | undefined = await camera.current.takePictureAsync({
+        quality: 0.85,
+        skipProcessing: false,
+      });
+      if (!pic) return;
+      const nextPhoto: Photo = { uri: pic.uri, width: pic.width, height: pic.height };
+      setPhoto(nextPhoto);
+      await processPhoto(nextPhoto);
+    } catch (captureError) {
+      setError(captureError instanceof Error ? captureError.message : 'Capture failed');
+    }
   };
 
-  const updateCondition = (item: ReviewItem, condition: Condition) => {
-    updateItem(item.id, {
-      condition,
-      guidance: {
-        ...bundledAdvice(item.label, condition),
-        source: 'fallback',
-        ruleSetId: activeRuleSet.id,
-        ruleSetLabel: activeRuleSet.label,
-        ruleSetVersion: activeRuleSet.version,
-        offline: true,
-      },
+  const pick = async () => {
+    if (busy) return;
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: false,
+      quality: 0.85,
     });
-    refreshGuidance(item.id, item.label, condition);
+    if (res.canceled || !res.assets[0]) return;
+    const asset = res.assets[0];
+    const nextPhoto: Photo = {
+      uri: asset.uri,
+      width: asset.width ?? 640,
+      height: asset.height ?? 640,
+    };
+    setPhoto(nextPhoto);
+    await processPhoto(nextPhoto);
   };
 
   const resolveLocationGuidance = async () => {
@@ -286,7 +250,6 @@ export default function ScanScreen() {
     try {
       const permissionResult = await Location.requestForegroundPermissionsAsync();
       if (permissionResult.status !== 'granted') {
-        setRuleSetMessage(`${activeRuleSet.label} · location unavailable`);
         Alert.alert(
           activeRuleSet.label,
           `Location was not shared. ${activeRuleSet.label} will be used.`
@@ -307,14 +270,14 @@ export default function ScanScreen() {
               id: (row as { name?: string }).name,
               version: (row as { version?: number }).version,
               label: ((row as { rules?: { label?: string } }).rules?.label) ?? 'Local guidance',
-              classes: (row as { rules?: { classes?: unknown } }).rules?.classes,
+              thresholds: (row as { rules?: { thresholds?: unknown } }).rules?.thresholds,
+              materials: (row as { rules?: { materials?: unknown } }).rules?.materials,
             })
           : null;
       const resolved = resolutionError
         ? null
         : resolveLocationRuleSet(resolvedCandidate, activeRuleSet);
       if (!resolvedCandidate || !resolved) {
-        setRuleSetMessage(`${activeRuleSet.label} · local rules unavailable`);
         Alert.alert(
           activeRuleSet.label,
           `Local rules are unavailable for this area. ${activeRuleSet.label} will be used.`
@@ -339,55 +302,61 @@ export default function ScanScreen() {
       );
       items
         .filter((item) => !item.removed)
-        .forEach((item) =>
-          refreshGuidance(item.id, item.label, item.condition, resolved)
-        );
+        .forEach((item) => refreshGuidance(item.id, item.label, item.condition));
     } catch {
-      setRuleSetMessage(`${activeRuleSet.label} · location unavailable`);
-      Alert.alert(
-        activeRuleSet.label,
-        `Location or local rule lookup is unavailable. ${activeRuleSet.label} will be used.`
-      );
+      Alert.alert('Location resolution', 'Could not fetch district guidance. Defaulting to current rules.');
     }
   };
 
+  const draftItems = useMemo(
+    () =>
+      items
+        .filter((item) => !item.removed)
+        .map((item) => ({
+          id: item.id,
+          className: item.label,
+          source: (item.userAdded ? 'user_added' : 'detector') as 'detector' | 'user_added',
+          condition: item.condition,
+          quantity: 1,
+        })),
+    [items]
+  );
+
+  const handlePickupSuccess = useCallback(() => {
+    setPhoto(undefined);
+    setResult(undefined);
+    setItems([]);
+    setSelectedId(undefined);
+    setError(null);
+    setSafetyConfirmed(false);
+    setHazards(INITIAL_HAZARDS);
+  }, []);
+
   const changeLabel = (item: ReviewItem) =>
     Alert.alert(
-      'Change label',
-      'Choose the visual label for this item.',
+      'Change Material',
+      'Select detected material:',
       LABELS.map((label) => ({
-        text: label,
+        text: label.toUpperCase(),
         onPress: () => {
-          updateItem(item.id, {
-            label,
-            guidance: {
-              ...bundledAdvice(label, item.condition),
-              source: 'fallback',
-              ruleSetId: activeRuleSet.id,
-              ruleSetLabel: activeRuleSet.label,
-              ruleSetVersion: activeRuleSet.version,
-              offline: true,
-            },
-          });
-          refreshGuidance(item.id, label, item.condition);
+          updateItem(item.id, { label, confirmed: true });
+          void refreshGuidance(item.id, label, item.condition);
         },
       }))
     );
 
   const addItem = () =>
     Alert.alert(
-      'Add item not in photo',
-      'Choose a label. This item has no detector box.',
-      LABELS.filter(
-        (label) =>
-          evaluateEligibility(label, 'clean_dry', activeRuleSet).eligibility !== 'not_eligible'
-      ).map((label) => ({
-        text: label,
+      'Add Item',
+      'Select material to add:',
+      LABELS.map((label) => ({
+        text: label.toUpperCase(),
         onPress: () => {
           const id = `manual-${Date.now()}`;
-          const guidance = {
-            ...bundledAdvice(label, 'unknown'),
-            source: 'fallback' as const,
+          const fallback = bundledAdvice(label, 'unknown');
+          const guidance: GuidanceCard = {
+            ...fallback,
+            source: 'fallback',
             ruleSetId: activeRuleSet.id,
             ruleSetLabel: activeRuleSet.label,
             ruleSetVersion: activeRuleSet.version,
@@ -433,21 +402,10 @@ export default function ScanScreen() {
       .forEach((item) => refreshGuidance(item.id, item.label, 'clean_dry'));
   };
 
-  const aggregate =
-    Object.entries(
-      (result?.detections ?? []).reduce<Record<string, number>>((counts, detection) => {
-        counts[detection.label] = (counts[detection.label] ?? 0) + 1;
-        return counts;
-      }, {})
-    )
-      .map(([label, count]) => `${count} ${label}`)
-      .join(', ') || 'No detected items';
-
   if (!permission) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
         <ActivityIndicator color="#19806d" size="large" />
-        <Text className="text-sm font-medium text-muted-foreground mt-3">Preparing camera...</Text>
       </View>
     );
   }
@@ -455,20 +413,20 @@ export default function ScanScreen() {
   if (!permission.granted && !photo) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
-        <View className="h-16 w-16 rounded-2xl bg-primary/10 items-center justify-center mb-4">
+        <View className="h-16 w-16 rounded-3xl bg-primary/10 items-center justify-center mb-4">
           <Camera size={30} color="#19806d" />
         </View>
-        <Text className="text-2xl font-bold text-foreground text-center">
+        <Text className="text-2xl font-black text-foreground text-center">
           Camera access needed
         </Text>
         <Text className="text-sm text-muted-foreground text-center mt-2 mb-6 max-w-xs leading-relaxed">
-          Scanning runs directly on your device using on-device ML and does not require an active internet connection.
+          SnapPick uses your camera to identify recyclable materials locally on your device.
         </Text>
-        <Button onPress={() => void requestPermission()} className="w-full bg-primary mb-3">
-          <Text className="text-base font-semibold text-white">Allow camera access</Text>
+        <Button onPress={() => void requestPermission()} className="w-full h-12 rounded-2xl bg-primary mb-3">
+          <Text className="text-base font-bold text-white">Enable Camera</Text>
         </Button>
-        <Button variant="outline" onPress={() => void pick()} className="w-full">
-          <Text className="text-sm font-semibold text-foreground">Choose from gallery</Text>
+        <Button variant="outline" onPress={() => void pick()} className="w-full h-12 rounded-2xl">
+          <Text className="text-sm font-bold text-foreground">Choose from Gallery</Text>
         </Button>
       </View>
     );
@@ -494,46 +452,46 @@ export default function ScanScreen() {
             />
           )}
 
-          {/* Top guidance overlay */}
-          <View className="absolute top-12 left-4 right-4 rounded-2xl bg-slate-900/80 p-4 border border-white/10">
-            <View className="flex-row items-center gap-2 mb-1">
-              <Sparkles size={16} color="#ffffff" />
-              <Text className="text-lg font-bold text-white">Scan your items</Text>
-            </View>
-            <Text className="text-xs text-slate-300">
-              Keep the whole item visible in the frame for highest accuracy.
-            </Text>
+          {/* Minimal Floating Viewfinder Pill */}
+          <View className="absolute top-12 self-center px-4 py-2 rounded-full bg-black/60 border border-white/15 flex-row items-center gap-2 shadow-sm">
+            <Sparkles size={14} color="#19806d" />
+            <Text className="text-xs font-bold text-white">Center item in frame</Text>
           </View>
 
           {error && (
-            <View className="absolute top-32 left-4 right-4 rounded-xl bg-destructive/90 p-3.5 flex-row items-center gap-2">
+            <View className="absolute top-24 left-6 right-6 rounded-2xl bg-destructive/90 p-3.5 flex-row items-center gap-2">
               <AlertCircle size={16} color="#ffffff" />
               <Text className="text-xs text-white font-medium flex-1">{error}</Text>
             </View>
           )}
 
-          {/* Bottom camera controls */}
-          <View className="absolute bottom-10 left-6 right-6 flex-row items-center justify-between">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Choose a photo"
-              onPress={() => void pick()}
-              className="h-12 w-12 rounded-2xl bg-white/15 border border-white/20 items-center justify-center active:bg-white/25"
-            >
-              <ImageIcon size={22} color="#ffffff" />
-            </Pressable>
+          {/* Bottom Floating Controls */}
+          <View className="absolute bottom-10 left-0 right-0 px-8 flex-row items-center justify-between">
+            <View className="flex-1 items-start">
+              <AnimatedPressable
+                accessibilityRole="button"
+                accessibilityLabel="Choose a photo"
+                onPress={() => void pick()}
+                className="h-12 w-12 rounded-2xl bg-white/20 border border-white/30 items-center justify-center shadow-lg"
+              >
+                <ImageIcon size={22} color="#ffffff" />
+              </AnimatedPressable>
+            </View>
 
-            {/* Shutter Button */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Take photo"
-              onPress={() => void capture()}
-              className="h-20 w-20 rounded-full border-4 border-white items-center justify-center active:scale-95 transition-transform"
-            >
-              <View className="h-16 w-16 rounded-full bg-primary" />
-            </Pressable>
+            {/* Shutter Button with tactile spring */}
+            <View className="items-center justify-center">
+              <AnimatedPressable
+                scaleTo={0.92}
+                accessibilityRole="button"
+                accessibilityLabel="Take photo"
+                onPress={() => void capture()}
+                className="h-20 w-20 rounded-full border-4 border-white items-center justify-center shadow-xl"
+              >
+                <View className="h-16 w-16 rounded-full bg-primary" />
+              </AnimatedPressable>
+            </View>
 
-            <View className="w-12" />
+            <View className="flex-1 items-end" />
           </View>
         </View>
       ) : (
@@ -541,7 +499,7 @@ export default function ScanScreen() {
           {/* Photo Preview with Bounding Boxes */}
           <View
             style={{ width: imageWidth, height: imageHeight }}
-            className="mx-4 mt-4 rounded-2xl overflow-hidden bg-slate-200 self-center relative shadow-sm border border-border"
+            className="mx-4 mt-4 rounded-3xl overflow-hidden bg-slate-900 self-center relative shadow-sm border border-border"
           >
             <Image
               source={{ uri: photo.uri }}
@@ -554,9 +512,6 @@ export default function ScanScreen() {
                 !item.removed && (
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={`${item.label}, ${Math.round(
-                      item.detection.score * 100
-                    )} percent`}
                     key={item.id}
                     onPress={() => selectItem(item.id)}
                     style={[
@@ -578,19 +533,20 @@ export default function ScanScreen() {
                             ? 'dashed'
                             : 'solid',
                         borderWidth: item.id === selectedId ? 3 : 2,
+                        borderRadius: 8,
                       },
                     ]}
                   >
-                    <Text
+                    <View
                       style={[
                         styles.boxLabel,
                         { backgroundColor: itemPresentation(item, activeRuleSet).color },
                       ]}
                     >
-                      {itemPresentation(item, activeRuleSet).label} ·{' '}
-                      {classificationText(itemPresentation(item, activeRuleSet).classification)}{' '}
-                      · {Math.round(item.detection.score * 100)}%
-                    </Text>
+                      <Text className="text-[10px] font-black text-white uppercase tracking-wider">
+                        {itemPresentation(item, activeRuleSet).label} · {Math.round(item.detection.score * 100)}%
+                      </Text>
+                    </View>
                   </Pressable>
                 )
             )}
@@ -598,108 +554,77 @@ export default function ScanScreen() {
 
           {/* Action Toolbar below image */}
           <View className="flex-row items-center justify-between px-6 py-3">
-            <Button
-              variant="outline"
-              size="sm"
+            <AnimatedPressable
               onPress={() => {
                 setPhoto(undefined);
                 setResult(undefined);
                 setItems([]);
               }}
-              className="gap-1.5"
             >
-              <RotateCcw size={14} color="#183e48" />
-              <Text className="text-xs font-semibold">Scan another</Text>
-            </Button>
+              <View className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/80 border border-border/80">
+                <RotateCcw size={13} color="#183e48" />
+                <Text className="text-xs font-bold text-foreground">Retake</Text>
+              </View>
+            </AnimatedPressable>
 
-            <View className="flex-row items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20">
-              <View className="h-2 w-2 rounded-full bg-primary" />
-              <Text className="text-xs font-semibold text-primary">Offline scan</Text>
-            </View>
+            {busy && (
+              <View className="flex-row items-center gap-2">
+                <ActivityIndicator color="#19806d" size="small" />
+                <Text className="text-xs font-medium text-muted-foreground">Analyzing...</Text>
+              </View>
+            )}
           </View>
 
           {error && (
-            <View className="mx-6 mb-3 p-3 rounded-xl bg-destructive/10 border border-destructive/20 flex-row items-center gap-2">
+            <View className="mx-6 mb-3 p-3.5 rounded-2xl bg-destructive/10 border border-destructive/20 flex-row items-center gap-2">
               <AlertCircle size={16} color="#b42318" />
               <Text className="text-xs font-medium text-destructive flex-1">{error}</Text>
             </View>
           )}
 
-          {busy ? (
-            <View className="flex-row items-center gap-2 px-6 py-2">
-              <ActivityIndicator color="#19806d" size="small" />
-              <Text className="text-xs text-muted-foreground">Scanning on device...</Text>
-            </View>
-          ) : (
-            result && (
-              <Text className="text-[11px] text-muted-foreground px-6 pb-2">
-                Preprocess {result.timings.preprocessMs.toFixed(0)} ms · Inference{' '}
-                {result.timings.inferenceMs.toFixed(0)} ms · Decode/NMS{' '}
-                {result.timings.decodeNmsMs.toFixed(0)} ms
-              </Text>
-            )
-          )}
-
-          {/* Review Sheet Card Container */}
+          {/* Review Sheet Container */}
           <View
             onLayout={(event) => {
               sheetTop.current = event.nativeEvent.layout.y;
             }}
             className="bg-card rounded-t-3xl border-t border-border px-6 pt-5"
           >
-            <View className="flex-row items-center justify-between mb-1">
-              <Text className="text-xl font-extrabold text-foreground">Review items</Text>
-              <Badge variant="secondary">
-                <Text className="text-[11px] font-semibold">{eligibleCount} eligible</Text>
+            {/* Header with status pill */}
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-xl font-black text-foreground">Detected Items</Text>
+              <Badge variant="secondary" className="px-3 py-1 rounded-full">
+                <Text className="text-xs font-bold">{eligibleCount} eligible</Text>
               </Badge>
             </View>
 
-            <Text className="text-sm font-semibold text-foreground mt-1">{aggregate}</Text>
-            <Text className="text-xs text-muted-foreground mt-0.5">
-              {result?.detections.length ?? 0} detected · Add a row below if an item was missed.
-            </Text>
-
-            {/* Regional rule set badge & location resolution */}
-            <View className="mt-4 p-3.5 rounded-2xl bg-secondary/50 border border-border/80">
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center gap-1.5 flex-1 pr-2">
-                  <MapPin size={15} color="#19806d" />
-                  <Text className="text-xs font-bold text-foreground">
-                    {activeRuleSet.label} · v{activeRuleSet.version}
-                  </Text>
-                </View>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onPress={() => void resolveLocationGuidance()}
-                  className="h-8 px-2.5 bg-card"
-                >
-                  <Text className="text-[11px] font-semibold text-primary">Use my location</Text>
-                </Button>
-              </View>
-              {ruleSetMessage !== 'General Perak guidance' && (
-                <Text className="text-[11px] text-muted-foreground mt-1.5 leading-tight">
-                  {ruleSetMessage}
+            {/* Regional district pill */}
+            <View className="flex-row items-center justify-between p-3 rounded-2xl bg-secondary/40 border border-border/70 mb-3">
+              <View className="flex-row items-center gap-1.5 flex-1 pr-2">
+                <MapPin size={14} color="#19806d" />
+                <Text className="text-xs font-bold text-foreground" numberOfLines={1}>
+                  {activeRuleSet.label}
                 </Text>
-              )}
+              </View>
+              <AnimatedPressable onPress={() => void resolveLocationGuidance()}>
+                <Text className="text-xs font-bold text-primary">Use GPS</Text>
+              </AnimatedPressable>
             </View>
 
-            {/* Quick bulk action: Everything clean & dry */}
-            <Pressable
+            {/* Bulk Clean Action */}
+            <AnimatedPressable
               accessibilityRole="button"
               onPress={confirmEverythingClean}
-              className="mt-3 p-3 rounded-xl bg-primary/10 border border-primary/20 flex-row items-center justify-between active:bg-primary/20"
+              className="p-3 rounded-2xl bg-primary/10 border border-primary/20 flex-row items-center justify-between"
             >
-              <Text className="text-xs font-semibold text-primary">
-                Everything looks clean and dry
-              </Text>
+              <Text className="text-xs font-bold text-primary">Mark all clean & dry</Text>
               <Check size={16} color="#19806d" />
-            </Pressable>
+            </AnimatedPressable>
 
+            {/* Empty state */}
             {result?.detections.length === 0 && (
               <View className="py-6 items-center">
-                <Text className="text-xs text-muted-foreground text-center">
-                  No items were detected. You can add an eligible item manually below.
+                <Text className="text-xs font-medium text-muted-foreground text-center">
+                  No items detected. Add one below if visible.
                 </Text>
               </View>
             )}
@@ -718,13 +643,13 @@ export default function ScanScreen() {
                     ? 'unsure'
                     : 'destructive';
 
-                const statusText = item.removed
+                const statusLabel = item.removed
                   ? 'Removed'
                   : decision.eligibility === 'eligible'
-                  ? 'Eligible for pickup'
+                  ? 'Eligible'
                   : decision.eligibility === 'needs_confirmation'
-                  ? 'Confirm label to check pickup'
-                  : 'Not eligible for pickup';
+                  ? 'Confirm'
+                  : 'Excluded';
 
                 return (
                   <Card
@@ -732,159 +657,92 @@ export default function ScanScreen() {
                     onLayout={(event) => {
                       rows.current[item.id] = sheetTop.current + event.nativeEvent.layout.y;
                     }}
-                    className={`p-4 border transition-all mt-3 ${
-                      isSelected ? 'border-primary ring-1 ring-primary/40 bg-primary/[0.02]' : 'border-border/80'
+                    className={`p-4 rounded-2xl border transition-all mt-3 ${
+                      isSelected
+                        ? 'border-primary ring-1 ring-primary/40 bg-primary/[0.02]'
+                        : 'border-border/80 bg-card'
                     }`}
                   >
+                    {/* Item Title Row */}
                     <Pressable
                       accessibilityRole="button"
                       onPress={() => setSelectedId(item.id)}
-                      className="flex-row items-start justify-between"
+                      className="flex-row items-center justify-between"
                     >
-                      <View className="flex-row items-start gap-3 flex-1">
+                      <View className="flex-row items-center gap-2.5 flex-1">
                         <View
                           style={{
                             backgroundColor: item.removed ? '#5b7072' : presentation.color,
                           }}
-                          className="h-3.5 w-3.5 rounded-full mt-1"
+                          className="h-3.5 w-3.5 rounded-full"
                         />
-                        <View className="flex-1">
-                          <Text className="text-base font-bold text-foreground">
-                            {item.label}
-                            {item.userAdded ? ' · added' : ''}
-                          </Text>
-                          <Text className="text-xs text-muted-foreground mt-0.5">
-                            {item.detection
-                              ? `${Math.round(item.detection.score * 100)}% ${
-                                  item.detection.confidence
-                                }`
-                              : 'No detector box'}
-                          </Text>
-                        </View>
+                        <Text className="text-base font-bold text-foreground capitalize">
+                          {presentation.label}
+                        </Text>
+                        <Badge variant={badgeVariant} className="px-2 py-0.5 rounded-md">
+                          <Text className="text-[10px] font-bold">{statusLabel}</Text>
+                        </Badge>
                       </View>
 
-                      <Badge variant={badgeVariant}>
-                        <Text className="text-[11px] font-semibold">{statusText}</Text>
-                      </Badge>
+                      {/* Item Quick Actions */}
+                      <View className="flex-row items-center gap-1">
+                        <AnimatedPressable onPress={() => changeLabel(item)} className="p-1.5">
+                          <Edit3 size={15} color="#5b7072" />
+                        </AnimatedPressable>
+                        <AnimatedPressable
+                          onPress={() => updateItem(item.id, { removed: !item.removed })}
+                          className="p-1.5"
+                        >
+                          <Trash2
+                            size={15}
+                            color={item.removed ? '#19806d' : '#b42318'}
+                          />
+                        </AnimatedPressable>
+                      </View>
                     </Pressable>
 
-                    {!item.removed && decision.eligibility !== 'eligible' && (
-                      <Text className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                        {decision.reason}
-                      </Text>
-                    )}
-
                     {/* Condition Selector Chips */}
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      className="flex-row gap-2 mt-3"
-                    >
-                      {CONDITIONS.map((condition) => {
-                        const isChecked = item.condition === condition.value;
+                    <View className="flex-row gap-1.5 mt-3">
+                      {CONDITIONS.map((cond) => {
+                        const active = item.condition === cond.value;
                         return (
-                          <Pressable
-                            accessibilityRole="radio"
-                            accessibilityState={{ checked: isChecked }}
-                            key={condition.value}
-                            onPress={() => updateCondition(item, condition.value)}
-                            className={`px-3 py-1.5 rounded-full border mr-2 ${
-                              isChecked
+                          <AnimatedPressable
+                            key={cond.value}
+                            onPress={() => {
+                              updateItem(item.id, { condition: cond.value });
+                              void refreshGuidance(item.id, item.label, cond.value);
+                            }}
+                            className={`flex-1 py-1.5 rounded-xl border items-center justify-center ${
+                              active
                                 ? 'bg-primary border-primary'
-                                : 'bg-secondary/60 border-border/80'
+                                : 'bg-secondary/40 border-border/70'
                             }`}
                           >
                             <Text
-                              className={`text-xs font-semibold ${
-                                isChecked ? 'text-white' : 'text-foreground'
+                              className={`text-[11px] font-bold ${
+                                active ? 'text-white' : 'text-foreground'
                               }`}
                             >
-                              {condition.label}
+                              {cond.label}
                             </Text>
-                          </Pressable>
+                          </AnimatedPressable>
                         );
                       })}
-                    </ScrollView>
+                    </View>
 
-                    {/* Guidance Card Block */}
-                    <View className="mt-3.5 p-3 rounded-xl bg-secondary/50 border border-border/60">
-                      <View className="flex-row items-center justify-between mb-1">
-                        <Text className="text-xs font-bold text-foreground uppercase tracking-wider">
-                          Preparation
-                        </Text>
-                        <Badge
-                          variant={item.guidance.offline ? 'warning' : 'success'}
-                          className="px-2 py-0.5"
-                        >
-                          <Text className="text-[10px] font-bold">
-                            {sourceBadge(item.guidance.source, item.guidance.offline)}
-                          </Text>
-                        </Badge>
-                      </View>
+                    {/* Compact Preparation Snippet */}
+                    <View className="mt-3 p-2.5 rounded-xl bg-secondary/30 border border-border/50">
                       <Text className="text-xs text-foreground leading-relaxed">
                         {item.guidance.preparation}
                       </Text>
-
-                      <Text className="text-xs font-bold text-foreground uppercase tracking-wider mt-2.5 mb-0.5">
-                        Acceptance / disposal
-                      </Text>
-                      <Text className="text-xs text-foreground leading-relaxed">
-                        {item.guidance.disposal}
-                      </Text>
-
                       {item.guidance.safety_warning && (
-                        <View className="mt-2.5 p-2 rounded-lg bg-destructive/10 border border-destructive/20 flex-row items-center gap-1.5">
-                          <AlertTriangle size={14} color="#b42318" />
-                          <Text className="text-xs font-semibold text-destructive flex-1">
+                        <View className="mt-1.5 flex-row items-center gap-1.5">
+                          <AlertTriangle size={13} color="#b42318" />
+                          <Text className="text-[11px] font-semibold text-destructive flex-1">
                             {item.guidance.safety_warning}
                           </Text>
                         </View>
                       )}
-
-                      {item.guidance.confirmation_required && (
-                        <Text className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
-                          Confirm with your local provider. Guidance only; not binding municipal advice.
-                        </Text>
-                      )}
-                      <Text className="text-[10px] text-muted-foreground mt-1">
-                        {item.guidance.ruleSetLabel} · v{item.guidance.ruleSetVersion}
-                      </Text>
-                    </View>
-
-                    {/* Actions row */}
-                    <View className="flex-row items-center flex-wrap gap-2 mt-3 pt-2 border-t border-border/40">
-                      {item.detection?.confidence === 'uncertain' && !item.confirmed && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onPress={() => updateItem(item.id, { confirmed: true })}
-                          className="h-8 px-2.5"
-                        >
-                          <Text className="text-xs font-semibold text-primary">Confirm label</Text>
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onPress={() => changeLabel(item)}
-                        className="h-8 px-2.5"
-                      >
-                        <Text className="text-xs font-semibold text-foreground">Change label</Text>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onPress={() => updateItem(item.id, { removed: !item.removed })}
-                        className="h-8 px-2.5"
-                      >
-                        <Text
-                          className={`text-xs font-semibold ${
-                            item.removed ? 'text-primary' : 'text-destructive'
-                          }`}
-                        >
-                          {item.removed ? 'Restore' : 'Remove'}
-                        </Text>
-                      </Button>
                     </View>
                   </Card>
                 );
@@ -892,61 +750,56 @@ export default function ScanScreen() {
             </View>
 
             {/* Add missing item button */}
-            <Button
-              variant="outline"
-              onPress={addItem}
-              className="w-full mt-4 border-dashed border-primary/40 bg-primary/5 gap-2"
-            >
-              <Plus size={16} color="#19806d" />
-              <Text className="text-xs font-bold text-primary">Add item not in photo</Text>
-            </Button>
-
-            {/* Safety Hazards Declaration Section */}
-            <View className="mt-8 mb-2">
-              <View className="flex-row items-center gap-2 mb-1">
-                <ShieldAlert size={18} color="#805d13" />
-                <Text className="text-base font-bold text-foreground">
-                  Declare restricted or hazardous items
-                </Text>
+            <AnimatedPressable onPress={addItem} className="mt-4">
+              <View className="w-full py-3 rounded-2xl border border-dashed border-primary/50 bg-primary/5 flex-row items-center justify-center gap-2">
+                <Plus size={16} color="#19806d" />
+                <Text className="text-xs font-bold text-primary">Add item not in photo</Text>
               </View>
-              <Text className="text-xs text-muted-foreground">
-                Mandatory safety check for community pickups
+            </AnimatedPressable>
+
+            {/* Safety Hazards Quick Grid */}
+            <View className="mt-8 mb-3">
+              <Text className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Safety Declaration (Exclude if present)
               </Text>
             </View>
 
-            <View className="grid grid-cols-2 gap-2 mt-2">
+            <View className="flex-row flex-wrap gap-2">
               {(
                 Object.entries(MANUAL_SAFETY_LABELS) as [ManualSafetyKey, string][]
               ).map(([key, label]) => {
                 const isChecked = hazards[key];
+                const IconComponent = HAZARD_ICONS[key] || AlertTriangle;
                 return (
-                  <Pressable
+                  <AnimatedPressable
                     key={key}
                     onPress={() => {
                       setHazards((current) => ({ ...current, [key]: !current[key] }));
                       setSafetyConfirmed(false);
                     }}
-                    className={`flex-row items-center p-3 rounded-xl border mb-2 ${
+                    className={`flex-row items-center px-3 py-2 rounded-xl border ${
                       isChecked
-                        ? 'bg-amber-50/80 border-amber-300'
-                        : 'bg-card border-border/80'
+                        ? 'bg-destructive/10 border-destructive/40'
+                        : 'bg-card border-border/70'
                     }`}
                   >
-                    <Checkbox
-                      checked={isChecked}
-                      onCheckedChange={() => {
-                        setHazards((current) => ({ ...current, [key]: !current[key] }));
-                        setSafetyConfirmed(false);
-                      }}
-                      className="mr-3"
+                    <IconComponent
+                      size={14}
+                      color={isChecked ? '#b42318' : '#5b7072'}
                     />
-                    <Text className="text-xs font-medium text-foreground flex-1">{label}</Text>
-                  </Pressable>
+                    <Text
+                      className={`text-xs font-bold ml-1.5 ${
+                        isChecked ? 'text-destructive' : 'text-foreground'
+                      }`}
+                    >
+                      {label}
+                    </Text>
+                  </AnimatedPressable>
                 );
               })}
             </View>
 
-            {/* Hazard Guidance Cards if declared */}
+            {/* Hazard alert cards if any active */}
             {Object.entries(hazards)
               .filter(([, declared]) => declared)
               .map(([key]) => {
@@ -955,46 +808,28 @@ export default function ScanScreen() {
                   'unknown'
                 );
                 return (
-                  <Card key={key} className="p-3.5 bg-amber-50/60 border-amber-200 mt-2">
+                  <Card key={key} className="p-3 bg-amber-500/10 border-amber-500/30 rounded-2xl mt-2.5">
                     <Text className="text-xs font-bold text-amber-900">
-                      {MANUAL_SAFETY_LABELS[key as ManualSafetyKey]} · local guidance
+                      {MANUAL_SAFETY_LABELS[key as ManualSafetyKey]}: Exclude from pickup
                     </Text>
-                    <Text className="text-xs text-amber-800 mt-1 leading-relaxed">
+                    <Text className="text-[11px] text-amber-800 mt-0.5 leading-tight">
                       {advice.disposal}
                     </Text>
-                    {advice.safety_warning && (
-                      <Text className="text-xs font-semibold text-destructive mt-1.5">
-                        {advice.safety_warning}
-                      </Text>
-                    )}
                   </Card>
                 );
               })}
 
-            {Object.values(hazards).some(Boolean) && (
-              <Text className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
-                {
-                  (
-                    bundledAdviceData.items as unknown as Record<
-                      string,
-                      { preparation: string }
-                    >
-                  )['hazard_confirmation'].preparation
-                }
-              </Text>
-            )}
-
-            {/* Mandatory final declaration checkbox */}
+            {/* Mandatory confirmation checkbox */}
             <Pressable
               onPress={() => setSafetyConfirmed((val) => !val)}
-              className="mt-5 p-3.5 rounded-xl border border-border bg-secondary/30 flex-row items-center gap-3"
+              className="mt-4 p-3 rounded-2xl border border-border/80 bg-secondary/30 flex-row items-center gap-3"
             >
               <Checkbox
                 checked={safetyConfirmed}
                 onCheckedChange={() => setSafetyConfirmed((val) => !val)}
               />
-              <Text className="text-xs font-medium text-foreground flex-1 leading-relaxed">
-                I will leave declared restricted items out of pickup.
+              <Text className="text-xs font-semibold text-foreground flex-1">
+                I will keep declared restricted items out of pickup.
               </Text>
             </Pressable>
 
@@ -1031,24 +866,12 @@ function itemDecision(item: ReviewItem, ruleSet: RuleSet) {
   );
 }
 
-function classificationText(
-  classification: ReturnType<typeof itemPresentation>['classification']
-): string {
-  return classification === 'recyclable'
-    ? 'Recyclable'
-    : classification === 'not_recyclable'
-    ? 'Not recyclable'
-    : 'Unsure';
-}
-
 const styles = StyleSheet.create({
   box: { position: 'absolute' },
   boxLabel: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '700',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: 6,
+    borderTopLeftRadius: 6,
   },
 });

@@ -3,9 +3,10 @@ import { useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, router } from 'expo-router';
-import { ShieldCheck, AlertCircle, RefreshCw, AlertTriangle, Users, MapPin } from 'lucide-react-native';
+import { ShieldAlert, AlertTriangle, Users, MapPin, AlertCircle } from 'lucide-react-native';
 
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
@@ -13,7 +14,7 @@ import { CONSENT_VERSION, hasImageStorageConsent, hasRequiredConsents } from '@/
 import { useAuth } from '@/providers/AuthProvider';
 
 export default function SafetyConsentScreen() {
-  const { profile, profileLoading, profileError, updateProfile, refreshProfile } = useAuth();
+  const { profile, profileLoading, profileError, updateProfile } = useAuth();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -32,7 +33,7 @@ export default function SafetyConsentScreen() {
       });
       router.replace('/(tabs)');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'We could not save your choice.');
+      setMessage(error instanceof Error ? error.message : 'Could not save choice. Try again.');
     } finally {
       setBusy(false);
     }
@@ -41,115 +42,83 @@ export default function SafetyConsentScreen() {
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between' }}
         className="px-6 py-6"
-        keyboardShouldPersistTaps="handled"
       >
-        {/* Step indicator */}
-        <View className="mb-6">
-          <View className="flex-row items-center gap-2 mb-3">
-            <View className="h-1.5 w-14 rounded-full bg-primary" />
-            <View className="h-1.5 w-14 rounded-full bg-primary" />
+        <View>
+          {/* Step indicator */}
+          <View className="flex-row items-center gap-2 mb-8">
+            <View className="h-1.5 flex-1 rounded-full bg-primary" />
+            <View className="h-1.5 flex-1 rounded-full bg-primary" />
           </View>
-          <Text className="text-xs font-bold uppercase tracking-wider text-primary">
-            Step 2 of 2 · Community Safety
+
+          {/* Icon Badge */}
+          <View className="h-16 w-16 rounded-3xl bg-amber-500/10 border border-amber-500/20 items-center justify-center mb-5">
+            <ShieldAlert size={30} color="#b45309" />
+          </View>
+
+          <Text className="text-3xl font-black tracking-tight text-foreground leading-tight">
+            Community Safety
           </Text>
+          <Text className="text-sm text-muted-foreground mt-2 leading-relaxed">
+            Quick safety checks ensure clean, reliable pickups for everyone.
+          </Text>
+
+          {/* Safety Chips */}
+          <View className="mt-6 space-y-3">
+            <Card className="p-4 rounded-2xl border-border/70 bg-card flex-row items-center gap-3.5 shadow-sm">
+              <View className="h-10 w-10 rounded-xl bg-destructive/10 items-center justify-center">
+                <AlertTriangle size={18} color="#b42318" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-sm font-bold text-foreground">No hazardous materials</Text>
+                <Text className="text-xs text-muted-foreground mt-0.5">Batteries, chemicals & sharps excluded</Text>
+              </View>
+            </Card>
+
+            <Card className="p-4 rounded-2xl border-border/70 bg-card flex-row items-center gap-3.5 shadow-sm mt-3">
+              <View className="h-10 w-10 rounded-xl bg-primary/10 items-center justify-center">
+                <MapPin size={18} color="#19806d" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-sm font-bold text-foreground">Safe, accessible meetup</Text>
+                <Text className="text-xs text-muted-foreground mt-0.5">Clear access instructions & daytime hours</Text>
+              </View>
+            </Card>
+
+            <Card className="p-4 rounded-2xl border-border/70 bg-card flex-row items-center gap-3.5 shadow-sm mt-3">
+              <View className="h-10 w-10 rounded-xl bg-blue-500/10 items-center justify-center">
+                <Users size={18} color="#2563eb" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-sm font-bold text-foreground">Community respect</Text>
+                <Text className="text-xs text-muted-foreground mt-0.5">Accurate item counts & prompt handoffs</Text>
+              </View>
+            </Card>
+          </View>
         </View>
 
-        <View className="h-14 w-14 rounded-2xl bg-primary/10 items-center justify-center mb-4">
-          <ShieldCheck size={28} color="#19806d" />
-        </View>
-
-        <Text className="text-2xl font-extrabold tracking-tight text-foreground leading-tight">
-          Community pickups need a safety check
-        </Text>
-
-        <Text className="text-sm text-muted-foreground mt-3 leading-relaxed">
-          SnapPick connects neighbours for community pickups. You remain responsible for following local guidance and for deciding what is safe to hand over.
-        </Text>
-
-        {/* Safety checklist items in a clean card */}
-        <Card className="mt-5 border-border/70 p-4 space-y-3">
-          <View className="flex-row items-start gap-3">
-            <View className="h-7 w-7 rounded-full bg-primary/10 items-center justify-center mt-0.5">
-              <Users size={15} color="#19806d" />
+        <View className="pt-6">
+          {(profileError || message) && (
+            <View className="mb-4 flex-row items-center gap-2 rounded-2xl bg-destructive/10 border border-destructive/20 p-3.5">
+              <AlertCircle size={16} color="#b42318" />
+              <Text className="text-xs text-destructive flex-1 font-medium">
+                {message || profileError}
+              </Text>
             </View>
-            <Text className="flex-1 text-xs text-foreground leading-relaxed">
-              Keep people, pets, and valuables safely separated from pickup items.
-            </Text>
-          </View>
+          )}
 
-          <View className="flex-row items-start gap-3 pt-2 border-t border-border/40">
-            <View className="h-7 w-7 rounded-full bg-destructive/10 items-center justify-center mt-0.5">
-              <AlertTriangle size={15} color="#b42318" />
-            </View>
-            <Text className="flex-1 text-xs text-foreground leading-relaxed">
-              Never hand over hazardous, leaking, sharp, corrosive, or unknown materials.
-            </Text>
-          </View>
-
-          <View className="flex-row items-start gap-3 pt-2 border-t border-border/40">
-            <View className="h-7 w-7 rounded-full bg-primary/10 items-center justify-center mt-0.5">
-              <MapPin size={15} color="#19806d" />
-            </View>
-            <Text className="flex-1 text-xs text-foreground leading-relaxed">
-              Coordinate and meet only in safe, well-lit spaces and use in-app report tools if needed.
-            </Text>
-          </View>
-        </Card>
-
-        {profileError && (
-          <View className="mt-4 flex-row items-center gap-2 rounded-xl bg-destructive/10 border border-destructive/20 p-3">
-            <AlertCircle size={16} color="#b42318" />
-            <Text className="text-xs text-destructive flex-1 font-medium">{profileError}</Text>
-          </View>
-        )}
-
-        {message && (
-          <View className="mt-4 flex-row items-center gap-2 rounded-xl bg-destructive/10 border border-destructive/20 p-3">
-            <AlertCircle size={16} color="#b42318" />
-            <Text className="text-xs text-destructive flex-1 font-medium">{message}</Text>
-          </View>
-        )}
-
-        <View className="mt-8 space-y-3">
           <Button
-            disabled={busy || !profile}
+            disabled={busy}
             onPress={() => void accept()}
-            className="w-full bg-primary"
+            className="w-full h-12 rounded-2xl bg-primary shadow-sm"
           >
             {busy ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
-              <Text className="text-base font-semibold text-white">
-                I understand and acknowledge
-              </Text>
+              <Text className="text-base font-bold text-white">I Agree & Understand</Text>
             )}
           </Button>
-
-          <Button
-            disabled={busy}
-            variant="ghost"
-            onPress={() =>
-              setMessage('The safety acknowledgement is required to use pickups. Your choice has not been changed.')
-            }
-            className="w-full mt-2"
-          >
-            <Text className="text-sm font-medium text-muted-foreground">
-              Decline for now
-            </Text>
-          </Button>
-
-          {profileError && (
-            <Button
-              variant="outline"
-              onPress={() => void refreshProfile()}
-              className="w-full gap-2 mt-2"
-            >
-              <RefreshCw size={14} color="#183e48" />
-              <Text className="text-xs font-semibold">Try again</Text>
-            </Button>
-          )}
         </View>
       </ScrollView>
     </SafeAreaView>

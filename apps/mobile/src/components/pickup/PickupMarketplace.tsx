@@ -1,13 +1,14 @@
 import * as React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Camera as MapCamera, Map, Marker } from '@maplibre/maplibre-react-native';
-import { CircleAlert, LocateFixed, RefreshCw, User, WifiOff } from 'lucide-react-native';
+import { CircleAlert, LocateFixed, RefreshCw, User, WifiOff, X } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import * as Network from 'expo-network';
 
+import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { groupMarketplaceRequests, formatPickupSummary, formatPickupWindow, type MarketplaceRequest } from '@/lib/pickup/marketplace';
@@ -34,7 +35,7 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
-        Alert.alert('Location permission', 'Enable location permission to find pickups near you.');
+        Alert.alert('Location required', 'Please enable location permissions to find pickups near you.');
         return;
       }
       const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
@@ -56,7 +57,7 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
     const { data, error } = await supabase.from('pending_pickup_marketplace')
       .select('id,district_name,material_summary,pickup_window_start,pickup_window_end,longitude,latitude,cell_count,is_mine');
     if (error) {
-      setLoadError('Nearby requests could not be loaded. Check your connection and retry.');
+      setLoadError('Nearby requests could not be loaded. Please check your connection.');
       setRequests([]);
     } else {
       setRequests((data ?? []) as MarketplaceRequest[]);
@@ -65,13 +66,11 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
     setLoading(false);
   }, [online]);
 
-  // Initial load
   useEffect(() => {
     const timer = setTimeout(() => { void refresh(); }, 0);
     return () => clearTimeout(timer);
   }, [refresh]);
 
-  // Refresh every time tab comes into focus
   useFocusEffect(
     useCallback(() => {
       void refresh();
@@ -95,15 +94,30 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
-      <View className="px-5 pt-3 pb-2">
-        <Text className="text-2xl font-bold text-foreground">Nearby pickups</Text>
-        <Text className="mt-1 text-sm text-muted-foreground">Approximate areas only</Text>
+      {/* Sleek Header */}
+      <View className="px-6 pt-3 pb-2 flex-row items-center justify-between">
+        <Text className="text-2xl font-black tracking-tight text-foreground">Nearby Pickups</Text>
+        <View className="flex-row items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/80 border border-border/80">
+          {realtime === 'offline' ? (
+            <WifiOff size={12} color="#b45309" />
+          ) : (
+            <View className={`h-2 w-2 rounded-full ${realtime === 'live' ? 'bg-primary' : 'bg-amber-500'}`} />
+          )}
+          <Text className="text-[11px] font-bold text-foreground capitalize">
+            {realtime === 'live' ? 'Live' : realtime}
+          </Text>
+        </View>
       </View>
 
-      <View className="flex-1 mx-3 mb-3 overflow-hidden rounded-lg bg-muted">
-        <Map mapStyle={MAP_STYLE} style={{ flex: 1 }} attribution attributionPosition={{ bottom: 8, right: 8 }}
+      <View className="flex-1 mx-4 mb-4 overflow-hidden rounded-3xl bg-muted border border-border shadow-sm relative">
+        <Map
+          mapStyle={MAP_STYLE}
+          style={{ flex: 1 }}
+          attribution
+          attributionPosition={{ bottom: 8, right: 8 }}
           onDidFinishLoadingMap={() => { setMapError(false); setMapReady(true); }}
-          onDidFailLoadingMap={() => { setMapError(true); setMapReady(false); }}>
+          onDidFailLoadingMap={() => { setMapError(true); setMapReady(false); }}
+        >
           <MapCamera ref={camera} initialViewState={{ center: INITIAL_POINT, zoom: 10.5 }} minZoom={4} maxZoom={19} />
           {cells.map((cell) => {
             const isSelected = selectedCell?.key === cell.key;
@@ -118,7 +132,7 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
                 }}
               >
                 <View
-                  className={`min-w-11 h-11 px-2.5 items-center justify-center rounded-full border-2 shadow-md ${
+                  className={`min-w-11 h-11 px-2.5 items-center justify-center rounded-2xl border-2 shadow-md ${
                     cell.hasMine
                       ? isSelected
                         ? 'border-amber-300 bg-amber-600'
@@ -138,108 +152,101 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
           })}
         </Map>
 
-        {!mapReady && !mapError && <View pointerEvents="none" className="absolute top-3 left-3 flex-row items-center gap-2 rounded-md bg-white px-3 py-2"><ActivityIndicator size="small" color="#176c60" /><Text className="text-xs text-foreground">Loading map</Text></View>}
-        {mapError && <View className="absolute top-3 left-3 right-3 rounded-md bg-white p-3"><Text className="text-sm font-semibold text-destructive">Map unavailable</Text><Text className="mt-1 text-xs text-muted-foreground">Request summaries remain available below. Check your connection and retry.</Text></View>}
+        {!mapReady && !mapError && (
+          <View pointerEvents="none" className="absolute top-4 left-4 flex-row items-center gap-2 rounded-2xl bg-card/90 px-3 py-2 border border-border shadow-sm">
+            <ActivityIndicator size="small" color="#19806d" />
+            <Text className="text-xs font-bold text-foreground">Loading map...</Text>
+          </View>
+        )}
 
-        <View className="absolute top-3 right-3 rounded-md bg-white/95 px-3 py-2 flex-row items-center gap-2">
-          {realtime === 'offline' ? <WifiOff size={14} color="#8a4b18" /> : <View className={`h-2 w-2 rounded-full ${realtime === 'live' ? 'bg-primary' : 'bg-amber-500'}`} />}
-          <Text className="text-xs font-medium text-foreground">{realtime === 'live' ? 'Live updates' : realtime === 'offline' ? 'Offline' : realtime === 'reconnecting' ? 'Reconnecting' : 'Connecting'}</Text>
+        {mapError && (
+          <View className="absolute top-4 left-4 right-4 rounded-2xl bg-card p-3 border border-destructive/20 shadow-sm">
+            <Text className="text-xs font-bold text-destructive">Map unavailable</Text>
+            <Text className="mt-0.5 text-[11px] text-muted-foreground">Check connection to view live map tiles.</Text>
+          </View>
+        )}
+
+        {/* Floating Quick Actions */}
+        <View className="absolute top-4 right-4 gap-2.5">
+          <AnimatedPressable
+            accessibilityRole="button"
+            accessibilityLabel="Center map on your location"
+            disabled={locating}
+            onPress={() => void locateCollector()}
+            className="h-11 w-11 items-center justify-center rounded-2xl bg-card shadow-md border border-border/80"
+          >
+            {locating ? <ActivityIndicator size="small" color="#19806d" /> : <LocateFixed size={18} color="#19806d" />}
+          </AnimatedPressable>
+
+          <AnimatedPressable
+            accessibilityRole="button"
+            accessibilityLabel="Refresh nearby pickups"
+            disabled={loading}
+            onPress={() => {
+              setLoading(true);
+              void refresh();
+            }}
+            className="h-11 w-11 items-center justify-center rounded-2xl bg-card shadow-md border border-border/80"
+          >
+            {loading ? <ActivityIndicator size="small" color="#19806d" /> : <RefreshCw size={17} color="#19806d" />}
+          </AnimatedPressable>
         </View>
 
-        {/* Locate collector button */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Center map on your location"
-          disabled={locating}
-          onPress={() => void locateCollector()}
-          className="absolute top-14 right-3 h-11 w-11 items-center justify-center rounded-full bg-white/95 shadow-md border border-border active:bg-muted"
-        >
-          {locating ? <ActivityIndicator size="small" color="#176c60" /> : <LocateFixed size={20} color="#176c60" />}
-        </Pressable>
-
-        {/* Manual refresh button */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Refresh nearby pickups"
-          disabled={loading}
-          onPress={() => {
-            setLoading(true);
-            void refresh();
-          }}
-          className="absolute top-28 right-3 h-11 w-11 items-center justify-center rounded-full bg-white/95 shadow-md border border-border active:bg-muted"
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color="#176c60" />
-          ) : (
-            <RefreshCw size={18} color="#176c60" />
-          )}
-        </Pressable>
-
+        {/* Selected Area / Request Bottom Card */}
         {selected && selectedCell && (
-          <View className="absolute bottom-16 left-3 right-3 max-h-[52%] rounded-xl border border-border bg-background p-4 shadow-xl">
+          <View className="absolute bottom-6 left-4 right-4 max-h-[55%] rounded-3xl border border-border/80 bg-card p-4 shadow-2xl">
             <View className="flex-row items-start justify-between gap-3">
               <View className="flex-1">
                 <View className="flex-row items-center gap-2">
-                  <Text className="text-base font-bold text-foreground">{selected.district_name ?? 'Perak service area'}</Text>
+                  <Text className="text-base font-black text-foreground">
+                    {selected.district_name ?? 'Perak area'}
+                  </Text>
                   {selected.is_mine && (
-                    <View className="rounded-full bg-amber-100 px-2 py-0.5 border border-amber-300">
-                      <Text className="text-[11px] font-semibold text-amber-800">Your request</Text>
+                    <View className="rounded-full bg-amber-500/10 px-2 py-0.5 border border-amber-500/20">
+                      <Text className="text-[10px] font-bold text-amber-800">Your Request</Text>
                     </View>
                   )}
                 </View>
-                <Text className="mt-1 text-sm font-medium text-foreground">{formatPickupSummary(selected.material_summary)}</Text>
-                <Text className="mt-0.5 text-xs text-muted-foreground">{formatPickupWindow(selected.pickup_window_start, selected.pickup_window_end)}</Text>
+                <Text className="mt-1 text-sm font-bold text-foreground">
+                  {formatPickupSummary(selected.material_summary)}
+                </Text>
+                <Text className="text-xs text-muted-foreground mt-0.5">
+                  {formatPickupWindow(selected.pickup_window_start, selected.pickup_window_end)}
+                </Text>
               </View>
-              <Pressable
+
+              <AnimatedPressable
                 accessibilityRole="button"
                 accessibilityLabel="Close request details"
                 onPress={() => setSelected(null)}
-                className="h-8 w-8 items-center justify-center rounded-full bg-muted active:bg-muted/80"
+                className="h-8 w-8 items-center justify-center rounded-full bg-secondary/80"
               >
-                <Text className="text-base font-semibold text-foreground">×</Text>
-              </Pressable>
+                <X size={16} color="#5b7072" />
+              </AnimatedPressable>
             </View>
 
-            {/* List to switch between requests in this area/cell */}
+            {/* Multiple requests in cell selector */}
             {selectedCell.count > 1 && (
               <View className="mt-3">
-                <Text className="text-xs font-semibold text-muted-foreground mb-1.5">
-                  {selectedCell.count} requests in this area — tap to view:
-                </Text>
                 <ScrollView className="max-h-28" nestedScrollEnabled showsVerticalScrollIndicator>
                   {selectedCell.requests.map((request, index) => {
                     const isItemActive = request.id === selected.id;
                     return (
-                      <Pressable
+                      <AnimatedPressable
                         key={request.id}
                         onPress={() => setSelected(request)}
-                        className={`p-2.5 rounded-lg mb-1.5 border flex-row items-center justify-between ${
+                        className={`p-2.5 rounded-xl mb-1.5 border flex-row items-center justify-between ${
                           isItemActive
                             ? 'border-primary bg-primary/10'
-                            : 'border-border bg-card'
+                            : 'border-border/70 bg-secondary/30'
                         }`}
                       >
                         <View className="flex-1 mr-2">
-                          <View className="flex-row items-center gap-1.5">
-                            <Text className={`text-xs font-semibold ${isItemActive ? 'text-primary' : 'text-foreground'}`}>
-                              Request #{index + 1}
-                            </Text>
-                            {request.is_mine && (
-                              <View className="rounded bg-amber-100 px-1.5 py-0.5 border border-amber-200">
-                                <Text className="text-[10px] font-semibold text-amber-800">You</Text>
-                              </View>
-                            )}
-                          </View>
-                          <Text className="text-xs text-muted-foreground mt-0.5" numberOfLines={1}>
-                            {formatPickupSummary(request.material_summary)}
+                          <Text className={`text-xs font-bold ${isItemActive ? 'text-primary' : 'text-foreground'}`}>
+                            Pickup #{index + 1} · {formatPickupSummary(request.material_summary)}
                           </Text>
                         </View>
-                        {isItemActive && (
-                          <View className="rounded-full bg-primary px-2 py-0.5">
-                            <Text className="text-[10px] font-semibold text-white">Selected</Text>
-                          </View>
-                        )}
-                      </Pressable>
+                      </AnimatedPressable>
                     );
                   })}
                 </ScrollView>
@@ -247,22 +254,47 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
             )}
 
             {selected.is_mine ? (
-              <View className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2.5">
+              <View className="mt-3 rounded-2xl border border-amber-200/80 bg-amber-50 p-2.5">
                 <Text className="text-xs font-semibold text-amber-800 text-center">
-                  This is your own pickup request. Other collectors will claim it.
+                  Your pickup is active and waiting for a collector.
                 </Text>
               </View>
             ) : (
-              <Button disabled={!online} onPress={() => void claim(selected.id, refresh)} className="mt-3 w-full">
-                <Text className="text-sm font-semibold text-white">{online ? 'Claim pickup' : 'Connect to claim pickup'}</Text>
+              <Button
+                disabled={!online}
+                onPress={() => void claim(selected.id, refresh)}
+                className="w-full h-11 rounded-2xl bg-primary mt-3"
+              >
+                <Text className="text-sm font-bold text-white">
+                  {online ? 'Claim Pickup' : 'Offline'}
+                </Text>
               </Button>
             )}
           </View>
         )}
 
-        {loading && <View className="absolute inset-0 items-center justify-center bg-background/80"><ActivityIndicator color="#176c60" /><Text className="mt-2 text-sm text-muted-foreground">Loading nearby requests</Text></View>}
-        {!loading && requests.length === 0 && !loadError && <View className="absolute bottom-16 left-4 right-4 rounded-lg bg-background p-4"><Text className="text-sm font-semibold text-foreground">{online ? 'No pending pickups nearby' : 'Connect to browse pending pickups'}</Text><Text className="mt-1 text-xs text-muted-foreground">{online ? 'New requests will appear here when available.' : 'Nearby requests need an internet connection.'}</Text></View>}
-        {!!loadError && <View className="absolute bottom-16 left-3 right-3 rounded-lg bg-background p-4"><View className="flex-row items-start gap-2"><CircleAlert size={17} color="#b42318" /><Text className="flex-1 text-sm text-destructive">{loadError}</Text></View><Button variant="outline" onPress={() => { setLoading(true); void refresh(); }} className="mt-2 self-start"><RefreshCw size={15} color="#176c60" /><Text className="ml-2 text-sm">Retry</Text></Button></View>}
+        {loading && (
+          <View className="absolute inset-0 items-center justify-center bg-background/80">
+            <ActivityIndicator color="#19806d" size="large" />
+            <Text className="mt-2 text-xs font-bold text-muted-foreground">Finding pickups...</Text>
+          </View>
+        )}
+
+        {!loading && requests.length === 0 && !loadError && (
+          <View className="absolute bottom-6 left-4 right-4 rounded-2xl bg-card p-4 border border-border shadow-md">
+            <Text className="text-sm font-bold text-foreground text-center">No pending pickups nearby</Text>
+            <Text className="text-xs text-muted-foreground text-center mt-0.5">Check back later or scan waste to request one.</Text>
+          </View>
+        )}
+
+        {!!loadError && (
+          <View className="absolute bottom-6 left-4 right-4 rounded-2xl bg-card p-4 border border-destructive/20 shadow-md">
+            <View className="flex-row items-center gap-2">
+              <CircleAlert size={16} color="#b42318" />
+              <Text className="flex-1 text-xs font-medium text-destructive">{loadError}</Text>
+            </View>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -277,7 +309,7 @@ async function claim(requestId: string, refresh: () => Promise<void>) {
       : message.includes('cannot_claim_own')
         ? 'You cannot claim your own request.'
         : message.includes('request_') || message.includes('unavailable')
-          ? 'This pickup is no longer available. Refresh the map and try another.'
+          ? 'This pickup is no longer available.'
           : error.message);
     await refresh();
     return;

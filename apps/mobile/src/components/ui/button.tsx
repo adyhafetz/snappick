@@ -57,7 +57,7 @@ type ButtonProps = React.ComponentPropsWithoutRef<typeof Pressable> &
   VariantProps<typeof buttonVariants>;
 
 const Button = React.forwardRef<React.ElementRef<typeof Pressable>, ButtonProps>(
-  ({ className, variant, size, ...props }, ref) => {
+  ({ className, variant, size, style, ...props }, ref) => {
     return (
       <TextClassContext.Provider
         value={cn(
@@ -72,6 +72,10 @@ const Button = React.forwardRef<React.ElementRef<typeof Pressable>, ButtonProps>
           )}
           ref={ref}
           role='button'
+          style={(state) => [
+            typeof style === 'function' ? style(state) : style,
+            state.pressed && !props.disabled ? { transform: [{ scale: 0.97 }], opacity: 0.92 } : null,
+          ]}
           {...props}
         />
       </TextClassContext.Provider>

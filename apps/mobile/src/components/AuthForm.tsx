@@ -3,12 +3,12 @@ import { useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link } from 'expo-router';
-import { AlertCircle, CheckCircle2, Mail, Lock } from 'lucide-react-native';
+import { AlertCircle, CheckCircle2, Mail, Lock, Sparkles } from 'lucide-react-native';
 
+import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Text } from '@/components/ui/text';
 import { useAuth } from '@/providers/AuthProvider';
@@ -43,11 +43,11 @@ export function AuthForm({ mode }: AuthFormProps) {
       } else {
         const result = await signUp(trimmedEmail, password);
         if (result.needsEmailConfirmation) {
-          setNotice('Account created. Check your email to confirm your address, then sign in.');
+          setNotice('Account created! Please check your email to confirm.');
         }
       }
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Something went wrong. Try again.');
+      setError(submitError instanceof Error ? submitError.message : 'Authentication failed. Try again.');
     } finally {
       setBusy(false);
     }
@@ -70,36 +70,34 @@ export function AuthForm({ mode }: AuthFormProps) {
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
-        className="px-6 py-6"
+        className="px-6 py-8"
         keyboardShouldPersistTaps="handled"
       >
-        <View className="mb-6">
-          <Text className="text-xl font-extrabold tracking-tight text-ink">SnapPick</Text>
-          <View className="h-1 w-8 rounded-full bg-primary mt-1" />
+        {/* Brand Header */}
+        <View className="items-center mb-8">
+          <View className="h-16 w-16 rounded-3xl bg-primary/10 border border-primary/20 items-center justify-center mb-4 shadow-sm">
+            <Sparkles size={32} color="#19806d" />
+          </View>
+          <Text className="text-3xl font-black tracking-tight text-foreground">SnapPick</Text>
+          <Text className="text-sm font-medium text-muted-foreground mt-1">
+            {isSignIn ? 'Welcome back' : 'Smart waste sorting made simple'}
+          </Text>
         </View>
 
-        <Card className="border-border/60 bg-card/95 shadow-sm">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-2xl font-extrabold tracking-tight">
-              {isSignIn ? 'Welcome back' : 'Create an account'}
-            </CardTitle>
-            <CardDescription className="text-sm text-muted-foreground mt-1">
-              {isSignIn ? 'Sign in to access your recycling guidance and pickups.' : 'Join your local community in smart material sorting.'}
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="space-y-4 pt-0">
+        {/* Card Form */}
+        <Card className="border-border/70 bg-card shadow-sm p-5 rounded-3xl">
+          <CardContent className="p-0 space-y-4">
             {error && (
-              <View className="flex-row items-center gap-2.5 rounded-xl bg-destructive/10 border border-destructive/20 p-3.5 mb-2">
+              <View className="flex-row items-center gap-2.5 rounded-2xl bg-destructive/10 border border-destructive/20 p-3.5 mb-2">
                 <AlertCircle size={18} color="#b42318" />
-                <Text className="flex-1 text-xs font-medium text-destructive leading-tight">
+                <Text className="flex-1 text-xs font-semibold text-destructive leading-tight">
                   {error}
                 </Text>
               </View>
             )}
 
             {notice && (
-              <View className="flex-row items-center gap-2.5 rounded-xl bg-primary/10 border border-primary/20 p-3.5 mb-2">
+              <View className="flex-row items-center gap-2.5 rounded-2xl bg-primary/10 border border-primary/20 p-3.5 mb-2">
                 <CheckCircle2 size={18} color="#19806d" />
                 <Text className="flex-1 text-xs font-semibold text-primary leading-tight">
                   {notice}
@@ -107,78 +105,73 @@ export function AuthForm({ mode }: AuthFormProps) {
               </View>
             )}
 
-            <View className="space-y-1.5 mb-3">
-              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Email
-              </Label>
-              <View className="relative justify-center">
-                <Input
-                  accessibilityLabel="Email"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  keyboardType="email-address"
-                  onChangeText={setEmail}
-                  placeholder="you@example.com"
-                  value={email}
-                  className="pl-11"
-                />
-                <View className="absolute left-3.5">
-                  <Mail size={18} color="#5b7072" />
-                </View>
+            {/* Email Field */}
+            <View className="relative justify-center">
+              <Input
+                accessibilityLabel="Email"
+                autoCapitalize="none"
+                autoComplete="email"
+                keyboardType="email-address"
+                onChangeText={setEmail}
+                placeholder="Email address"
+                value={email}
+                className="pl-11 h-12 rounded-2xl bg-secondary/40 border-border/60"
+              />
+              <View className="absolute left-3.5">
+                <Mail size={18} color="#5b7072" />
               </View>
             </View>
 
-            <View className="space-y-1.5 mb-4">
-              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Password
-              </Label>
-              <View className="relative justify-center">
-                <Input
-                  accessibilityLabel="Password"
-                  autoCapitalize="none"
-                  autoComplete={isSignIn ? 'current-password' : 'new-password'}
-                  onChangeText={setPassword}
-                  placeholder="At least 6 characters"
-                  secureTextEntry
-                  value={password}
-                  className="pl-11"
-                />
-                <View className="absolute left-3.5">
-                  <Lock size={18} color="#5b7072" />
-                </View>
+            {/* Password Field */}
+            <View className="relative justify-center mt-3">
+              <Input
+                accessibilityLabel="Password"
+                autoCapitalize="none"
+                autoComplete={isSignIn ? 'current-password' : 'new-password'}
+                onChangeText={setPassword}
+                placeholder="Password (6+ chars)"
+                secureTextEntry
+                value={password}
+                className="pl-11 h-12 rounded-2xl bg-secondary/40 border-border/60"
+              />
+              <View className="absolute left-3.5">
+                <Lock size={18} color="#5b7072" />
               </View>
             </View>
 
+            {/* Submit Button */}
             <Button
               disabled={busy}
               onPress={() => void submit()}
-              className="w-full bg-primary"
+              className="w-full h-12 rounded-2xl bg-primary shadow-sm mt-2"
             >
               {busy ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text className="text-base font-semibold text-white">
-                  {isSignIn ? 'Sign In' : 'Create Account'}
+                <Text className="text-base font-bold text-white">
+                  {isSignIn ? 'Sign In' : 'Get Started'}
                 </Text>
               )}
             </Button>
 
-            <View className="my-3 flex-row items-center gap-3">
+            {/* Divider */}
+            <View className="my-2 flex-row items-center gap-3">
               <Separator className="flex-1" />
-              <Text className="text-xs font-semibold text-muted-foreground uppercase">OR</Text>
+              <Text className="text-[11px] font-bold text-muted-foreground uppercase">or</Text>
               <Separator className="flex-1" />
             </View>
 
+            {/* Google Button */}
             <Button
               disabled={busy}
               variant="outline"
               onPress={() => void submitGoogle()}
-              className="w-full bg-card border-border"
+              className="w-full h-12 rounded-2xl bg-card border-border/80"
             >
               {busy ? (
                 <ActivityIndicator color="#183e48" />
               ) : (
-                <Text className="text-sm font-semibold text-foreground">
+                <Text className="text-sm font-bold text-foreground">
                   Continue with Google
                 </Text>
               )}
@@ -186,9 +179,10 @@ export function AuthForm({ mode }: AuthFormProps) {
           </CardContent>
         </Card>
 
-        <View className="mt-6 flex-row justify-center items-center">
+        {/* Toggle Mode */}
+        <View className="mt-8 flex-row justify-center items-center">
           <Text className="text-sm text-muted-foreground">
-            {isSignIn ? "Don't have an account? " : 'Already have an account? '}
+            {isSignIn ? "Don't have an account? " : 'Already registered? '}
           </Text>
           <Link href={isSignIn ? '/(auth)/sign-up' : '/(auth)/sign-in'}>
             <Text className="text-sm font-bold text-primary">

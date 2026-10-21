@@ -3,11 +3,14 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useFocusEffect, router } from 'expo-router';
-import { Camera, Check, Image as ImageIcon, Play, RotateCcw } from 'lucide-react-native';
+import { ArrowLeft, Camera, Check, Image as ImageIcon, Play, RotateCcw, MapPin } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { toByteArray } from 'base64-js';
 
+import { AnimatedPressable } from '@/components/ui/animated-pressable';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { supabase } from '@/lib/supabase';
 import { openPickupNavigation } from '@/lib/pickup/navigation';
@@ -48,7 +51,7 @@ export default function ClaimedPickupScreen() {
     if (safe.status === 'accepted' || safe.status === 'in_progress') {
       const { data: privateData, error: privateError } = await supabase.functions.invoke('get-pickup-private-details', { body: { request_id: id } });
       if (privateError || !isDetails(privateData)) {
-        setError('The authorized destination could not be loaded. Retry when connected.');
+        setError('Authorized destination could not be loaded. Retry when connected.');
         setDetails(null);
       } else setDetails(privateData);
     } else {
@@ -65,7 +68,7 @@ export default function ClaimedPickupScreen() {
     const { error: actionError } = await supabase.rpc(action, { request_id: id });
     setBusy(false);
     if (actionError) {
-      Alert.alert(action === 'start_pickup' ? 'Could not start pickup' : 'Could not release pickup', 'The pickup state changed. Refresh and try again.');
+      Alert.alert(action === 'start_pickup' ? 'Could not start pickup' : 'Could not release pickup', 'State changed. Refresh and retry.');
       await load();
       return;
     }
@@ -78,8 +81,6 @@ export default function ClaimedPickupScreen() {
     try {
       await openPickupNavigation(details.latitude, details.longitude, {
         canOpenURL: async (url) => {
-          // Android 11+ package visibility blocks canOpenURL for custom schemes,
-          // but openURL works directly for google.navigation intents.
           if (url.startsWith('google.navigation:')) return true;
           return Linking.canOpenURL(url);
         },
@@ -93,7 +94,7 @@ export default function ClaimedPickupScreen() {
   const takeProofWithCamera = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Camera permission needed', 'SnapPick requires camera access to capture pickup proof photos.');
+      Alert.alert('Camera permission needed', 'Camera access is required to take proof photos.');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 });
@@ -108,10 +109,12 @@ export default function ClaimedPickupScreen() {
       setProof({ uri: result.assets[0].uri, width: result.assets[0].width, height: result.assets[0].height });
     }
   };
+
   const submitCollection = async () => {
-    if (!id || !proof) { Alert.alert('Proof photo required', 'Add a JPEG proof photo before submitting.'); return; }
+    if (!id || !proof) { Alert.alert('Proof photo required', 'Take a proof photo before submitting.'); return; }
     const total = rows.reduce((sum, row) => sum + row.collectedQuantity, 0);
-    const validation = validateChecklist(rows, Boolean(proof), nonCollectionReason); if (validation) { Alert.alert('Checklist incomplete', validation); return; }
+    const validation = validateChecklist(rows, Boolean(proof), nonCollectionReason);
+    if (validation) { Alert.alert('Incomplete checklist', validation); return; }
     setBusy(true);
     try {
       const image = await prepareProofImage(proof.uri, proof.width, proof.height);
@@ -122,105 +125,229 @@ export default function ClaimedPickupScreen() {
       if (uploadError) throw uploadError;
       const { error: submitError } = await supabase.rpc('submit_collection', { request_id: id, p_items: toSubmission(rows), p_non_collection_reason: total === 0 ? nonCollectionReason : null, p_proof_path: path, p_captured_at: new Date().toISOString() });
       if (submitError) throw submitError;
-      Alert.alert('Collection submitted', 'Proof and checklist submitted for requester confirmation.');
+      Alert.alert('Success', 'Collection submitted for confirmation.');
       router.replace('/(tabs)/activity');
-    } catch { Alert.alert('Could not submit collection', 'Check your connection and try again.'); } finally { setBusy(false); }
+    } catch { Alert.alert('Error', 'Could not submit collection. Try again.'); } finally { setBusy(false); }
   };
+
   const openProof = async () => {
     if (!id) return;
     const { data, error: proofError } = await supabase.functions.invoke('get-pickup-proof', { body: { request_id: id } });
-    if (proofError || typeof data?.signed_url !== 'string') { Alert.alert('Proof unavailable', 'The authorized proof could not be opened.'); return; }
+    if (proofError || typeof data?.signed_url !== 'string') { Alert.alert('Unavailable', 'Proof photo could not be opened.'); return; }
     await Linking.openURL(data.signed_url);
   };
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 36 }}>
-        <Text className="text-2xl font-bold text-foreground">Claimed pickup</Text>
-        {loading ? <View className="py-12 items-center"><ActivityIndicator color="#176c60" /><Text className="mt-3 text-sm text-muted-foreground">Loading pickup details</Text></View> : error ? <View className="mt-5"><Text accessibilityRole="alert" className="text-sm text-destructive">{error}</Text><Button variant="outline" onPress={() => void load()} className="mt-3 self-start"><Text>Retry</Text></Button></View> : pickup ? <>
-          <View className="mt-5 border-b border-border pb-4">
-            <Text className="text-sm text-muted-foreground">{pickup.district_name ?? 'Perak service area'} · {pickup.status.replaceAll('_', ' ')}</Text>
-            <Text className="mt-2 text-base font-semibold text-foreground">{pickup.material_summary.map((item) => `${item.quantity ?? 1} x ${item.class ?? 'item'}`).join(', ')}</Text>
-            <Text className="mt-1 text-sm text-muted-foreground">{formatWindow(pickup.pickup_window_start, pickup.pickup_window_end)}</Text>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} className="px-6 pt-4">
+        {/* Top Navigation Row */}
+        <View className="flex-row items-center gap-3 mb-5">
+          <AnimatedPressable onPress={() => router.back()} className="h-10 w-10 rounded-2xl bg-secondary/80 border border-border items-center justify-center">
+            <ArrowLeft size={18} color="#183e48" />
+          </AnimatedPressable>
+          <Text className="text-xl font-black text-foreground">Pickup Task</Text>
+        </View>
+
+        {loading ? (
+          <View className="py-16 items-center">
+            <ActivityIndicator color="#19806d" size="large" />
+            <Text className="mt-3 text-xs font-bold text-muted-foreground">Loading details...</Text>
           </View>
-          {details && <View className="py-4 border-b border-border">
-            <Text className="text-base font-semibold text-foreground">Pickup address</Text>
-            <Text className="mt-2 text-sm text-foreground">{[details.unit_number, details.street].filter(Boolean).join(', ')}</Text>
-            {details.landmark && <Text className="mt-2 text-sm text-muted-foreground">Landmark: {details.landmark}</Text>}
-            {details.access_instructions && <Text className="mt-2 text-sm text-muted-foreground">Access: {details.access_instructions}</Text>}
-            <RoutePreviewMap
-              destination={{
-                latitude: details.latitude,
-                longitude: details.longitude,
-                street: details.street,
-              }}
-              onNavigateNative={() => void navigate()}
-            />
-          </View>}
-          {pickup.status === 'accepted' && <View className="mt-4 gap-3">
-            <Button disabled={busy} onPress={() => void transition('start_pickup')}><Play size={16} color="#ffffff" /><Text className="ml-2 font-semibold text-white">Start pickup</Text></Button>
-            <Button disabled={busy} variant="outline" onPress={() => Alert.alert('Release this pickup?', 'It will return to the pending map for other collectors.', [{ text: 'Keep pickup', style: 'cancel' }, { text: 'Release', style: 'destructive', onPress: () => void transition('release_pickup_request') }])}><RotateCcw size={16} color="#176c60" /><Text className="ml-2">Release pickup</Text></Button>
-          </View>}
-          {pickup.status === 'in_progress' && <View className="mt-4 gap-3"><CollectionChecklist rows={rows} onChange={setRows} />{rows.every((row) => row.collectedQuantity === 0) && <View className="flex-row flex-wrap gap-2">{CHECKLIST_REASONS.map((reason) => <Pressable key={reason} accessibilityRole="radio" accessibilityState={{ selected: nonCollectionReason === reason }} onPress={() => setNonCollectionReason(reason)} className={`rounded-md border px-2 py-2 ${nonCollectionReason === reason ? 'border-amber-600 bg-amber-50' : 'border-border'}`}><Text className="text-xs text-foreground">{reason.replaceAll('_', ' ')}</Text></Pressable>)}</View>}{proof ? (
-              <View className="rounded-xl border border-border bg-card overflow-hidden">
-                <View className="relative">
-                  <Image source={{ uri: proof.uri }} style={{ width: '100%', height: 200 }} resizeMode="cover" />
-                  <View className="absolute top-2 right-2 rounded-full bg-black/60 px-2.5 py-1">
-                    <Text className="text-[11px] font-medium text-white">Proof photo</Text>
-                  </View>
-                </View>
-                <View className="p-3 bg-card border-t border-border">
-                  <Text className="text-xs text-muted-foreground mb-2.5">
-                    Photo attached. Resized to 800 px and metadata stripped on submit.
+        ) : error ? (
+          <View className="py-8 items-center">
+            <Text className="text-sm font-semibold text-destructive text-center mb-3">{error}</Text>
+            <AnimatedPressable onPress={() => void load()}>
+              <Button variant="outline" size="sm" className="rounded-xl">
+                <Text className="text-xs font-bold">Retry</Text>
+              </Button>
+            </AnimatedPressable>
+          </View>
+        ) : pickup ? (
+          <>
+            {/* Overview Card */}
+            <Card className="p-4 rounded-2xl border-border/80 bg-card shadow-sm mb-4">
+              <View className="flex-row items-start justify-between">
+                <View className="flex-1">
+                  <Text className="text-base font-bold text-foreground">
+                    {pickup.district_name ?? 'Perak area'}
                   </Text>
-                  <View className="flex-row gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onPress={() => void takeProofWithCamera()}
-                      className="flex-1 flex-row items-center justify-center gap-1.5"
-                    >
-                      <Camera size={14} color="#176c60" />
-                      <Text className="text-xs font-semibold text-primary">Retake photo</Text>
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onPress={() => void chooseProofFromGallery()}
-                      className="flex-1 flex-row items-center justify-center gap-1.5"
-                    >
-                      <ImageIcon size={14} color="#176c60" />
-                      <Text className="text-xs font-semibold text-primary">From gallery</Text>
-                    </Button>
-                  </View>
+                  <Text className="text-sm font-bold text-primary mt-1">
+                    {pickup.material_summary.map((item) => `${item.quantity ?? 1} × ${item.class ?? 'item'}`).join(', ')}
+                  </Text>
+                  <Text className="text-xs text-muted-foreground mt-1">
+                    {formatWindow(pickup.pickup_window_start, pickup.pickup_window_end)}
+                  </Text>
                 </View>
+                <Badge variant={pickup.status === 'in_progress' ? 'default' : 'secondary'} className="px-2.5 py-0.5 rounded-full">
+                  <Text className="text-[10px] font-bold capitalize">
+                    {pickup.status.replaceAll('_', ' ')}
+                  </Text>
+                </Badge>
               </View>
-            ) : (
-              <View className="rounded-xl border border-border p-3 bg-card/60">
-                <Pressable
-                  onPress={() => void takeProofWithCamera()}
-                  className="items-center justify-center rounded-lg bg-primary/10 border border-primary/30 p-4"
+            </Card>
+
+            {/* Address & Navigation */}
+            {details && (
+              <Card className="p-4 rounded-2xl border-border/80 bg-card shadow-sm mb-4">
+                <View className="flex-row items-center gap-1.5 mb-2">
+                  <MapPin size={16} color="#19806d" />
+                  <Text className="text-sm font-bold text-foreground">Destination</Text>
+                </View>
+                <Text className="text-sm font-semibold text-foreground">
+                  {[details.unit_number, details.street].filter(Boolean).join(', ')}
+                </Text>
+                {details.landmark && (
+                  <Text className="text-xs text-muted-foreground mt-1">
+                    Landmark: {details.landmark}
+                  </Text>
+                )}
+                {details.access_instructions && (
+                  <Text className="text-xs text-muted-foreground mt-0.5">
+                    Access: {details.access_instructions}
+                  </Text>
+                )}
+                <RoutePreviewMap
+                  destination={{
+                    latitude: details.latitude,
+                    longitude: details.longitude,
+                    street: details.street,
+                  }}
+                  onNavigateNative={() => void navigate()}
+                />
+              </Card>
+            )}
+
+            {/* State Actions: Accepted */}
+            {pickup.status === 'accepted' && (
+              <View className="gap-2.5 mt-2">
+                <Button
+                  disabled={busy}
+                  onPress={() => void transition('start_pickup')}
+                  className="w-full h-12 rounded-2xl bg-primary flex-row items-center justify-center gap-2"
                 >
-                  <Camera size={26} color="#176c60" />
-                  <Text className="mt-2 text-sm font-semibold text-primary">Take proof photo</Text>
-                  <Text className="mt-1 text-xs text-muted-foreground text-center">
-                    Captures directly with camera. Resized to 800 px and metadata stripped.
-                  </Text>
-                </Pressable>
-                <View className="flex-row items-center justify-between mt-3 pt-2 border-t border-border/60">
-                  <Text className="text-xs text-muted-foreground">Have a photo already?</Text>
-                  <Pressable
-                    onPress={() => void chooseProofFromGallery()}
-                    className="flex-row items-center gap-1.5 py-1 px-2"
-                  >
-                    <ImageIcon size={14} color="#176c60" />
-                    <Text className="text-xs font-semibold text-primary">Choose from gallery</Text>
-                  </Pressable>
-                </View>
+                  <Play size={16} color="#ffffff" />
+                  <Text className="text-sm font-bold text-white">Start Pickup</Text>
+                </Button>
+
+                <Button
+                  disabled={busy}
+                  variant="outline"
+                  onPress={() =>
+                    Alert.alert('Release pickup?', 'This pickup will return to the map for other collectors.', [
+                      { text: 'Keep', style: 'cancel' },
+                      { text: 'Release', style: 'destructive', onPress: () => void transition('release_pickup_request') },
+                    ])
+                  }
+                  className="w-full h-11 rounded-2xl border-border flex-row items-center justify-center gap-2"
+                >
+                  <RotateCcw size={15} color="#5b7072" />
+                  <Text className="text-sm font-semibold text-foreground">Release to Map</Text>
+                </Button>
               </View>
-            )}<Button disabled={busy} onPress={() => void submitCollection()}><Check size={16} color="#ffffff" /><Text className="ml-2 font-semibold text-white">Submit collection</Text></Button></View>}
-          {pickup.status === 'awaiting_confirmation' && <Button variant="outline" onPress={() => void openProof()} className="mt-4 self-start"><Camera size={16} color="#176c60" /><Text className="ml-2">View collection proof</Text></Button>}
-        </> : null}
+            )}
+
+            {/* State Actions: In Progress */}
+            {pickup.status === 'in_progress' && (
+              <View className="gap-4 mt-2">
+                <CollectionChecklist rows={rows} onChange={setRows} />
+
+                {/* Proof Photo Uploader */}
+                <View className="mt-1">
+                  <View className="flex-row items-center justify-between mb-2">
+                    <Text className="text-sm font-bold text-foreground">Proof of Collection</Text>
+                    <Badge variant={proof ? 'success' : 'destructive'} className="px-2.5 py-0.5 rounded-full">
+                      <Text className="text-[10px] font-bold">{proof ? 'Proof Ready' : 'Required'}</Text>
+                    </Badge>
+                  </View>
+
+                  {proof ? (
+                    <Card className="rounded-2xl border border-border overflow-hidden bg-card shadow-sm">
+                      <View className="relative">
+                        <Image source={{ uri: proof.uri }} style={{ width: '100%', height: 200 }} resizeMode="cover" />
+                        <View className="absolute top-3 right-3 rounded-full bg-black/60 px-3 py-1 flex-row items-center gap-1.5 shadow-sm">
+                          <Check size={12} color="#10b981" />
+                          <Text className="text-[11px] font-bold text-white">Attached</Text>
+                        </View>
+                      </View>
+                      <View className="p-3 bg-card border-t border-border flex-row gap-2.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onPress={() => void takeProofWithCamera()}
+                          className="flex-1 h-10 rounded-xl flex-row items-center justify-center gap-2"
+                        >
+                          <Camera size={15} color="#19806d" />
+                          <Text className="text-xs font-bold text-primary">Retake</Text>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onPress={() => void chooseProofFromGallery()}
+                          className="flex-1 h-10 rounded-xl flex-row items-center justify-center gap-2"
+                        >
+                          <ImageIcon size={15} color="#19806d" />
+                          <Text className="text-xs font-bold text-primary">Choose Gallery</Text>
+                        </Button>
+                      </View>
+                    </Card>
+                  ) : (
+                    <View className="flex-row gap-3">
+                      {/* Option 1: Camera */}
+                      <AnimatedPressable
+                        onPress={() => void takeProofWithCamera()}
+                        className="flex-1 p-4 rounded-2xl border border-primary/30 bg-primary/5 items-center justify-center shadow-xs"
+                      >
+                        <View className="h-12 w-12 rounded-2xl bg-primary/10 items-center justify-center mb-2">
+                          <Camera size={24} color="#19806d" />
+                        </View>
+                        <Text className="text-xs font-bold text-foreground text-center">Take Photo</Text>
+                        <Text className="text-[10px] text-muted-foreground text-center mt-0.5">Use camera</Text>
+                      </AnimatedPressable>
+
+                      {/* Option 2: Gallery */}
+                      <AnimatedPressable
+                        onPress={() => void chooseProofFromGallery()}
+                        className="flex-1 p-4 rounded-2xl border border-border/80 bg-card items-center justify-center shadow-xs"
+                      >
+                        <View className="h-12 w-12 rounded-2xl bg-secondary/80 items-center justify-center mb-2">
+                          <ImageIcon size={24} color="#5b7072" />
+                        </View>
+                        <Text className="text-xs font-bold text-foreground text-center">Photo Library</Text>
+                        <Text className="text-[10px] text-muted-foreground text-center mt-0.5">Choose file</Text>
+                      </AnimatedPressable>
+                    </View>
+                  )}
+                </View>
+
+                <Button
+                  disabled={busy}
+                  onPress={() => void submitCollection()}
+                  className="w-full h-12 rounded-2xl bg-primary flex-row items-center justify-center gap-2 shadow-sm"
+                >
+                  {busy ? (
+                    <ActivityIndicator color="#ffffff" />
+                  ) : (
+                    <>
+                      <Check size={16} color="#ffffff" />
+                      <Text className="text-sm font-bold text-white">Complete & Submit</Text>
+                    </>
+                  )}
+                </Button>
+              </View>
+            )}
+
+            {pickup.status === 'awaiting_confirmation' && (
+              <Button
+                variant="outline"
+                onPress={() => void openProof()}
+                className="w-full h-11 rounded-2xl flex-row items-center justify-center gap-2 mt-3"
+              >
+                <Camera size={16} color="#19806d" />
+                <Text className="text-sm font-bold text-primary">View Submitted Proof</Text>
+              </Button>
+            )}
+          </>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );

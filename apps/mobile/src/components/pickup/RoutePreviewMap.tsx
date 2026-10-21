@@ -1,10 +1,11 @@
 import * as React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { Camera as MapCamera, GeoJSONSource, Layer, Map, Marker } from '@maplibre/maplibre-react-native';
 import * as Location from 'expo-location';
 import { LocateFixed, MapPin, MapPinned, Navigation } from 'lucide-react-native';
 
+import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { fetchDrivingRoute, type RouteInfo } from '@/lib/pickup/routing';
@@ -105,14 +106,14 @@ export function RoutePreviewMap({ destination, onNavigateNative }: RoutePreviewM
   }, [routeInfo]);
 
   return (
-    <View className="rounded-xl border border-border bg-card overflow-hidden mt-3">
+    <View className="rounded-2xl border border-border bg-card overflow-hidden mt-3 shadow-sm">
       {/* Route Info Header */}
-      <View className="p-3 bg-muted/40 border-b border-border flex-row items-center justify-between">
+      <View className="p-3.5 bg-secondary/30 border-b border-border flex-row items-center justify-between">
         <View className="flex-1">
           {loading ? (
             <View className="flex-row items-center gap-2">
-              <ActivityIndicator size="small" color="#176c60" />
-              <Text className="text-xs text-muted-foreground">Calculating route from your location…</Text>
+              <ActivityIndicator size="small" color="#19806d" />
+              <Text className="text-xs font-medium text-muted-foreground">Calculating route...</Text>
             </View>
           ) : routeInfo ? (
             <View>
@@ -120,21 +121,21 @@ export function RoutePreviewMap({ destination, onNavigateNative }: RoutePreviewM
                 {routeInfo.distanceFormatted} · ~{routeInfo.durationFormatted}
               </Text>
               <Text className="text-[11px] text-muted-foreground">
-                {routeInfo.isDrivingRoute ? 'Estimated driving route' : 'Direct distance estimate'}
+                {routeInfo.isDrivingRoute ? 'Driving route' : 'Direct distance'}
               </Text>
             </View>
           ) : (
             <Text className="text-xs text-muted-foreground">Destination coordinates ready</Text>
           )}
         </View>
-        <Pressable
+        <AnimatedPressable
           accessibilityRole="button"
           accessibilityLabel="Recenter route view"
           onPress={fitRouteBounds}
-          className="h-8 w-8 rounded-full bg-background border border-border items-center justify-center active:bg-muted"
+          className="h-8 w-8 rounded-full bg-card border border-border items-center justify-center shadow-sm"
         >
-          <LocateFixed size={15} color="#176c60" />
-        </Pressable>
+          <LocateFixed size={15} color="#19806d" />
+        </AnimatedPressable>
       </View>
 
       {/* Embedded MapLibre Preview */}
@@ -159,7 +160,7 @@ export function RoutePreviewMap({ destination, onNavigateNative }: RoutePreviewM
                 id="route-line"
                 type="line"
                 paint={{
-                  'line-color': '#176c60',
+                  'line-color': '#19806d',
                   'line-width': 4.5,
                   'line-opacity': 0.85,
                 }}
@@ -193,14 +194,11 @@ export function RoutePreviewMap({ destination, onNavigateNative }: RoutePreviewM
       <View className="p-3 bg-card border-t border-border">
         <Button
           onPress={onNavigateNative}
-          className="w-full flex-row items-center justify-center gap-2"
+          className="w-full h-11 rounded-xl flex-row items-center justify-center gap-2 bg-primary"
         >
           <MapPinned size={18} color="#ffffff" />
-          <Text className="text-sm font-semibold text-white">Navigate with Google Maps</Text>
+          <Text className="text-sm font-bold text-white">Navigate with Google Maps</Text>
         </Button>
-        <Text className="text-[11px] text-muted-foreground text-center mt-2">
-          Opens native Google Maps app for hands-free voice turn-by-turn driving guidance.
-        </Text>
       </View>
     </View>
   );

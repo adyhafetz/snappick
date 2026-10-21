@@ -7,6 +7,7 @@ import * as Network from 'expo-network';
 import { CircleAlert, LocateFixed, MapPin, ShieldCheck } from 'lucide-react-native';
 import { Camera as MapCamera, Map } from '@maplibre/maplibre-react-native';
 
+import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
@@ -239,12 +240,12 @@ export function PickupRequestSection({
   return (
     <View className="mt-8 border-t border-border pt-6">
       <View className="mb-3">
-        <Text className="text-lg font-bold text-foreground">Pickup location & address</Text>
-        <Text className="text-xs text-muted-foreground mt-0.5">Select a pickup point in Perak and enter collection details.</Text>
+        <Text className="text-xl font-black text-foreground">Schedule Pickup</Text>
+        <Text className="text-xs text-muted-foreground mt-0.5">Select collection pin and address.</Text>
       </View>
 
       {/* Map selector */}
-      <View className="h-[220px] overflow-hidden rounded-xl bg-muted relative border border-border">
+      <View className="h-[210px] overflow-hidden rounded-2xl bg-muted relative border border-border shadow-sm">
         <Map
           mapStyle={mapStyle}
           style={{ flex: 1 }}
@@ -266,45 +267,44 @@ export function PickupRequestSection({
           <MapPin size={32} fill="#c94e3b" color="#ffffff" strokeWidth={2.2} />
         </View>
         {!mapReady && !mapError && (
-          <View pointerEvents="none" className="absolute bottom-3 right-3 flex-row items-center gap-2 rounded-md bg-white/95 px-3 py-1.5 shadow-sm">
-            <ActivityIndicator size="small" color="#176c60" />
-            <Text className="text-xs font-medium text-foreground">Loading map…</Text>
+          <View pointerEvents="none" className="absolute bottom-3 right-3 flex-row items-center gap-2 rounded-xl bg-card/95 px-3 py-1.5 shadow-sm">
+            <ActivityIndicator size="small" color="#19806d" />
+            <Text className="text-xs font-bold text-foreground">Loading...</Text>
           </View>
         )}
-        <View className="absolute left-3 top-3 max-w-[76%] rounded-md bg-white/95 px-3 py-1.5 shadow-sm">
-          <Text className="text-xs font-semibold text-foreground">{areaMessage}</Text>
-          <Text className="text-[10px] text-muted-foreground">Drag map or hold to position pin.</Text>
+        <View className="absolute left-3 top-3 max-w-[76%] rounded-xl bg-card/95 px-3 py-1.5 shadow-sm border border-border/60">
+          <Text className="text-xs font-bold text-foreground">{areaMessage}</Text>
         </View>
-        <Pressable
+        <AnimatedPressable
           accessibilityRole="button"
           accessibilityLabel="Use current location"
           onPress={() => void detectLocation()}
-          className="absolute bottom-3 left-3 h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm border border-border"
+          className="absolute bottom-3 left-3 h-10 w-10 items-center justify-center rounded-xl bg-card shadow-sm border border-border"
         >
-          <LocateFixed size={18} color="#176c60" />
-        </Pressable>
+          <LocateFixed size={18} color="#19806d" />
+        </AnimatedPressable>
       </View>
       {!!locationState && <Text className="pt-1 text-xs text-muted-foreground">{locationState}</Text>}
 
       {/* Address fields */}
-      <View className="mt-4 gap-3">
-        <Field label="House or unit number" value={form.unitNumber} onChangeText={(value) => updateForm('unitNumber', value)} placeholder="12A" maxLength={40} />
-        <Field label="Street" value={form.street} onChangeText={(value) => updateForm('street', value)} placeholder="Jalan Sultan Azlan Shah" maxLength={160} />
-        <Field label="Landmark (optional)" value={form.landmark} onChangeText={(value) => updateForm('landmark', value)} placeholder="Near community hall" maxLength={160} />
-        <Field label="Access instructions (optional)" value={form.accessInstructions} onChangeText={(value) => updateForm('accessInstructions', value)} placeholder="Gate code or buzzer" multiline maxLength={500} />
-        <Field label="Pickup note (optional)" value={form.pickupNote} onChangeText={(value) => updateForm('pickupNote', value)} placeholder="Any special instructions for collector" multiline maxLength={500} />
+      <View className="mt-4 gap-2.5">
+        <Field label="Unit / House No." value={form.unitNumber} onChangeText={(value) => updateForm('unitNumber', value)} placeholder="e.g. 12A" maxLength={40} />
+        <Field label="Street" value={form.street} onChangeText={(value) => updateForm('street', value)} placeholder="e.g. Jalan Sultan Azlan Shah" maxLength={160} />
+        <Field label="Landmark (optional)" value={form.landmark} onChangeText={(value) => updateForm('landmark', value)} placeholder="e.g. Next to community hall" maxLength={160} />
+        <Field label="Access instructions (optional)" value={form.accessInstructions} onChangeText={(value) => updateForm('accessInstructions', value)} placeholder="Gate code or entrance notes" multiline maxLength={500} />
+        <Field label="Pickup note (optional)" value={form.pickupNote} onChangeText={(value) => updateForm('pickupNote', value)} placeholder="Notes for collector" multiline maxLength={500} />
       </View>
 
-      <View className="mt-3 flex-row items-start gap-2">
-        <ShieldCheck size={16} color="#176c60" />
-        <Text className="flex-1 text-xs leading-4 text-muted-foreground">
-          Your exact address and notes stay strictly private until assigned to a verified collector.
+      <View className="mt-3 flex-row items-center gap-1.5">
+        <ShieldCheck size={14} color="#19806d" />
+        <Text className="flex-1 text-xs text-muted-foreground">
+          Address is kept private until assigned to a collector.
         </Text>
       </View>
 
       {/* Pickup Window */}
       <View className="mt-5">
-        <Text className="text-sm font-semibold text-foreground">Preferred collection window</Text>
+        <Text className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pickup Window</Text>
         <View className="mt-2 flex-row gap-2">
           {DATE_CHOICES.map((choice) => (
             <WindowChoice key={choice} label={dayLabel(choice)} selected={pickupDay === choice} onPress={() => setPickupDay(choice)} />
@@ -319,7 +319,7 @@ export function PickupRequestSection({
 
       {/* Error display */}
       {!!error && (
-        <View className="mt-4 rounded-lg bg-destructive/10 p-3 flex-row items-start gap-2">
+        <View className="mt-4 rounded-2xl bg-destructive/10 p-3 flex-row items-center gap-2 border border-destructive/20">
           <CircleAlert size={16} color="#b42318" />
           <Text className="flex-1 text-xs font-medium text-destructive">{error}</Text>
         </View>
@@ -329,7 +329,7 @@ export function PickupRequestSection({
       <Button
         disabled={submitting || eligibleItems.length === 0 || !safetyConfirmed || !allAddressValid || areaState !== 'ready'}
         onPress={() => void submit()}
-        className={`w-full mt-6 ${
+        className={`w-full h-12 rounded-2xl mt-6 ${
           eligibleItems.length === 0 || !safetyConfirmed || !allAddressValid || areaState !== 'ready'
             ? 'bg-muted opacity-50'
             : 'bg-primary'
@@ -338,13 +338,9 @@ export function PickupRequestSection({
         {submitting ? (
           <ActivityIndicator size="small" color="#ffffff" />
         ) : (
-          <Text className="text-base font-semibold text-white">Submit Pickup Request</Text>
+          <Text className="text-base font-bold text-white">Submit Pickup Request</Text>
         )}
       </Button>
-
-      <Text className="text-[11px] text-muted-foreground text-center mt-2.5 mb-8">
-        Requests are placed on the community marketplace. Approximate area is shown publicly.
-      </Text>
     </View>
   );
 }
@@ -359,7 +355,7 @@ function Field(props: {
 }) {
   return (
     <View>
-      <Text className="mb-1 text-xs font-medium text-muted-foreground">{props.label}</Text>
+      <Text className="mb-1 text-xs font-bold text-muted-foreground">{props.label}</Text>
       <Input
         value={props.value}
         onChangeText={props.onChangeText}
@@ -367,7 +363,7 @@ function Field(props: {
         multiline={props.multiline}
         numberOfLines={props.multiline ? 2 : 1}
         maxLength={props.maxLength}
-        className="bg-card text-foreground"
+        className="bg-card text-foreground rounded-xl border-border/70"
       />
     </View>
   );
@@ -375,18 +371,18 @@ function Field(props: {
 
 function WindowChoice(props: { label: string; selected: boolean; onPress: () => void }) {
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="radio"
       accessibilityState={{ selected: props.selected }}
       onPress={props.onPress}
-      className={`min-h-10 flex-1 items-center justify-center rounded-lg border px-2 ${
-        props.selected ? 'border-primary bg-primary/10' : 'border-border bg-card'
+      className={`min-h-10 flex-1 items-center justify-center rounded-xl border px-2 ${
+        props.selected ? 'border-primary bg-primary/10' : 'border-border/70 bg-card'
       }`}
     >
-      <Text className={`text-xs font-semibold ${props.selected ? 'text-primary' : 'text-foreground'}`}>
+      <Text className={`text-xs font-bold ${props.selected ? 'text-primary' : 'text-foreground'}`}>
         {props.label}
       </Text>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
