@@ -13,7 +13,6 @@ import {
   Sparkles,
 } from 'lucide-react-native';
 
-import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -103,7 +102,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: 56 }}
         className="px-6 pt-4"
         keyboardShouldPersistTaps="handled"
       >
@@ -186,7 +185,7 @@ export default function ProfileScreen() {
           <Button
             disabled={saving}
             onPress={() => void saveDetails()}
-            className="w-full h-11 rounded-xl bg-primary mt-2"
+            className="w-full h-12 rounded-2xl bg-primary mt-2"
           >
             {saving ? (
               <ActivityIndicator color="#ffffff" />

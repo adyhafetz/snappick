@@ -1,14 +1,16 @@
 import * as React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
+import { ActivityIndicator, Alert, View } from 'react-native';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import * as Network from 'expo-network';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CircleAlert, LocateFixed, MapPin, ShieldCheck } from 'lucide-react-native';
 import { Camera as MapCamera, Map } from '@maplibre/maplibre-react-native';
 
 import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { BUNDLED_RULE_SET, type RuleSet } from '@/lib/detector/rules';
@@ -25,6 +27,7 @@ import { supabase } from '@/lib/supabase';
 
 const DEFAULT_MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 const INITIAL_POINT: [number, number] = [101.0901, 4.5975];
+const LAST_ADDRESS_STORAGE_KEY = 'snappick:last-pickup-address';
 const DATE_CHOICES = [1, 2, 3] as const;
 const TIME_CHOICES = [
   { id: 'morning', label: 'Morning (9am - 12pm)', startHour: 9, endHour: 12 },
@@ -125,6 +128,29 @@ export function PickupRequestSection({
   }, []);
 
   useEffect(() => {
+    let unmounted = false;
+    void AsyncStorage.getItem(LAST_ADDRESS_STORAGE_KEY).then((stored) => {
+      if (!unmounted && stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed && typeof parsed === 'object') {
+            setForm((current) => ({
+              ...current,
+              unitNumber: parsed.unitNumber || current.unitNumber,
+              street: parsed.street || current.street,
+              landmark: parsed.landmark || current.landmark,
+              accessInstructions: parsed.accessInstructions || current.accessInstructions,
+            }));
+          }
+        } catch {
+          // ignore
+        }
+      }
+    });
+    return () => { unmounted = true; };
+  }, []);
+
+  useEffect(() => {
     const timer = setTimeout(() => void resolveArea(INITIAL_POINT[1], INITIAL_POINT[0]), 0);
     return () => clearTimeout(timer);
   }, [resolveArea]);
@@ -157,6 +183,18 @@ export function PickupRequestSection({
       setLocationState('Current location selected.');
       if (debounce.current) clearTimeout(debounce.current);
       debounce.current = setTimeout(() => void resolveArea(nextPoint[1], nextPoint[0]), 450);
+
+      void Location.reverseGeocodeAsync({ latitude: current.coords.latitude, longitude: current.coords.longitude })
+        .then((places) => {
+          if (places && places[0]) {
+            const place = places[0];
+            const detectedStreet = [place.streetNumber, place.street].filter(Boolean).join(' ') || place.name || '';
+            if (detectedStreet) {
+              setForm((curr) => (curr.street ? curr : { ...curr, street: detectedStreet }));
+            }
+          }
+        })
+        .catch(() => {});
     } catch {
       setLocationState('Location unavailable. Move the map pin manually.');
     }
@@ -213,6 +251,12 @@ export function PickupRequestSection({
         throw new Error('The request could not be confirmed. Refresh My Requests before trying again.');
       }
       await clearPickupDraft();
+      await AsyncStorage.setItem(LAST_ADDRESS_STORAGE_KEY, JSON.stringify({
+        unitNumber: form.unitNumber.trim(),
+        street: form.street.trim(),
+        landmark: form.landmark.trim(),
+        accessInstructions: form.accessInstructions.trim(),
+      }));
       onSuccess();
       Alert.alert('Pickup requested', 'Your request is pending and your exact address remains private.');
       router.replace('/(tabs)/activity');
@@ -238,109 +282,141 @@ export function PickupRequestSection({
   const updateForm = (key: keyof PickupForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
   return (
-    <View className="mt-8 border-t border-border pt-6">
-      <View className="mb-3">
-        <Text className="text-xl font-black text-foreground">Schedule Pickup</Text>
-        <Text className="text-xs text-muted-foreground mt-0.5">Select collection pin and address.</Text>
-      </View>
-
-      {/* Map selector */}
-      <View className="h-[210px] overflow-hidden rounded-2xl bg-muted relative border border-border shadow-sm">
-        <Map
-          mapStyle={mapStyle}
-          style={{ flex: 1 }}
-          attribution
-          attributionPosition={{ bottom: 8, right: 8 }}
-          onDidFinishLoadingMap={() => { setMapError(false); setMapReady(true); }}
-          onDidFailLoadingMap={() => { setMapError(true); setMapReady(false); }}
-          onLongPress={(event) => {
-            const next = event.nativeEvent.lngLat as [number, number];
-            setPoint(next);
-            camera.current?.easeTo({ center: next, duration: 250 });
-            updatePoint(next);
-          }}
-          onRegionDidChange={(event) => updatePoint(event.nativeEvent.center as [number, number])}
-        >
-          <MapCamera ref={camera} initialViewState={{ center: INITIAL_POINT, zoom: 12.5 }} minZoom={4} maxZoom={19} />
-        </Map>
-        <View pointerEvents="none" className="absolute left-1/2 top-1/2 -ml-4 -mt-8">
-          <MapPin size={32} fill="#c94e3b" color="#ffffff" strokeWidth={2.2} />
+    <View className="px-6 pt-3 pb-12">
+      {/* Map & Location Card */}
+      <Card className="p-4 rounded-2xl border-border/80 bg-card shadow-sm mb-4">
+        <View className="flex-row items-center gap-1.5 mb-2.5">
+          <MapPin size={16} color="#19806d" />
+          <Text className="text-sm font-bold text-foreground">Collection Location</Text>
         </View>
-        {!mapReady && !mapError && (
-          <View pointerEvents="none" className="absolute bottom-3 right-3 flex-row items-center gap-2 rounded-xl bg-card/95 px-3 py-1.5 shadow-sm">
-            <ActivityIndicator size="small" color="#19806d" />
-            <Text className="text-xs font-bold text-foreground">Loading...</Text>
+
+        <View className="h-[200px] overflow-hidden rounded-xl bg-muted relative border border-border/70 shadow-xs">
+          <Map
+            mapStyle={mapStyle}
+            style={{ flex: 1 }}
+            attribution
+            attributionPosition={{ bottom: 8, right: 8 }}
+            onDidFinishLoadingMap={() => { setMapError(false); setMapReady(true); }}
+            onDidFailLoadingMap={() => { setMapError(true); setMapReady(false); }}
+            onLongPress={(event) => {
+              const next = event.nativeEvent.lngLat as [number, number];
+              setPoint(next);
+              camera.current?.easeTo({ center: next, duration: 250 });
+              updatePoint(next);
+            }}
+            onRegionDidChange={(event) => updatePoint(event.nativeEvent.center as [number, number])}
+          >
+            <MapCamera ref={camera} initialViewState={{ center: INITIAL_POINT, zoom: 12.5 }} minZoom={4} maxZoom={19} />
+          </Map>
+          <View pointerEvents="none" className="absolute left-1/2 top-1/2 -ml-4 -mt-8">
+            <MapPin size={32} fill="#c94e3b" color="#ffffff" strokeWidth={2.2} />
           </View>
-        )}
-        <View className="absolute left-3 top-3 max-w-[76%] rounded-xl bg-card/95 px-3 py-1.5 shadow-sm border border-border/60">
-          <Text className="text-xs font-bold text-foreground">{areaMessage}</Text>
+          {!mapReady && !mapError && (
+            <View pointerEvents="none" className="absolute bottom-3 right-3 flex-row items-center gap-2 rounded-xl bg-card/95 px-3 py-1.5 shadow-sm">
+              <ActivityIndicator size="small" color="#19806d" />
+              <Text className="text-xs font-bold text-foreground">Loading...</Text>
+            </View>
+          )}
+          <View className="absolute left-3 top-3 max-w-[76%] rounded-xl bg-card/95 px-3 py-1.5 shadow-sm border border-border/60">
+            <Text className="text-xs font-bold text-foreground">{areaMessage}</Text>
+          </View>
+          <AnimatedPressable
+            accessibilityRole="button"
+            accessibilityLabel="Use current location"
+            onPress={() => void detectLocation()}
+            className="absolute bottom-3 left-3 h-10 w-10 items-center justify-center rounded-2xl bg-card shadow-sm border border-border"
+          >
+            <LocateFixed size={18} color="#19806d" />
+          </AnimatedPressable>
         </View>
-        <AnimatedPressable
-          accessibilityRole="button"
-          accessibilityLabel="Use current location"
-          onPress={() => void detectLocation()}
-          className="absolute bottom-3 left-3 h-10 w-10 items-center justify-center rounded-xl bg-card shadow-sm border border-border"
-        >
-          <LocateFixed size={18} color="#19806d" />
-        </AnimatedPressable>
-      </View>
-      {!!locationState && <Text className="pt-1 text-xs text-muted-foreground">{locationState}</Text>}
+        {!!locationState && <Text className="pt-2 text-xs text-muted-foreground">{locationState}</Text>}
+      </Card>
 
-      {/* Address fields */}
-      <View className="mt-4 gap-2.5">
-        <Field label="Unit / House No." value={form.unitNumber} onChangeText={(value) => updateForm('unitNumber', value)} placeholder="e.g. 12A" maxLength={40} />
-        <Field label="Street" value={form.street} onChangeText={(value) => updateForm('street', value)} placeholder="e.g. Jalan Sultan Azlan Shah" maxLength={160} />
-        <Field label="Landmark (optional)" value={form.landmark} onChangeText={(value) => updateForm('landmark', value)} placeholder="e.g. Next to community hall" maxLength={160} />
-        <Field label="Access instructions (optional)" value={form.accessInstructions} onChangeText={(value) => updateForm('accessInstructions', value)} placeholder="Gate code or entrance notes" multiline maxLength={500} />
-        <Field label="Pickup note (optional)" value={form.pickupNote} onChangeText={(value) => updateForm('pickupNote', value)} placeholder="Notes for collector" multiline maxLength={500} />
-      </View>
+      {/* Address fields Card */}
+      <Card className="p-4 rounded-2xl border-border/80 bg-card shadow-sm mb-4">
+        <Text className="text-sm font-bold text-foreground mb-3">Address & Access Details</Text>
+        <View className="gap-2.5">
+          <Field label="Unit / House No." value={form.unitNumber} onChangeText={(value) => updateForm('unitNumber', value)} placeholder="e.g. 12A" maxLength={40} />
+          <Field label="Street" value={form.street} onChangeText={(value) => updateForm('street', value)} placeholder="e.g. Jalan Sultan Azlan Shah" maxLength={160} />
+          <Field label="Landmark (optional)" value={form.landmark} onChangeText={(value) => updateForm('landmark', value)} placeholder="e.g. Next to community hall" maxLength={160} />
+          <Field label="Access instructions (optional)" value={form.accessInstructions} onChangeText={(value) => updateForm('accessInstructions', value)} placeholder="Gate code or entrance notes" multiline maxLength={500} />
+          <Field label="Pickup note (optional)" value={form.pickupNote} onChangeText={(value) => updateForm('pickupNote', value)} placeholder="Notes for collector" multiline maxLength={500} />
+        </View>
 
-      <View className="mt-3 flex-row items-center gap-1.5">
-        <ShieldCheck size={14} color="#19806d" />
-        <Text className="flex-1 text-xs text-muted-foreground">
-          Address is kept private until assigned to a collector.
-        </Text>
-      </View>
+        <View className="mt-3.5 flex-row items-center gap-1.5 pt-2.5 border-t border-border/50">
+          <ShieldCheck size={14} color="#19806d" />
+          <Text className="flex-1 text-[11px] text-muted-foreground">
+            Address is kept private until assigned to a collector.
+          </Text>
+        </View>
+      </Card>
 
-      {/* Pickup Window */}
-      <View className="mt-5">
-        <Text className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pickup Window</Text>
-        <View className="mt-2 flex-row gap-2">
+      {/* Pickup Window Card */}
+      <Card className="p-4 rounded-2xl border-border/80 bg-card shadow-sm mb-4">
+        <Text className="text-sm font-bold text-foreground mb-2.5">Preferred Collection Time</Text>
+        <Text className="text-xs text-muted-foreground mb-1.5 font-medium">Select day:</Text>
+        <View className="flex-row gap-2 mb-3">
           {DATE_CHOICES.map((choice) => (
             <WindowChoice key={choice} label={dayLabel(choice)} selected={pickupDay === choice} onPress={() => setPickupDay(choice)} />
           ))}
         </View>
-        <View className="mt-2 flex-row gap-2">
+        <Text className="text-xs text-muted-foreground mb-1.5 font-medium">Select time window:</Text>
+        <View className="flex-row gap-2">
           {TIME_CHOICES.map((choice) => (
             <WindowChoice key={choice.id} label={choice.label} selected={pickupTime === choice.id} onPress={() => setPickupTime(choice.id)} />
           ))}
         </View>
-      </View>
+      </Card>
 
       {/* Error display */}
       {!!error && (
-        <View className="mt-4 rounded-2xl bg-destructive/10 p-3 flex-row items-center gap-2 border border-destructive/20">
+        <View className="mt-2 mb-4 rounded-2xl bg-destructive/10 p-3.5 flex-row items-center gap-2 border border-destructive/20">
           <CircleAlert size={16} color="#b42318" />
           <Text className="flex-1 text-xs font-medium text-destructive">{error}</Text>
         </View>
       )}
 
       {/* Final Submit Button */}
-      <Button
-        disabled={submitting || eligibleItems.length === 0 || !safetyConfirmed || !allAddressValid || areaState !== 'ready'}
-        onPress={() => void submit()}
-        className={`w-full h-12 rounded-2xl mt-6 ${
-          eligibleItems.length === 0 || !safetyConfirmed || !allAddressValid || areaState !== 'ready'
-            ? 'bg-muted opacity-50'
-            : 'bg-primary'
-        }`}
-      >
-        {submitting ? (
-          <ActivityIndicator size="small" color="#ffffff" />
-        ) : (
-          <Text className="text-base font-bold text-white">Submit Pickup Request</Text>
-        )}
-      </Button>
+      {(() => {
+        const isSubmitDisabled =
+          submitting ||
+          eligibleItems.length === 0 ||
+          !safetyConfirmed ||
+          !allAddressValid ||
+          areaState !== 'ready';
+
+        return (
+          <View className="mt-2">
+            <Button
+              disabled={isSubmitDisabled}
+              onPress={() => void submit()}
+              className="w-full h-12 rounded-2xl bg-primary shadow-sm"
+            >
+              {submitting ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text className="text-base font-bold text-white">Submit Pickup Request</Text>
+              )}
+            </Button>
+
+            {isSubmitDisabled && !submitting && (
+              <Text className="mt-2.5 text-center text-xs text-muted-foreground font-medium">
+                {eligibleItems.length === 0
+                  ? 'At least one item must be eligible for pickup'
+                  : !safetyConfirmed
+                  ? 'Please confirm the safety declaration above'
+                  : !allAddressValid
+                  ? 'Please enter your unit/house number and street'
+                  : areaState === 'loading'
+                  ? 'Checking service area...'
+                  : areaState === 'outside'
+                  ? 'Selected location is outside supported Perak service area'
+                  : 'Complete required fields to submit'}
+              </Text>
+            )}
+          </View>
+        );
+      })()}
     </View>
   );
 }

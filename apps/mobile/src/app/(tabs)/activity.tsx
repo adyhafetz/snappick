@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, type Href } from 'expo-router';
 import { ArrowRight, Ban, Camera, Check, Inbox, RefreshCw, RotateCcw, ShieldAlert, Truck } from 'lucide-react-native';
 
-import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -145,7 +144,7 @@ export default function ActivityScreen() {
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} className="px-6 pt-4">
+      <ScrollView contentContainerStyle={{ paddingBottom: 56 }} className="px-6 pt-4">
         {/* Header */}
         <View className="mb-6">
           <Text className="text-3xl font-black tracking-tight text-foreground">Activity</Text>
@@ -185,7 +184,7 @@ export default function ActivityScreen() {
               <Text className="text-xs text-muted-foreground text-center mt-0.5">
                 Scan recyclable items to schedule a pickup.
               </Text>
-              <Button onPress={() => router.push('/(tabs)/scan')} className="h-10 px-4 rounded-xl bg-primary flex-row items-center gap-1.5 shadow-sm mt-4">
+              <Button onPress={() => router.push('/(tabs)/scan')} className="h-10 px-4 rounded-2xl bg-primary flex-row items-center gap-1.5 shadow-sm mt-4">
                 <Text className="text-xs font-bold text-white">Scan Waste</Text>
                 <ArrowRight size={14} color="#ffffff" />
               </Button>
@@ -220,7 +219,7 @@ export default function ActivityScreen() {
                       disabled={cancelling === request.id}
                       variant="outline"
                       size="sm"
-                      className="h-8 rounded-xl border-destructive/20 bg-destructive/5 gap-1.5 mt-3 self-start"
+                      className="h-9 px-3 rounded-xl border-destructive/20 bg-destructive/5 gap-1.5 mt-3 self-start"
                     >
                       {cancelling === request.id ? (
                         <ActivityIndicator size="small" color="#b42318" />
@@ -237,7 +236,7 @@ export default function ActivityScreen() {
                         size="sm"
                         variant="outline"
                         onPress={() => void openProof(request.id)}
-                        className="self-start rounded-xl gap-1.5 h-8"
+                        className="self-start rounded-xl gap-1.5 h-9 px-3"
                       >
                         <Camera size={13} color="#19806d" />
                         <Text className="text-xs font-bold text-primary">View Proof</Text>
@@ -269,7 +268,7 @@ export default function ActivityScreen() {
                       size="sm"
                       variant="outline"
                       onPress={() => void relistPickup(request.id)}
-                      className="rounded-xl h-8 gap-1.5 mt-3 self-start"
+                      className="rounded-xl h-9 px-3 gap-1.5 mt-3 self-start"
                     >
                       <RotateCcw size={13} color="#19806d" />
                       <Text className="text-xs font-bold text-primary">Relist</Text>
@@ -338,7 +337,7 @@ export default function ActivityScreen() {
                   <Button
                     size="sm"
                     onPress={() => router.push(`/pickup/${pickup.id}` as Href)}
-                    className="h-8 rounded-xl bg-primary flex-row items-center gap-1.5 mt-3 self-start"
+                    className="h-9 px-3 rounded-xl bg-primary flex-row items-center gap-1.5 mt-3 self-start"
                   >
                     <Text className="text-xs font-bold text-white">Open Pickup</Text>
                     <ArrowRight size={13} color="#ffffff" />

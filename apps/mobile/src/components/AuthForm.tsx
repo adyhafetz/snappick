@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link } from 'expo-router';
 import { AlertCircle, CheckCircle2, Mail, Lock, Sparkles } from 'lucide-react-native';
 
-import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

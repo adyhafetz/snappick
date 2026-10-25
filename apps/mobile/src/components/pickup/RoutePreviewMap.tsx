@@ -194,7 +194,7 @@ export function RoutePreviewMap({ destination, onNavigateNative }: RoutePreviewM
       <View className="p-3 bg-card border-t border-border">
         <Button
           onPress={onNavigateNative}
-          className="w-full h-11 rounded-xl flex-row items-center justify-center gap-2 bg-primary"
+          className="w-full h-12 rounded-2xl flex-row items-center justify-center gap-2 bg-primary"
         >
           <MapPinned size={18} color="#ffffff" />
           <Text className="text-sm font-bold text-white">Navigate with Google Maps</Text>

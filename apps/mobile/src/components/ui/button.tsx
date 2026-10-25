@@ -5,7 +5,7 @@ import { TextClassContext } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'group flex flex-row items-center justify-center rounded-lg active:opacity-80 transition-opacity',
+  'group flex flex-row items-center justify-center active:opacity-80 transition-opacity',
   {
     variants: {
       variant: {
@@ -17,10 +17,10 @@ const buttonVariants = cva(
         link: '',
       },
       size: {
-        default: 'h-12 px-5 py-2.5 rounded-xl',
-        sm: 'h-9 rounded-lg px-3',
-        lg: 'h-14 rounded-xl px-8',
-        icon: 'h-10 w-10 rounded-full',
+        default: 'h-12 px-5 py-2.5 rounded-2xl',
+        sm: 'h-9 px-3.5 rounded-xl',
+        lg: 'h-14 px-8 rounded-2xl',
+        icon: 'h-10 w-10 rounded-2xl',
       },
     },
     defaultVariants: {
@@ -30,20 +30,20 @@ const buttonVariants = cva(
   }
 );
 
-const buttonTextVariants = cva('text-base font-medium text-foreground', {
+const buttonTextVariants = cva('text-base font-semibold text-foreground', {
   variants: {
     variant: {
       default: 'text-primary-foreground font-semibold',
       destructive: 'text-destructive-foreground font-semibold',
-      outline: 'text-foreground font-medium',
-      secondary: 'text-secondary-foreground font-medium',
+      outline: 'text-foreground font-semibold',
+      secondary: 'text-secondary-foreground font-semibold',
       ghost: 'text-foreground font-medium',
       link: 'text-primary underline',
     },
     size: {
-      default: 'text-base font-semibold',
-      sm: 'text-sm font-medium',
-      lg: 'text-lg font-semibold',
+      default: 'text-base font-bold',
+      sm: 'text-xs font-bold',
+      lg: 'text-lg font-bold',
       icon: '',
     },
   },

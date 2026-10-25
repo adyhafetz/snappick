@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useFocusEffect, router } from 'expo-router';
 import { ArrowLeft, Camera, Check, Image as ImageIcon, Play, RotateCcw, MapPin } from 'lucide-react-native';
@@ -17,7 +17,7 @@ import { openPickupNavigation } from '@/lib/pickup/navigation';
 import { CollectionChecklist } from '@/components/pickup/CollectionChecklist';
 import { RoutePreviewMap } from '@/components/pickup/RoutePreviewMap';
 import { prepareProofImage } from '@/lib/pickup/proof';
-import { CHECKLIST_REASONS, toSubmission, validateChecklist, type ChecklistReason, type ChecklistRow } from '@/lib/pickup/checklist';
+import { toSubmission, validateChecklist, type ChecklistReason, type ChecklistRow } from '@/lib/pickup/checklist';
 import { stripJpegMetadata } from '@/lib/pickup/proof-metadata';
 
 type PrivateDetails = { longitude: number; latitude: number; unit_number: string | null; street: string; landmark: string | null; access_instructions: string | null };
@@ -33,7 +33,7 @@ export default function ClaimedPickupScreen() {
   const [error, setError] = useState('');
   const [rows, setRows] = useState<ChecklistRow[]>([]);
   const [proof, setProof] = useState<{ uri: string; width: number; height: number } | null>(null);
-  const [nonCollectionReason, setNonCollectionReason] = useState<ChecklistReason | undefined>();
+  const [nonCollectionReason] = useState<ChecklistReason | undefined>();
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -139,7 +139,7 @@ export default function ClaimedPickupScreen() {
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} className="px-6 pt-4">
+      <ScrollView contentContainerStyle={{ paddingBottom: 56 }} className="px-6 pt-4">
         {/* Top Navigation Row */}
         <View className="flex-row items-center gap-3 mb-5">
           <AnimatedPressable onPress={() => router.back()} className="h-10 w-10 rounded-2xl bg-secondary/80 border border-border items-center justify-center">
@@ -238,7 +238,7 @@ export default function ClaimedPickupScreen() {
                       { text: 'Release', style: 'destructive', onPress: () => void transition('release_pickup_request') },
                     ])
                   }
-                  className="w-full h-11 rounded-2xl border-border flex-row items-center justify-center gap-2"
+                  className="w-full h-12 rounded-2xl border-border flex-row items-center justify-center gap-2"
                 >
                   <RotateCcw size={15} color="#5b7072" />
                   <Text className="text-sm font-semibold text-foreground">Release to Map</Text>
@@ -274,7 +274,7 @@ export default function ClaimedPickupScreen() {
                           variant="outline"
                           size="sm"
                           onPress={() => void takeProofWithCamera()}
-                          className="flex-1 h-10 rounded-xl flex-row items-center justify-center gap-2"
+                          className="flex-1 h-10 rounded-2xl flex-row items-center justify-center gap-2"
                         >
                           <Camera size={15} color="#19806d" />
                           <Text className="text-xs font-bold text-primary">Retake</Text>
@@ -283,7 +283,7 @@ export default function ClaimedPickupScreen() {
                           variant="outline"
                           size="sm"
                           onPress={() => void chooseProofFromGallery()}
-                          className="flex-1 h-10 rounded-xl flex-row items-center justify-center gap-2"
+                          className="flex-1 h-10 rounded-2xl flex-row items-center justify-center gap-2"
                         >
                           <ImageIcon size={15} color="#19806d" />
                           <Text className="text-xs font-bold text-primary">Choose Gallery</Text>
@@ -340,7 +340,7 @@ export default function ClaimedPickupScreen() {
               <Button
                 variant="outline"
                 onPress={() => void openProof()}
-                className="w-full h-11 rounded-2xl flex-row items-center justify-center gap-2 mt-3"
+                className="w-full h-12 rounded-2xl flex-row items-center justify-center gap-2 mt-3"
               >
                 <Camera size={16} color="#19806d" />
                 <Text className="text-sm font-bold text-primary">View Submitted Proof</Text>

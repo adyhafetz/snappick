@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,16 +11,15 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions, type CameraCapturedPicture } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIsFocused } from 'expo-router';
+import { Image as ExpoImage } from 'expo-image';
 import {
   Camera,
   Image as ImageIcon,
   RotateCcw,
-  MapPin,
   Check,
-  AlertTriangle,
   AlertCircle,
   Plus,
   Sparkles,
@@ -32,32 +30,32 @@ import {
   Cpu,
   FlaskConical,
   Scissors,
-  HelpCircle,
+  ArrowRight,
+  ArrowLeft,
+  ShieldCheck,
+  BookOpen,
+  ChevronDown,
 } from 'lucide-react-native';
 
 import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Text } from '@/components/ui/text';
 import { scanPhoto, type ScanResult } from '@/lib/detector/scanner';
 import {
   BUNDLED_RULE_SET,
-  MANUAL_SAFETY_LABELS,
-  type ManualSafetyKey,
   type RuleSet,
 } from '@/lib/detector/rules';
 import { materialPresentation, pickupDecision } from '@/lib/detector/presentation';
 import type { Condition, Detection } from '@/lib/detector/types';
-import { hazardGuidanceKey, parseRuleSet, requestGuidance, type GuidanceCard } from '@/lib/guidance/service';
+import { parseRuleSet, requestGuidance, type GuidanceCard } from '@/lib/guidance/service';
 import {
   bundledAdvice,
-  resolveLocationRuleSet,
 } from '@/lib/guidance/presentation';
-import { supabase } from '@/lib/supabase';
 import modelManifest from '@/assets/models/model_manifest.json';
 import { PickupRequestSection } from '@/components/pickup/PickupRequestSection';
+import { SasGuideSection } from '@/components/guidance/SasGuideSection';
 
 type Photo = { uri: string; width: number; height: number };
 type ReviewItem = {
@@ -81,23 +79,7 @@ const CONDITIONS: { value: Condition; label: string }[] = [
   { value: 'unknown', label: 'Unsure' },
 ];
 
-const HAZARD_ICONS: Record<ManualSafetyKey, React.ComponentType<{ size: number; color: string }>> = {
-  batteries: Battery,
-  bulbs: Lightbulb,
-  e_waste: Cpu,
-  chemicals: FlaskConical,
-  sharp_objects: Scissors,
-  other_hazards: HelpCircle,
-};
 
-const INITIAL_HAZARDS: Record<ManualSafetyKey, boolean> = {
-  batteries: false,
-  bulbs: false,
-  e_waste: false,
-  chemicals: false,
-  sharp_objects: false,
-  other_hazards: false,
-};
 
 export default function ScanScreen() {
   const isFocused = useIsFocused();
@@ -111,14 +93,22 @@ export default function ScanScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeRuleSet, setActiveRuleSet] = useState<RuleSet>(BUNDLED_ACTIVE_RULE_SET);
-  const [ruleSetMessage, setRuleSetMessage] = useState<string>('General Perak guidance');
-  const [hazards, setHazards] = useState<Record<ManualSafetyKey, boolean>>(INITIAL_HAZARDS);
-  const [safetyConfirmed, setSafetyConfirmed] = useState(false);
+  const [safetyConfirmed, setSafetyConfirmed] = useState(true);
+  const [step, setStep] = useState<'review' | 'schedule'>('review');
+  const [expandedGuideIds, setExpandedGuideIds] = useState<Record<string, boolean>>({});
+
+  const toggleGuide = useCallback((id: string) => {
+    setExpandedGuideIds((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  }, []);
 
   const reviewScroll = useRef<ScrollView | null>(null);
   const rows = useRef<Record<string, number>>({});
   const sheetTop = useRef(0);
   const { width: windowWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     let unmounted = false;
@@ -127,9 +117,11 @@ export default function ScanScreen() {
         const stored = await AsyncStorage.getItem(RULE_SET_STORAGE_KEY);
         if (!unmounted && stored) {
           const parsed = parseRuleSet(JSON.parse(stored));
-          if (parsed) {
+          if (parsed && parsed.classes.plastic?.conditionRules.clean_dry.eligibility === 'eligible' && parsed.label === 'Community Recycling Guideline') {
             setActiveRuleSet(parsed);
-            setRuleSetMessage(parsed.label);
+          } else {
+            await AsyncStorage.setItem(RULE_SET_STORAGE_KEY, JSON.stringify(BUNDLED_ACTIVE_RULE_SET));
+            setActiveRuleSet(BUNDLED_ACTIVE_RULE_SET);
           }
         }
       } catch {
@@ -198,6 +190,9 @@ export default function ScanScreen() {
 
         setItems(initialItems);
         setSelectedId(initialItems[0]?.id);
+        if (initialItems[0]?.id) {
+          setExpandedGuideIds({ [initialItems[0].id]: true });
+        }
 
         initialItems.forEach((item) => {
           void refreshGuidance(item.id, item.label, item.condition);
@@ -245,69 +240,6 @@ export default function ScanScreen() {
     await processPhoto(nextPhoto);
   };
 
-  const resolveLocationGuidance = async () => {
-    setRuleSetMessage('Checking local guidance…');
-    try {
-      const permissionResult = await Location.requestForegroundPermissionsAsync();
-      if (permissionResult.status !== 'granted') {
-        Alert.alert(
-          activeRuleSet.label,
-          `Location was not shared. ${activeRuleSet.label} will be used.`
-        );
-        return;
-      }
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      const { data, error: resolutionError } = await supabase.rpc('resolve_rule_set', {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-      });
-      const row = Array.isArray(data) ? data[0] : data;
-      const resolvedCandidate =
-        row && typeof row === 'object'
-          ? parseRuleSet({
-              id: (row as { name?: string }).name,
-              version: (row as { version?: number }).version,
-              label: ((row as { rules?: { label?: string } }).rules?.label) ?? 'Local guidance',
-              thresholds: (row as { rules?: { thresholds?: unknown } }).rules?.thresholds,
-              materials: (row as { rules?: { materials?: unknown } }).rules?.materials,
-            })
-          : null;
-      const resolved = resolutionError
-        ? null
-        : resolveLocationRuleSet(resolvedCandidate, activeRuleSet);
-      if (!resolvedCandidate || !resolved) {
-        Alert.alert(
-          activeRuleSet.label,
-          `Local rules are unavailable for this area. ${activeRuleSet.label} will be used.`
-        );
-        return;
-      }
-      setActiveRuleSet(resolved);
-      setRuleSetMessage(`${resolved.label} · v${resolved.version}`);
-      await AsyncStorage.setItem(RULE_SET_STORAGE_KEY, JSON.stringify(resolved));
-      setItems((current) =>
-        current.map((item) => ({
-          ...item,
-          guidance: {
-            ...bundledAdvice(item.label, item.condition),
-            source: 'fallback',
-            ruleSetId: resolved.id,
-            ruleSetLabel: resolved.label,
-            ruleSetVersion: resolved.version,
-            offline: true,
-          },
-        }))
-      );
-      items
-        .filter((item) => !item.removed)
-        .forEach((item) => refreshGuidance(item.id, item.label, item.condition));
-    } catch {
-      Alert.alert('Location resolution', 'Could not fetch district guidance. Defaulting to current rules.');
-    }
-  };
-
   const draftItems = useMemo(
     () =>
       items
@@ -328,8 +260,8 @@ export default function ScanScreen() {
     setItems([]);
     setSelectedId(undefined);
     setError(null);
-    setSafetyConfirmed(false);
-    setHazards(INITIAL_HAZARDS);
+    setSafetyConfirmed(true);
+    setStep('review');
   }, []);
 
   const changeLabel = (item: ReviewItem) =>
@@ -375,6 +307,7 @@ export default function ScanScreen() {
             },
           ]);
           setSelectedId(id);
+          setExpandedGuideIds((prev) => ({ ...prev, [id]: true }));
           void requestGuidance(label, 'unknown', activeRuleSet).then((nextGuidance) =>
             updateItem(id, { guidance: nextGuidance })
           );
@@ -387,6 +320,7 @@ export default function ScanScreen() {
       current.map((item) => ({
         ...item,
         condition: 'clean_dry',
+        confirmed: true,
         guidance: {
           ...bundledAdvice(item.label, 'clean_dry'),
           source: 'fallback',
@@ -495,17 +429,20 @@ export default function ScanScreen() {
           </View>
         </View>
       ) : (
-        <ScrollView ref={reviewScroll} contentContainerStyle={{ paddingBottom: 40 }}>
-          {/* Photo Preview with Bounding Boxes */}
-          <View
-            style={{ width: imageWidth, height: imageHeight }}
-            className="mx-4 mt-4 rounded-3xl overflow-hidden bg-slate-900 self-center relative shadow-sm border border-border"
-          >
-            <Image
-              source={{ uri: photo.uri }}
-              style={StyleSheet.absoluteFill}
-              resizeMode="stretch"
-            />
+        <View style={{ flex: 1 }}>
+          {/* STEP 1: REVIEW ITEMS */}
+          <View style={{ flex: 1, display: step === 'review' ? 'flex' : 'none' }}>
+            <ScrollView ref={reviewScroll} contentContainerStyle={{ flexGrow: 1, paddingBottom: 0 }}>
+              {/* Photo Preview with Bounding Boxes */}
+              <View
+                style={{ width: imageWidth, height: imageHeight }}
+                className="mx-4 mt-4 rounded-3xl overflow-hidden bg-slate-900 self-center relative shadow-sm border border-border"
+              >
+                <ExpoImage
+                  source={{ uri: photo.uri }}
+                  style={StyleSheet.absoluteFill}
+                  contentFit="fill"
+                />
             {items.map(
               (item) =>
                 item.detection &&
@@ -587,27 +524,19 @@ export default function ScanScreen() {
             onLayout={(event) => {
               sheetTop.current = event.nativeEvent.layout.y;
             }}
-            className="bg-card rounded-t-3xl border-t border-border px-6 pt-5"
+            className="px-6 pt-3 pb-12 flex-1"
           >
             {/* Header with status pill */}
             <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-xl font-black text-foreground">Detected Items</Text>
-              <Badge variant="secondary" className="px-3 py-1 rounded-full">
-                <Text className="text-xs font-bold">{eligibleCount} eligible</Text>
-              </Badge>
-            </View>
-
-            {/* Regional district pill */}
-            <View className="flex-row items-center justify-between p-3 rounded-2xl bg-secondary/40 border border-border/70 mb-3">
-              <View className="flex-row items-center gap-1.5 flex-1 pr-2">
-                <MapPin size={14} color="#19806d" />
-                <Text className="text-xs font-bold text-foreground" numberOfLines={1}>
+              <View>
+                <Text className="text-xl font-black text-foreground">Detected Items</Text>
+                <Text className="text-[11px] font-medium text-muted-foreground mt-0.5">
                   {activeRuleSet.label}
                 </Text>
               </View>
-              <AnimatedPressable onPress={() => void resolveLocationGuidance()}>
-                <Text className="text-xs font-bold text-primary">Use GPS</Text>
-              </AnimatedPressable>
+              <Badge variant="secondary" className="px-3 py-1 rounded-full">
+                <Text className="text-xs font-bold">{eligibleCount} eligible</Text>
+              </Badge>
             </View>
 
             {/* Bulk Clean Action */}
@@ -709,7 +638,7 @@ export default function ScanScreen() {
                           <AnimatedPressable
                             key={cond.value}
                             onPress={() => {
-                              updateItem(item.id, { condition: cond.value });
+                              updateItem(item.id, { condition: cond.value, confirmed: true });
                               void refreshGuidance(item.id, item.label, cond.value);
                             }}
                             className={`flex-1 py-1.5 rounded-xl border items-center justify-center ${
@@ -730,20 +659,38 @@ export default function ScanScreen() {
                       })}
                     </View>
 
-                    {/* Compact Preparation Snippet */}
-                    <View className="mt-3 p-2.5 rounded-xl bg-secondary/30 border border-border/50">
-                      <Text className="text-xs text-foreground leading-relaxed">
-                        {item.guidance.preparation}
-                      </Text>
-                      {item.guidance.safety_warning && (
-                        <View className="mt-1.5 flex-row items-center gap-1.5">
-                          <AlertTriangle size={13} color="#b42318" />
-                          <Text className="text-[11px] font-semibold text-destructive flex-1">
-                            {item.guidance.safety_warning}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
+                    {/* Collapsible Malaysian SAS Guide Toggle */}
+                    {(() => {
+                      const isGuideExpanded =
+                        expandedGuideIds[item.id] ?? (items.length === 1);
+
+                      return (
+                        <>
+                          <AnimatedPressable
+                            onPress={() => toggleGuide(item.id)}
+                            className="mt-3 py-2 px-3.5 rounded-xl bg-muted/40 border border-border/60 flex-row items-center justify-between"
+                          >
+                            <View className="flex-row items-center gap-2">
+                              <BookOpen size={14} color="#16a34a" />
+                              <Text className="text-xs font-bold text-foreground">
+                                {isGuideExpanded ? 'Hide Preparation Guide' : 'View Preparation Guide'}
+                              </Text>
+                            </View>
+                            <ChevronDown
+                              size={15}
+                              color="#5b7072"
+                              style={{ transform: [{ rotate: isGuideExpanded ? '180deg' : '0deg' }] }}
+                            />
+                          </AnimatedPressable>
+
+                          {isGuideExpanded && (
+                            <View className="mt-2.5">
+                              <SasGuideSection itemClass={item.label} />
+                            </View>
+                          )}
+                        </>
+                      );
+                    })()}
                   </Card>
                 );
               })}
@@ -757,93 +704,145 @@ export default function ScanScreen() {
               </View>
             </AnimatedPressable>
 
-            {/* Safety Hazards Quick Grid */}
-            <View className="mt-8 mb-3">
-              <Text className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Safety Declaration (Exclude if present)
-              </Text>
-            </View>
+            {/* Safety Checklist Card */}
+            <Card className="mt-6 p-4 rounded-2xl border-border/80 bg-card shadow-sm">
+              <View className="flex-row items-center gap-2 mb-2">
+                <ShieldCheck size={18} color="#19806d" />
+                <Text className="text-sm font-bold text-foreground">Safety Checklist</Text>
+              </View>
 
-            <View className="flex-row flex-wrap gap-2">
-              {(
-                Object.entries(MANUAL_SAFETY_LABELS) as [ManualSafetyKey, string][]
-              ).map(([key, label]) => {
-                const isChecked = hazards[key];
-                const IconComponent = HAZARD_ICONS[key] || AlertTriangle;
-                return (
-                  <AnimatedPressable
-                    key={key}
-                    onPress={() => {
-                      setHazards((current) => ({ ...current, [key]: !current[key] }));
-                      setSafetyConfirmed(false);
-                    }}
-                    className={`flex-row items-center px-3 py-2 rounded-xl border ${
-                      isChecked
-                        ? 'bg-destructive/10 border-destructive/40'
-                        : 'bg-card border-border/70'
+              <Text className="text-xs text-muted-foreground mb-3 leading-relaxed">
+                Ensure restricted items are separated and NOT placed with recyclables:
+              </Text>
+
+              {/* Exclusion Checklist Reminder Pills */}
+              <View className="flex-row flex-wrap gap-1.5 mb-3.5">
+                <View className="px-2.5 py-1 rounded-xl bg-secondary/50 border border-border/60 flex-row items-center gap-1.5">
+                  <Battery size={13} color="#5b7072" />
+                  <Text className="text-[11px] font-semibold text-foreground">Batteries</Text>
+                </View>
+                <View className="px-2.5 py-1 rounded-xl bg-secondary/50 border border-border/60 flex-row items-center gap-1.5">
+                  <Lightbulb size={13} color="#5b7072" />
+                  <Text className="text-[11px] font-semibold text-foreground">Bulbs</Text>
+                </View>
+                <View className="px-2.5 py-1 rounded-xl bg-secondary/50 border border-border/60 flex-row items-center gap-1.5">
+                  <Cpu size={13} color="#5b7072" />
+                  <Text className="text-[11px] font-semibold text-foreground">E-Waste</Text>
+                </View>
+                <View className="px-2.5 py-1 rounded-xl bg-secondary/50 border border-border/60 flex-row items-center gap-1.5">
+                  <FlaskConical size={13} color="#5b7072" />
+                  <Text className="text-[11px] font-semibold text-foreground">Chemicals</Text>
+                </View>
+                <View className="px-2.5 py-1 rounded-xl bg-secondary/50 border border-border/60 flex-row items-center gap-1.5">
+                  <Scissors size={13} color="#5b7072" />
+                  <Text className="text-[11px] font-semibold text-foreground">Sharps</Text>
+                </View>
+              </View>
+
+              {/* 1-tap confirmation toggle */}
+              <AnimatedPressable
+                accessibilityRole="button"
+                onPress={() => setSafetyConfirmed((prev) => !prev)}
+                className={`p-3.5 rounded-xl border flex-row items-center justify-between ${
+                  safetyConfirmed
+                    ? 'bg-primary/10 border-primary'
+                    : 'bg-secondary/30 border-border/70'
+                }`}
+              >
+                <View className="flex-row items-center gap-2.5 flex-1 pr-2">
+                  <View
+                    className={`h-5 w-5 rounded-full items-center justify-center ${
+                      safetyConfirmed ? 'bg-primary' : 'border-2 border-border'
                     }`}
                   >
-                    <IconComponent
-                      size={14}
-                      color={isChecked ? '#b42318' : '#5b7072'}
-                    />
-                    <Text
-                      className={`text-xs font-bold ml-1.5 ${
-                        isChecked ? 'text-destructive' : 'text-foreground'
-                      }`}
-                    >
-                      {label}
-                    </Text>
-                  </AnimatedPressable>
-                );
-              })}
+                    {safetyConfirmed && <Check size={12} color="#ffffff" strokeWidth={3} />}
+                  </View>
+                  <Text className="text-xs font-bold text-foreground flex-1">
+                    I confirm no hazardous or restricted items are included
+                  </Text>
+                </View>
+              </AnimatedPressable>
+            </Card>
+
+            {/* Continue to Step 2 Button */}
+            <View className="mt-8 pt-2">
+              <Button
+                disabled={eligibleCount === 0 || !safetyConfirmed}
+                onPress={() => setStep('schedule')}
+                className={`w-full h-12 rounded-2xl bg-primary flex-row items-center justify-center shadow-sm ${
+                  eligibleCount === 0 || !safetyConfirmed ? 'opacity-60' : ''
+                }`}
+              >
+                <Text className="text-base font-bold text-white mr-2">Continue to Schedule Pickup</Text>
+                <ArrowRight size={18} color="#ffffff" />
+              </Button>
+
+              {(eligibleCount === 0 || !safetyConfirmed) && (
+                <Text className="mt-2.5 text-center text-xs text-muted-foreground font-medium">
+                  {eligibleCount === 0
+                    ? 'Confirm at least one item as clean & eligible to continue'
+                    : 'Please confirm clean recyclables above to continue'}
+                </Text>
+              )}
             </View>
-
-            {/* Hazard alert cards if any active */}
-            {Object.entries(hazards)
-              .filter(([, declared]) => declared)
-              .map(([key]) => {
-                const advice = bundledAdvice(
-                  hazardGuidanceKey(key as ManualSafetyKey),
-                  'unknown'
-                );
-                return (
-                  <Card key={key} className="p-3 bg-amber-500/10 border-amber-500/30 rounded-2xl mt-2.5">
-                    <Text className="text-xs font-bold text-amber-900">
-                      {MANUAL_SAFETY_LABELS[key as ManualSafetyKey]}: Exclude from pickup
-                    </Text>
-                    <Text className="text-[11px] text-amber-800 mt-0.5 leading-tight">
-                      {advice.disposal}
-                    </Text>
-                  </Card>
-                );
-              })}
-
-            {/* Mandatory confirmation checkbox */}
-            <Pressable
-              onPress={() => setSafetyConfirmed((val) => !val)}
-              className="mt-4 p-3 rounded-2xl border border-border/80 bg-secondary/30 flex-row items-center gap-3"
-            >
-              <Checkbox
-                checked={safetyConfirmed}
-                onCheckedChange={() => setSafetyConfirmed((val) => !val)}
-              />
-              <Text className="text-xs font-semibold text-foreground flex-1">
-                I will keep declared restricted items out of pickup.
-              </Text>
-            </Pressable>
-
-            {/* Unified Pickup Location & Address Form */}
-            <PickupRequestSection
-              items={draftItems}
-              safetyConfirmed={safetyConfirmed}
-              activeRuleSet={activeRuleSet}
-              onSuccess={handlePickupSuccess}
-            />
           </View>
         </ScrollView>
-      )}
+      </View>
+
+      {/* STEP 2: SCHEDULE PICKUP */}
+      <View style={{ flex: 1, display: step === 'schedule' ? 'flex' : 'none' }} className="flex-1 bg-background">
+        {/* Sticky top navigation bar */}
+        <View
+          style={{ paddingTop: Math.max(insets.top, 16) }}
+          className="px-6 pb-3 pt-2 flex-row items-center justify-between bg-background border-b border-border/40"
+        >
+          <View className="flex-row items-center gap-3">
+            <AnimatedPressable
+              accessibilityRole="button"
+              accessibilityLabel="Back to detected items"
+              onPress={() => setStep('review')}
+              className="h-10 w-10 rounded-2xl bg-secondary/80 border border-border items-center justify-center"
+            >
+              <ArrowLeft size={18} color="#183e48" />
+            </AnimatedPressable>
+            <Text className="text-xl font-black text-foreground">Schedule Pickup</Text>
+          </View>
+
+          <Badge variant="secondary" className="px-3 py-1 rounded-full">
+            <Text className="text-xs font-bold">{eligibleCount} eligible</Text>
+          </Badge>
+        </View>
+
+        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }} className="flex-1 bg-background">
+
+          {/* Items Summary Card */}
+          <View className="mx-6 mt-4 p-3.5 rounded-2xl bg-primary/10 border border-primary/20 flex-row items-center gap-3">
+            <View className="h-8 w-8 rounded-xl bg-primary/20 items-center justify-center">
+              <Sparkles size={16} color="#19806d" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-xs font-bold text-primary">Items Ready for Collection</Text>
+              <Text className="text-xs font-semibold text-foreground mt-0.5" numberOfLines={2}>
+                {draftItems
+                  .filter((i) => i.condition === 'clean_dry')
+                  .map((i) => i.className.toUpperCase())
+                  .join(' · ') || 'Clean recyclables'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Unified Pickup Location & Address Form */}
+          <PickupRequestSection
+            items={draftItems}
+            safetyConfirmed={safetyConfirmed}
+            activeRuleSet={activeRuleSet}
+            onSuccess={handlePickupSuccess}
+          />
+        </ScrollView>
+      </View>
     </View>
+  )}
+</View>
   );
 }
 

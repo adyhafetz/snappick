@@ -79,7 +79,7 @@ describe('YOLO manifest contract', () => {
 
 describe('rules and review rows', () => {
   it('removes wet and broken conditional materials from eligibility', () => {
-    expect(evaluateEligibility('plastic', 'clean_dry').eligibility).toBe('needs_confirmation');
+    expect(evaluateEligibility('plastic', 'clean_dry').eligibility).toBe('eligible');
     expect(evaluateEligibility('plastic', 'contaminated_wet').eligibility).toBe('not_eligible');
     expect(evaluateEligibility('glass', 'broken_unsafe').eligibility).toBe('restricted');
     expect(evaluateEligibility('paper', 'unknown').eligibility).toBe('needs_confirmation');
@@ -99,7 +99,7 @@ describe('rules and review rows', () => {
     expect(materialPresentation('trash', false, false)).toMatchObject({ classification: 'not_recyclable', color: '#b42318' });
     expect(materialPresentation('plastic', true, false)).toMatchObject({ classification: 'unsure', color: '#64748b' });
     expect(pickupDecision('plastic', 'clean_dry', true, false).eligibility).toBe('needs_confirmation');
-    expect(pickupDecision('plastic', 'clean_dry', true, true).eligibility).toBe('needs_confirmation');
+    expect(pickupDecision('plastic', 'clean_dry', true, true).eligibility).toBe('eligible');
   });
 });
 

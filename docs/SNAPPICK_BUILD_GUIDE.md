@@ -150,7 +150,7 @@ Confidence policy (defaults, overridable per class in the model manifest): score
 
 - **Tables:** `profiles`, `pbt_rule_sets`, `scans`, `detections`, `label_feedback`, `feedback_samples`, `pickup_requests_public`, `pickup_request_private_details`, `pickup_waste_items`, `pickup_proofs`, `disputes`, `instruction_cache`, `llm_usage`, `perak_districts`, `push_tokens`, `reports`, `audit_log`, `model_versions`, `dataset_versions`, `training_runs`, `drift_daily`.
 - **RPCs:** `resolve_rule_set(lat, lng)`, `create_pickup_request(...)`, `cancel_pickup_request(id)`, `claim_pickup_request(id)`, `release_pickup_request(id)`, `start_pickup(id)`, `submit_collection(id, ...)`, `confirm_pickup(id)`, `raise_dispute(id, reason)`, `resolve_dispute(id, outcome, note)`, `relist_pickup(id)`.
-- **Edge Functions:** `get-guidance`, `get-pickup-private-details`, `notify`, `prune-expired-scans`, `delete-account`.
+- **Edge Functions:** `get-guidance`, `snapbot-chat`, `get-pickup-private-details`, `notify`, `prune-expired-scans`, `delete-account`.
 - **Storage buckets (private):** `scans`, `proofs`, `models`.
 - **Geo rule:** the public location is `ST_SnapToGrid(exact_point, 0.01)`, computed on the server. Exact coordinates exist only in `pickup_request_private_details`.
 - **Column contracts (Phase 2 must follow these exactly):**

@@ -6,7 +6,6 @@ import { Redirect, router } from 'expo-router';
 import { Camera, ShieldCheck, EyeOff, Lock, AlertCircle } from 'lucide-react-native';
 
 import { LoadingScreen } from '@/components/LoadingScreen';
-import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';

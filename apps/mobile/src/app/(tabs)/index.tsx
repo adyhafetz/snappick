@@ -11,17 +11,20 @@ import {
   History,
   Sparkles,
   MapPin,
-  Truck,
+  Bot,
 } from 'lucide-react-native';
 
 import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
+import { SnapBotModal } from '@/components/guidance/SnapBotModal';
 
 export default function HomeScreen() {
+  const [snapBotVisible, setSnapBotVisible] = React.useState(false);
+
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} className="px-6 pt-4">
+      <ScrollView contentContainerStyle={{ paddingBottom: 56 }} className="px-6 pt-4">
         {/* Brand Bar */}
         <View className="flex-row items-center justify-between mb-5">
           <View>
@@ -64,6 +67,33 @@ export default function HomeScreen() {
               <View className="h-10 w-10 rounded-full bg-white/20 items-center justify-center">
                 <ArrowRight size={20} color="#ffffff" />
               </View>
+            </View>
+          </Card>
+        </AnimatedPressable>
+
+        {/* SnapBot AI Assistant Card */}
+        <AnimatedPressable
+          accessibilityRole="button"
+          onPress={() => setSnapBotVisible(true)}
+          className="mt-3.5"
+        >
+          <Card className="bg-card border border-border/80 p-4 rounded-3xl flex-row items-center gap-3.5 shadow-sm">
+            <View className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 items-center justify-center">
+              <Bot size={24} className="text-primary" />
+            </View>
+            <View className="flex-1">
+              <View className="flex-row items-center gap-1.5">
+                <Text className="text-sm font-bold text-foreground">Ask SnapBot</Text>
+                <View className="bg-primary/10 px-2 py-0.5 rounded-full">
+                  <Text className="text-[10px] font-bold text-primary">AI Chat</Text>
+                </View>
+              </View>
+              <Text className="text-xs text-muted-foreground mt-0.5">
+                Have questions about sorting or recycling? Ask anytime
+              </Text>
+            </View>
+            <View className="h-8 w-8 rounded-full bg-muted/60 items-center justify-center">
+              <ArrowRight size={16} className="text-muted-foreground" />
             </View>
           </Card>
         </AnimatedPressable>
@@ -147,6 +177,12 @@ export default function HomeScreen() {
           </AnimatedPressable>
         </View>
       </ScrollView>
+
+      {/* SnapBot AI Modal on Home Screen */}
+      <SnapBotModal
+        visible={snapBotVisible}
+        onClose={() => setSnapBotVisible(false)}
+      />
     </SafeAreaView>
   );
 }

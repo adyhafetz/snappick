@@ -199,7 +199,7 @@ Start with the broad classes above. Only split a class into more detailed labels
 | Detection overlay | React Native Views positioned over the photo (spike-proven). SVG only if dashed borders misbehave. |
 | Maps and location | MapLibre React Native (Expo config plugin, new architecture, not Expo Go) with the **OpenFreeMap** style (no key; confirm its terms and attribution for the pilot). MapTiler is the fallback. expo-location for GPS. Navigate uses the Android navigation link with a generic map link as fallback. |
 | Backend | Supabase Auth, Postgres, PostGIS, Storage, Realtime, Row Level Security, Edge Functions, and database RPC. Supabase JS **2.117.2**. |
-| LLM | OpenAI API through a Supabase Edge Function only, using Structured Outputs and server-side schema validation. Check the current OpenAI Structured Outputs documentation when implementing. |
+| LLM | OpenAI API through Supabase Edge Functions only (`get-guidance` and `snapbot-chat`), using server-side schema validation and response caching in `instruction_cache` to minimize token consumption. |
 | Notifications | expo-notifications with FCM (Android only). |
 | Public dashboard | Next.js **16.3.6**, TypeScript, Recharts, MapLibre GL JS. |
 | Dashboard hosting/cache | Vercel with Next.js revalidate/Data Cache. Cache aggregate views for 5 to 15 minutes. |

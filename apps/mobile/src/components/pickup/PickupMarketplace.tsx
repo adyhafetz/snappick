@@ -173,7 +173,7 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
             accessibilityLabel="Center map on your location"
             disabled={locating}
             onPress={() => void locateCollector()}
-            className="h-11 w-11 items-center justify-center rounded-2xl bg-card shadow-md border border-border/80"
+            className="h-10 w-10 items-center justify-center rounded-2xl bg-card shadow-md border border-border/80"
           >
             {locating ? <ActivityIndicator size="small" color="#19806d" /> : <LocateFixed size={18} color="#19806d" />}
           </AnimatedPressable>
@@ -186,7 +186,7 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
               setLoading(true);
               void refresh();
             }}
-            className="h-11 w-11 items-center justify-center rounded-2xl bg-card shadow-md border border-border/80"
+            className="h-10 w-10 items-center justify-center rounded-2xl bg-card shadow-md border border-border/80"
           >
             {loading ? <ActivityIndicator size="small" color="#19806d" /> : <RefreshCw size={17} color="#19806d" />}
           </AnimatedPressable>
@@ -263,7 +263,7 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
               <Button
                 disabled={!online}
                 onPress={() => void claim(selected.id, refresh)}
-                className="w-full h-11 rounded-2xl bg-primary mt-3"
+                className="w-full h-12 rounded-2xl bg-primary mt-3"
               >
                 <Text className="text-sm font-bold text-white">
                   {online ? 'Claim Pickup' : 'Offline'}

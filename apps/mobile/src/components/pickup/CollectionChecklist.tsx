@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { TextInput, View } from 'react-native';
 import { Minus, Plus } from 'lucide-react-native';
 import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Text } from '@/components/ui/text';
