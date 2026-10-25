@@ -45,17 +45,32 @@ import { Text } from '@/components/ui/text';
 import { scanPhoto, type ScanResult } from '@/lib/detector/scanner';
 import {
   BUNDLED_RULE_SET,
+  parseRuleSet,
   type RuleSet,
 } from '@/lib/detector/rules';
 import { materialPresentation, pickupDecision } from '@/lib/detector/presentation';
 import type { Condition, Detection } from '@/lib/detector/types';
-import { parseRuleSet, requestGuidance, type GuidanceCard } from '@/lib/guidance/service';
-import {
-  bundledAdvice,
-} from '@/lib/guidance/presentation';
 import modelManifest from '@/assets/models/model_manifest.json';
 import { PickupRequestSection } from '@/components/pickup/PickupRequestSection';
 import { SasGuideSection } from '@/components/guidance/SasGuideSection';
+import { useAuth } from '@/providers/AuthProvider';
+import {
+  persistScanSession,
+  type DetectionRecord,
+  type UserCorrection,
+} from '@/lib/detector/persistence';
+import { enqueueScanUpload, flushOfflineUploadQueue } from '@/lib/detector/upload-queue';
+
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 type Photo = { uri: string; width: number; height: number };
 type ReviewItem = {
@@ -66,7 +81,6 @@ type ReviewItem = {
   removed: boolean;
   userAdded: boolean;
   confirmed: boolean;
-  guidance: GuidanceCard;
 };
 const RULE_SET_STORAGE_KEY = 'snappick:last-confirmed-rule-set';
 const BUNDLED_ACTIVE_RULE_SET = BUNDLED_RULE_SET as RuleSet;
@@ -83,6 +97,9 @@ const CONDITIONS: { value: Condition; label: string }[] = [
 
 export default function ScanScreen() {
   const isFocused = useIsFocused();
+  const { session, profile } = useAuth();
+  const scanIdRef = useRef<string | null>(null);
+  const persistedRef = useRef<boolean>(false);
   const [permission, requestPermission] = useCameraPermissions();
   const camera = useRef<CameraView | null>(null);
 
@@ -96,6 +113,12 @@ export default function ScanScreen() {
   const [safetyConfirmed, setSafetyConfirmed] = useState(true);
   const [step, setStep] = useState<'review' | 'schedule'>('review');
   const [expandedGuideIds, setExpandedGuideIds] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (isFocused) {
+      void flushOfflineUploadQueue();
+    }
+  }, [isFocused]);
 
   const toggleGuide = useCallback((id: string) => {
     setExpandedGuideIds((prev) => ({
@@ -147,28 +170,18 @@ export default function ScanScreen() {
     );
   };
 
-  const refreshGuidance = useCallback(
-    async (id: string, label: string, condition: Condition) => {
-      try {
-        const nextGuidance = await requestGuidance(label, condition, activeRuleSet);
-        updateItem(id, { guidance: nextGuidance });
-      } catch {
-        // Fallback already assigned
-      }
-    },
-    [activeRuleSet]
-  );
-
   const processPhoto = useCallback(
     async (targetPhoto: Photo) => {
       setBusy(true);
       setError(null);
+      const nextScanId = generateUUID();
+      scanIdRef.current = nextScanId;
+      persistedRef.current = false;
       try {
         const scan = await scanPhoto(targetPhoto.uri, targetPhoto.width, targetPhoto.height);
         setResult(scan);
 
         const initialItems: ReviewItem[] = scan.detections.map((detection, index) => {
-          const fallback = bundledAdvice(detection.label, 'unknown');
           return {
             id: `det-${index}-${detection.label}`,
             detection,
@@ -177,14 +190,6 @@ export default function ScanScreen() {
             removed: false,
             userAdded: false,
             confirmed: detection.confidence === 'confident',
-            guidance: {
-              ...fallback,
-              source: 'fallback',
-              ruleSetId: activeRuleSet.id,
-              ruleSetLabel: activeRuleSet.label,
-              ruleSetVersion: activeRuleSet.version,
-              offline: true,
-            },
           };
         });
 
@@ -193,17 +198,13 @@ export default function ScanScreen() {
         if (initialItems[0]?.id) {
           setExpandedGuideIds({ [initialItems[0].id]: true });
         }
-
-        initialItems.forEach((item) => {
-          void refreshGuidance(item.id, item.label, item.condition);
-        });
       } catch (scanError) {
         setError(scanError instanceof Error ? scanError.message : 'Scan failed. Please retry.');
       } finally {
         setBusy(false);
       }
     },
-    [activeRuleSet, refreshGuidance]
+    []
   );
 
   const capture = async () => {
@@ -240,6 +241,114 @@ export default function ScanScreen() {
     await processPhoto(nextPhoto);
   };
 
+  const persistCurrentScan = useCallback(
+    async (
+      currentItems: ReviewItem[],
+      targetPhoto?: Photo,
+      targetResult?: ScanResult
+    ) => {
+      const activeScanId = scanIdRef.current;
+      const activeUser = session?.user;
+      if (!activeScanId || !activeUser || !targetPhoto || !targetResult) return;
+      if (persistedRef.current) return;
+      persistedRef.current = true;
+
+      const detections: DetectionRecord[] = currentItems.map((item) => {
+        if (item.detection) {
+          return {
+            model_label: item.detection.label,
+            app_class: item.label,
+            score: item.detection.score,
+            box_x1: item.detection.x1,
+            box_y1: item.detection.y1,
+            box_x2: item.detection.x2,
+            box_y2: item.detection.y2,
+            source: 'detector',
+            condition: item.condition,
+            eligibility: itemDecision(item, activeRuleSet).eligibility,
+            quantity: 1,
+          };
+        }
+        return {
+          model_label: item.label,
+          app_class: item.label,
+          score: 1.0,
+          box_x1: null,
+          box_y1: null,
+          box_x2: null,
+          box_y2: null,
+          source: 'user_added',
+          condition: item.condition,
+          eligibility: itemDecision(item, activeRuleSet).eligibility,
+          quantity: 1,
+        };
+      });
+
+      const corrections: UserCorrection[] = [];
+      currentItems.forEach((item) => {
+        if (item.detection) {
+          if (item.removed) {
+            corrections.push({
+              originalModelLabel: item.detection.label,
+              feedbackType: 'remove',
+            });
+          } else if (item.label !== item.detection.label) {
+            corrections.push({
+              originalModelLabel: item.detection.label,
+              correctedAppClass: item.label,
+              feedbackType: 'change_label',
+            });
+          } else if (item.detection.confidence === 'uncertain' && item.confirmed) {
+            corrections.push({
+              originalModelLabel: item.detection.label,
+              feedbackType: 'confirm',
+            });
+          }
+          if (item.condition !== 'unknown') {
+            corrections.push({
+              originalModelLabel: item.detection.label,
+              originalCondition: 'unknown',
+              correctedCondition: item.condition,
+              feedbackType: 'condition_change',
+            });
+          }
+        }
+      });
+
+      try {
+        const res = await persistScanSession({
+          scanId: activeScanId,
+          userId: activeUser.id,
+          modelVersion: modelManifest.version,
+          ruleSetId: activeRuleSet.id,
+          ruleSetVersion: activeRuleSet.version,
+          imageStorageConsent: profile?.image_storage_consent ?? false,
+          trainingOptIn: profile?.training_opt_in ?? false,
+          imageWidth: targetPhoto.width,
+          imageHeight: targetPhoto.height,
+          preprocessMs: Math.round(targetResult.timings.preprocessMs),
+          inferenceMs: Math.round(targetResult.timings.inferenceMs),
+          detections,
+          corrections,
+        });
+
+        if (res.gating.shouldUpload) {
+          await enqueueScanUpload({
+            scanId: activeScanId,
+            userId: activeUser.id,
+            imageUri: targetPhoto.uri,
+            imageWidth: targetPhoto.width,
+            imageHeight: targetPhoto.height,
+          });
+          void flushOfflineUploadQueue();
+        }
+      } catch (persistError) {
+        console.warn('Scan persistence error:', persistError);
+      }
+    },
+    [session, profile, activeRuleSet]
+  );
+
   const draftItems = useMemo(
     () =>
       items
@@ -262,6 +371,8 @@ export default function ScanScreen() {
     setError(null);
     setSafetyConfirmed(true);
     setStep('review');
+    scanIdRef.current = null;
+    persistedRef.current = false;
   }, []);
 
   const changeLabel = (item: ReviewItem) =>
@@ -272,7 +383,6 @@ export default function ScanScreen() {
         text: label.toUpperCase(),
         onPress: () => {
           updateItem(item.id, { label, confirmed: true });
-          void refreshGuidance(item.id, label, item.condition);
         },
       }))
     );
@@ -285,15 +395,6 @@ export default function ScanScreen() {
         text: label.toUpperCase(),
         onPress: () => {
           const id = `manual-${Date.now()}`;
-          const fallback = bundledAdvice(label, 'unknown');
-          const guidance: GuidanceCard = {
-            ...fallback,
-            source: 'fallback',
-            ruleSetId: activeRuleSet.id,
-            ruleSetLabel: activeRuleSet.label,
-            ruleSetVersion: activeRuleSet.version,
-            offline: true,
-          };
           setItems((current) => [
             ...current,
             {
@@ -303,14 +404,10 @@ export default function ScanScreen() {
               removed: false,
               userAdded: true,
               confirmed: true,
-              guidance,
             },
           ]);
           setSelectedId(id);
           setExpandedGuideIds((prev) => ({ ...prev, [id]: true }));
-          void requestGuidance(label, 'unknown', activeRuleSet).then((nextGuidance) =>
-            updateItem(id, { guidance: nextGuidance })
-          );
         },
       }))
     );
@@ -321,19 +418,8 @@ export default function ScanScreen() {
         ...item,
         condition: 'clean_dry',
         confirmed: true,
-        guidance: {
-          ...bundledAdvice(item.label, 'clean_dry'),
-          source: 'fallback',
-          ruleSetId: activeRuleSet.id,
-          ruleSetLabel: activeRuleSet.label,
-          ruleSetVersion: activeRuleSet.version,
-          offline: true,
-        },
       }))
     );
-    items
-      .filter((item) => !item.removed)
-      .forEach((item) => refreshGuidance(item.id, item.label, 'clean_dry'));
   };
 
   if (!permission) {
@@ -493,9 +579,12 @@ export default function ScanScreen() {
           <View className="flex-row items-center justify-between px-6 py-3">
             <AnimatedPressable
               onPress={() => {
+                void persistCurrentScan(items, photo, result);
                 setPhoto(undefined);
                 setResult(undefined);
                 setItems([]);
+                scanIdRef.current = null;
+                persistedRef.current = false;
               }}
             >
               <View className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/80 border border-border/80">
@@ -639,7 +728,6 @@ export default function ScanScreen() {
                             key={cond.value}
                             onPress={() => {
                               updateItem(item.id, { condition: cond.value, confirmed: true });
-                              void refreshGuidance(item.id, item.label, cond.value);
                             }}
                             className={`flex-1 py-1.5 rounded-xl border items-center justify-center ${
                               active
@@ -768,7 +856,10 @@ export default function ScanScreen() {
             <View className="mt-8 pt-2">
               <Button
                 disabled={eligibleCount === 0 || !safetyConfirmed}
-                onPress={() => setStep('schedule')}
+                onPress={() => {
+                  void persistCurrentScan(items, photo, result);
+                  setStep('schedule');
+                }}
                 className={`w-full h-12 rounded-2xl bg-primary flex-row items-center justify-center shadow-sm ${
                   eligibleCount === 0 || !safetyConfirmed ? 'opacity-60' : ''
                 }`}

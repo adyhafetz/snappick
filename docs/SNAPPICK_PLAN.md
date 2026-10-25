@@ -1,8 +1,8 @@
-# SnapPick Implementation Plan (Revision 5: temporary baseline and gated local learning)
+# SnapPick Implementation Plan (Revision 6: Malaysian SAS guidelines, SnapBot AI, and continuous learning)
 
-**Project:** SnapPick is a Perak community recycling app. Residents photograph household waste, receive sorting guidance, request pickup for accepted recyclable materials, and see privacy-safe recycling statistics.
+**Project:** SnapPick is an on-device AI recycling assistant and community pickup app for Perak, Malaysia. Residents photograph household waste, receive instant Malaysian Separation at Source (SAS) sorting and preparation guidance, request pickup for accepted recyclable materials within supported service boundaries, consult SnapBot AI for recycling questions, and track privacy-safe impact statistics.
 
-**Scope decision:** This is a Final Year Project pilot, not an official municipal collection service. It provides guidance and community pickups. Local rules and service areas are configurable per local authority/district and must be verified before public launch. KPKT lists Perak among the states where Act 672 is not enforced, so the app must not present SWCorp guidance as binding Perak law. [KPKT reference](https://www.kpkt.gov.my/index.php/pages/view/272)
+**Scope decision:** This is a Final Year Project pilot, not an official municipal collection service. Sorting guidelines are unified under the standard Malaysian Separation at Source (SAS) framework for all seven detector classes, with instant on-device visual preparation cards and SnapBot conversational AI guidance. Community pickup requests are bounded to supported pilot service areas (Perak districts) using PostGIS geofencing.
 
 ---
 
@@ -83,10 +83,10 @@ SnapPick is **unilateral**: every authenticated user is both a requester and a p
 
 | Role | Can do |
 |---|---|
-| User | Scan waste, view guidance, create/cancel their own pickup requests, browse and claim other users' nearby pending requests, upload pickup proof, and confirm or dispute completed pickups. |
-| Admin | Manage PBT/district rule sets, review corrections, approve model releases, and handle reports. |
+| User | Scan waste, view Malaysian SAS guidance & animations, chat with SnapBot AI, create/cancel pickup requests, browse and claim nearby requests, upload proof, and confirm or dispute completed pickups. |
+| Admin | Review feedback corrections, approve retrained model releases, and handle reports. |
 
-Bottom navigation is **Home, Activity, Scan, Request, Profile**. The Request tab always shows the map of pending requests. Activity has two sections: **My Requests** and **Pickups I Claimed**.
+Bottom navigation is **Home, Activity, Scan, Request, Profile**. The Request tab always shows the map of pending requests. Activity has two sections: **My Requests** and **Pickups I Claimed**. Home features the **SnapBot AI Assistant** and live **Your Recycling Impact** statistics (total scans, verified items, active pickups).
 
 ---
 
@@ -158,7 +158,7 @@ The temporary dataset's class IDs were visually verified by the owner in the wor
 | 5 | `plastic` | Plastic items represented by the source dataset | Conditional: user/local-rule confirmation is required because the class is broad |
 | 6 | `biological` | Food and biological waste represented by the source dataset | Not accepted |
 
-Broad visual labels do not by themselves prove pickup eligibility. The rule set combines class, condition, and local rules. Safety declarations for batteries, bulbs, e-waste, chemicals, sharp objects, and other hazards stay manual; the detector does not claim to recognize them. The review checklist always asks whether restricted or hazardous items are present.
+Broad visual labels do not by themselves prove pickup eligibility. The guidelines combine class and condition state. Safety declarations for batteries, bulbs, e-waste, chemicals, sharp objects, and other hazards stay manual; the detector does not claim to recognize them. The review checklist always asks whether restricted or hazardous items are present.
 
 ### Baseline dataset and FYP training plan (temporary model first)
 
@@ -175,11 +175,11 @@ Broad visual labels do not by themselves prove pickup eligibility. The rule set 
 - Use Google Colab or Kaggle for finite, checkpointed runs. Warm-start later candidates from the current champion while retaining replay data.
 - Follow `docs/DATASET_COLLECTION_GUIDE.md` when taking photos and `docs/MODEL_IMPROVEMENT_GUIDE.md` when building, evaluating, and promoting a candidate.
 
-Each class maps to a recyclable state and instruction through the local rule set. National guidance includes paper/cardboard, glass, plastic, and metal as recyclable material families, but the active PBT rule set remains the operational source of truth. [SWCorp material categories](https://www.swcorp.gov.my/sisa-domestik-dan-pembersihan-awam/)
+Each class maps to a recyclable state and step-by-step preparation instructions through the on-device Malaysian Separation at Source (SAS) guideline dictionary. National guidance includes paper/cardboard, glass, plastic, and metal as recyclable material families. [SWCorp material categories](https://www.swcorp.gov.my/sisa-domestik-dan-pembersihan-awam/)
 
 ### Condition confirmation
 
-Some properties cannot be trusted from a photo alone. For conditional classes, the app asks whether the item is clean and dry, contaminated/wet, broken/unsafe, or unknown. Final eligibility is calculated from **class + condition state + active local rule set**.
+Some properties cannot be trusted from a photo alone. For conditional classes, the app asks whether the item is clean and dry, contaminated/wet, broken/unsafe, or unknown. Final eligibility is calculated from **class + condition state + community recycling guidelines**.
 
 ### Training scope
 
@@ -199,7 +199,7 @@ Start with the broad classes above. Only split a class into more detailed labels
 | Detection overlay | React Native Views positioned over the photo (spike-proven). SVG only if dashed borders misbehave. |
 | Maps and location | MapLibre React Native (Expo config plugin, new architecture, not Expo Go) with the **OpenFreeMap** style (no key; confirm its terms and attribution for the pilot). MapTiler is the fallback. expo-location for GPS. Navigate uses the Android navigation link with a generic map link as fallback. |
 | Backend | Supabase Auth, Postgres, PostGIS, Storage, Realtime, Row Level Security, Edge Functions, and database RPC. Supabase JS **2.117.2**. |
-| LLM | OpenAI API through Supabase Edge Functions only (`get-guidance` and `snapbot-chat`), using server-side schema validation and response caching in `instruction_cache` to minimize token consumption. |
+| LLM | OpenAI API through Supabase Edge Functions only (`snapbot-chat`), using server-side schema validation and response caching in `instruction_cache` to minimize token consumption. |
 | Notifications | expo-notifications with FCM (Android only). |
 | Public dashboard | Next.js **16.3.6**, TypeScript, Recharts, MapLibre GL JS. |
 | Dashboard hosting/cache | Vercel with Next.js revalidate/Data Cache. Cache aggregate views for 5 to 15 minutes. |
@@ -215,17 +215,15 @@ The version numbers above are targets. Re-verify current versions and compatibil
 
 ---
 
-## 5. Rule-set resolution and scan timing
+## 5. Community guidelines and service area boundary
 
-The app must be useful before a user shares location. It resolves rules in this order:
+The app provides instant guidance without requiring location permission:
 
-1. On the Scan screen, use the last confirmed pickup district, if one is stored for the user.
-2. Otherwise, request location permission only when the user chooses **Use my location for local guidance**. Location permission is not required to scan.
-3. If permission is denied, unavailable, or the user has not selected a pickup point, use the versioned **perak_general** rule set and label the advice “General Perak guidance—confirm your pickup area for final acceptance.”
-4. When the requester sets a pickup pin, the server resolves the district through PostGIS and selects that district/PBT rule set.
-5. If the newly selected rule set differs from the scan rule set, update the review sheet and LLM guidance using the new rule-set version. The scan image and detected classes do not change; only eligibility and preparation instructions may change.
-
-This means location is optional for scanning but mandatory for creating a pickup request. The active rule-set ID and version are saved with the scan and with the request for auditability.
+1. Scanning and sorting advice work 100% offline using the bundled **Community Recycling Guidelines** (Malaysian SAS standard for all 7 detector classes).
+2. Preparation instructions and 720p animated visuals render directly on the device with zero network delay.
+3. Location permission is never required for scanning; it is requested only when pinning a pickup location on the map.
+4. When a requester sets a pickup pin, the server validates through PostGIS that the location falls within a supported community service district (Perak DOSM boundaries). Out-of-area pins are blocked.
+5. The guideline identifier and version are saved with the scan and pickup request for data integrity and auditability.
 
 ---
 
@@ -273,38 +271,25 @@ Every scan records `preprocess_ms` and `inference_ms`, which also feed the drift
 
 ---
 
-## 7. OpenAI instructions, cache, and fallback
+## 7. Guidance engine and SnapBot AI assistant
 
-OpenAI produces concise local **disposal instructions**, not the detection result or recyclable classification.
+SnapPick separates routine sorting guidance from conversational AI to ensure zero-latency scanning while providing helpful assistance:
 
-1. The app sends normalised classes, condition states, quantity bands (1, 2–5, 6+), district/PBT rule-set ID, locale, and rule-set version to an Edge Function.
-2. The function checks instruction_cache first.
-3. A reviewed cache hit is returned immediately.
-4. On a miss, the function calls OpenAI with the active local rules and strict JSON schema.
-5. It validates the output, saves it under the current rule version, and returns it.
-6. On failure, the function returns a reviewed local rule template.
+### 1. On-Device Malaysian SAS Guidance (Scan Screen)
+- For all 7 classes, the app bundles the official **Malaysian Separation at Source (SAS)** dictionary (`malaysianSas.ts`) with clear step-by-step preparation cards (e.g. "Empty & Rinse", "Squash Flat", "Remove Cap").
+- High-quality 720p animated WebP illustrations render inside collapsible review cards to demonstrate preparation steps visually.
+- Fully offline: zero network roundtrips, no API keys, and instant UI responsiveness.
 
-Suggested per-item cache key. Advice is cached per item and composed into the scan's guidance in code, so hit rates stay high:
-
-locale + pbt_rule_set_id + rule_set_version + class + condition_state + quantity_band
-
-Advice for every class and condition pair is pre-generated and admin-reviewed before launch, so most runtime requests are cache hits and the LLM mainly serves rare cases.
-
-Never include user ID, image, free-text note, address, exact coordinate, face, or licence plate in the prompt or cache key.
-
-Safeguards:
-
-- Abort the OpenAI request after **4.5 seconds**.
-- Retry once only for transient failures.
-- Apply a daily budget/alert and output-size cap.
-- Increment rule_set_version when a PBT rule changes; old cached guidance no longer matches.
-- Mark cached responses as generated, reviewed, or fallback.
+### 2. SnapBot Conversational AI (Home Screen)
+- Residents can tap **Ask SnapBot** on the Home screen to ask free-form sorting, recycling, and hazard questions.
+- Powered by Supabase Edge Function `snapbot-chat` with strict recycling system instructions and safety declarations for hazardous materials (batteries, e-waste, chemicals, bulbs, sharp objects).
+- **Caching & Privacy:** Deterministic SHA-256 question hashing in `instruction_cache` avoids redundant LLM invocations and saves tokens.
+- Never sends user IDs, exact coordinates, images, or personal notes to the LLM.
+- **Offline & Rate Limiting:** Daily usage rate limiting per user, with automatic fallback to bundled guidance if offline or if the API is unreachable.
 
 ### Fully offline behaviour
 
-The React Native app bundles a small versioned bundled_advice.json file for every MVP class and condition state. It contains essential instructions such as “empty, rinse, and dry” and “do not place batteries in community pickup.” Therefore, offline scanning always returns boxes, eligibility based on the last available rule set/perak_general, and basic guidance without contacting Supabase or OpenAI.
-
-When the device is online, the Edge Function may replace this with the current cached or OpenAI-generated local guidance. Creating/claiming a pickup requires connectivity and is disabled with a clear “Connect to submit pickup” message while offline.
+Offline scanning always returns bounding boxes, eligibility based on community guidelines, and Malaysian SAS preparation cards without contacting Supabase or OpenAI. Creating or claiming a pickup requires connectivity and is disabled with a clear "Connect to submit pickup" message while offline.
 
 ---
 
@@ -329,7 +314,7 @@ When the device is online, the Edge Function may replace this with the current c
 The app calls one authenticated create_pickup_request RPC/Edge Function, rather than inserting public and private records from the client separately. Inside one database transaction it:
 
 1. validates the signed-in requester, selected items, restricted-item separation confirmation, and Perak geofence;
-2. resolves the district and active PBT rule set;
+2. resolves the district and assigns the active community guideline;
 3. creates the public request row and its private-details row;
 4. writes the accepted item checklist; and
 5. returns the new request ID.
@@ -363,7 +348,7 @@ A daily Supabase Cron job uses pg_cron to invoke a protected prune-expired-scans
 ## 9. Main data tables
 
 - profiles — user details and community-pickup safety acknowledgement.
-- pbt_rule_sets — local rules, version, effective dates, and source/review record.
+- pbt_rule_sets — community guideline metadata, version, label, and class rules.
 - scans — model version, active rule-set ID/version, consent, compressed image path, image size, preprocess and inference timings, retention date.
 - detections — one row per detected box (or per user-added item): model label, app class, score, normalised box, source (`detector` or `user_added`), condition state, eligibility result.
 - label_feedback — user changes and collector verification.

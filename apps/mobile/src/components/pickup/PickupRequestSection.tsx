@@ -13,8 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
-import { BUNDLED_RULE_SET, type RuleSet } from '@/lib/detector/rules';
-import { parseRuleSet } from '@/lib/guidance/service';
+import { BUNDLED_RULE_SET, parseRuleSet, type RuleSet } from '@/lib/detector/rules';
 import { clearPickupDraft } from '@/lib/pickup/draft-storage';
 import {
   evaluatePickupItems,

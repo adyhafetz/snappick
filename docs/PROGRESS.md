@@ -11,3 +11,4 @@
 | 7 - Pickup request | ✅ Complete — manual verification passed |
 | 8 - Collector marketplace and claim | ✅ Complete — manual verification passed |
 | 9 - Completion, proof, notifications | ✅ Complete — manual verification passed |
+| 10 - Feedback capture and Home stats | ✅ Complete — manual verification passed |

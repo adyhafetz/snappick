@@ -33,3 +33,16 @@ export function evaluateEligibility(label: string, condition: Condition, ruleSet
 }
 
 export function isEligible(label: string, condition: Condition, ruleSet?: RuleSet): boolean { return evaluateEligibility(label, condition, ruleSet).eligibility === 'eligible'; }
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function parseRuleSet(value: unknown): RuleSet | null {
+  if (!isRecord(value) || typeof value.id !== 'string' || !Number.isInteger(value.version) || typeof value.label !== 'string' || !isRecord(value.classes)) return null;
+  for (const entry of Object.values(value.classes)) {
+    if (!isRecord(entry) || (entry.material !== 'recyclable' && entry.material !== 'not_recyclable') || !isRecord(entry.conditionRules)) return null;
+  }
+  return value as unknown as RuleSet;
+}
+

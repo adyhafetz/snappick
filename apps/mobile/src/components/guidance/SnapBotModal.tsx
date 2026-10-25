@@ -111,11 +111,8 @@ function SnapBotModalContent({
               <Bot size={22} className="text-primary" />
             </View>
             <View>
-              <View className="flex-row items-center gap-1.5">
+              <View className="flex-row items-center">
                 <Text className="text-base font-bold text-foreground">SnapBot</Text>
-                <View className="bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
-                  <Text className="text-[10px] font-bold text-primary">OpenAI Assistant</Text>
-                </View>
               </View>
               <Text className="text-xs text-muted-foreground">Recycling & Sorting Assistant</Text>
             </View>

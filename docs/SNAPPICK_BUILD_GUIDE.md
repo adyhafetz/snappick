@@ -150,7 +150,7 @@ Confidence policy (defaults, overridable per class in the model manifest): score
 
 - **Tables:** `profiles`, `pbt_rule_sets`, `scans`, `detections`, `label_feedback`, `feedback_samples`, `pickup_requests_public`, `pickup_request_private_details`, `pickup_waste_items`, `pickup_proofs`, `disputes`, `instruction_cache`, `llm_usage`, `perak_districts`, `push_tokens`, `reports`, `audit_log`, `model_versions`, `dataset_versions`, `training_runs`, `drift_daily`.
 - **RPCs:** `resolve_rule_set(lat, lng)`, `create_pickup_request(...)`, `cancel_pickup_request(id)`, `claim_pickup_request(id)`, `release_pickup_request(id)`, `start_pickup(id)`, `submit_collection(id, ...)`, `confirm_pickup(id)`, `raise_dispute(id, reason)`, `resolve_dispute(id, outcome, note)`, `relist_pickup(id)`.
-- **Edge Functions:** `get-guidance`, `snapbot-chat`, `get-pickup-private-details`, `notify`, `prune-expired-scans`, `delete-account`.
+- **Edge Functions:** `snapbot-chat`, `get-pickup-private-details`, `notify`, `prune-expired-scans`, `delete-account`.
 - **Storage buckets (private):** `scans`, `proofs`, `models`.
 - **Geo rule:** the public location is `ST_SnapToGrid(exact_point, 0.01)`, computed on the server. Exact coordinates exist only in `pickup_request_private_details`.
 - **Column contracts (Phase 2 must follow these exactly):**
@@ -397,43 +397,41 @@ Implement Phase 5 (On-device scan and review sheet) as described in the guide.
 
 ---
 
-## Phase 6: Guidance engine (local rules and cached LLM advice)
+## Phase 6: Guidance engine (Malaysian SAS guides and SnapBot AI)
 
-**Goal.** Item-level advice from a reviewed cache, the LLM, or offline fallback, and rule-set resolution.
+**Goal.** Instant Malaysian Separation at Source (SAS) visual preparation cards for all 7 classes, and SnapBot conversational AI recycling assistant.
 **Plan sections.** 5, 7.
 **Depends on.** Phases 2 and 5.
 
 **Manual work before**
-- OpenAI account and API key, with a **monthly usage limit** set in the billing settings. If you cannot add a payment method, skip the key: the function runs in templates-only mode (reviewed templates and bundled advice) and the phase still passes, with the LLM checks marked skipped.
-- Store the key: `npx supabase secrets set OPENAI_API_KEY=...`.
-- Confirm with the AI the current recommended small model name and Structured Outputs usage from the official docs.
+- OpenAI account and API key stored as Supabase secret (`npx supabase secrets set OPENAI_API_KEY=...`) for the SnapBot AI function.
+- If running without an OpenAI key, SnapBot safely displays bundled recycling guidance and the phase still passes.
 
 **Prompt**
 ```
-Implement Phase 6 (Guidance engine) as described in the guide. Check current OpenAI
-Structured Outputs documentation before writing the function.
+Implement Phase 6 (Guidance engine) as described in the guide: Malaysian SAS preparation
+dictionary for all 7 classes, 720p animated visuals, and Home screen SnapBot AI assistant.
 ```
 
 **The AI builds**
-- Edge Function `get-guidance`: input validation, per-item cache lookup (key: locale + rule set id + rule set version + class + condition + quantity band), OpenAI call with a strict JSON schema, 4.5-second timeout, one retry on transient errors, output validation, cache write, and reviewed-template fallback. A daily budget counter in `llm_usage` triggers fallback when the cap is reached.
-- An `LLM_ENABLED` setting so the function can run in templates-only mode.
-- Reviewed templates for every class and condition (`supabase/seed/advice_templates.json`) and a script that pre-generates advice for admin review.
-- `bundled_advice.json` in the app, and guidance UI per item with a source badge (reviewed, generated, or fallback).
-- Rule-set resolution: last confirmed district, else `perak_general`; optional "Use my location for local guidance" (permission requested only on tap) via `resolve_rule_set`.
+- Malaysian Separation at Source (SAS) dictionary (`malaysianSas.ts`) for all seven detector classes with step-by-step preparation cards and 720p animated WebPs (`SasAnimation.tsx`) integrated into the detection review sheet.
+- Home screen **SnapBot AI Recycling Assistant** (`SnapBotModal.tsx`) backed by Edge Function `snapbot-chat`.
+- Deterministic response caching (`instruction_cache` with SHA-256 question hash) to minimize OpenAI API usage and latency.
+- Rate limiting, token caps, and local offline fallback for SnapBot.
+- 100% offline scanning: preparation steps and eligibility render immediately on-device without network calls.
 
 **Verify**
-- First request generates advice and stores it; the second identical request returns `source: cache`.
-- Airplane mode shows bundled advice.
-- Forcing a timeout (documented flag) returns fallback advice within about 5 seconds.
-- Function logs contain no user ID, image, note, or coordinates.
-- Reaching the daily cap returns fallback advice.
+- Scanning any item renders instant Malaysian SAS preparation cards and animations.
+- Airplane mode displays full guidance offline.
+- Tapping "Ask SnapBot" opens the AI chat assistant. Repeated questions return cached responses instantly.
+- Logs and prompts contain no user IDs, coordinates, images, or personal notes.
 - Users cannot write to `instruction_cache` directly (RLS test).
 
 ---
 
 ## Phase 7: Pickup request
 
-**Goal.** From a scan result, pin a location, pass the Perak geofence, and create a pending request with a masked public point.
+**Goal.** From a scan result, pin a location, pass the service area geofence, and create a pending request with a masked public point.
 **Plan sections.** 2 (pickup request), 5, 8.
 **Depends on.** Phases 2, 5, and 6.
 
@@ -448,9 +446,9 @@ Implement Phase 7 (Pickup request) as described in the guide.
 
 **The AI builds**
 - MapLibre React Native map, GPS auto-detect, draggable pin, and address form (unit, street, landmark, access instructions, note, pickup window).
-- District import script and seed.
-- RPC `create_pickup_request`: one transaction that validates the user, items, restricted-item confirmation, and geofence (`ST_Contains`), resolves district and rule set, writes the public row (grid-snapped), the private row, and the item checklist.
-- Rule re-evaluation when the pin's district has a more specific rule set, the out-of-area message, and Activity → **My Requests** (list and cancel).
+- District import script and seed (`scripts/import_perak_districts.py`).
+- RPC `create_pickup_request`: one transaction that validates the user, items, restricted-item confirmation, and geofence (`ST_Contains`), assigns the district, writes the public row (grid-snapped), the private row, and the item checklist.
+- Out-of-area notification when a pin is outside supported service boundaries, and Activity → **My Requests** (list and cancel).
 
 **Verify**
 - A pin in Ipoh succeeds; a pin in Kuala Lumpur or Penang is blocked in the app **and** when calling the RPC directly with those coordinates.
@@ -458,7 +456,7 @@ Implement Phase 7 (Pickup request) as described in the guide.
 - A second user cannot read the private row.
 - Submitting without the restricted-item confirmation is rejected.
 - Offline shows "Connect to submit pickup" and disables submit.
-- Rule set id and version are stored on the request.
+- Guideline ID and version are stored on the request.
 - Cancel changes the status to `cancelled`.
 
 ---
