@@ -6,12 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Camera,
   ArrowRight,
-  SunMedium,
-  Target,
-  AlertTriangle,
-  History,
   Sparkles,
-  MapPin,
   Bot,
   CheckCircle2,
   PackageCheck,
@@ -82,6 +77,8 @@ export default function HomeScreen() {
     await loadStats();
     setRefreshing(false);
   }, [loadStats]);
+
+  const recentScans = stats.recent_scans.slice(0, 3);
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
@@ -234,9 +231,9 @@ export default function HomeScreen() {
           </AnimatedPressable>
         </View>
 
-        {stats.recent_scans.length > 0 ? (
+        {recentScans.length > 0 ? (
           <View className="space-y-2.5">
-            {stats.recent_scans.map((scan) => (
+            {recentScans.map((scan) => (
               <Card
                 key={scan.id}
                 className="p-3.5 rounded-2xl border-border/70 bg-card flex-row items-center justify-between shadow-sm mt-2"
@@ -270,85 +267,6 @@ export default function HomeScreen() {
             </Text>
           </Card>
         )}
-
-        {/* Quick Tips Chips */}
-        <View className="mt-8 mb-3">
-          <Text className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Quick tips for best scan
-          </Text>
-        </View>
-
-        <View className="flex-row gap-2.5">
-          <View className="flex-1 p-3.5 rounded-2xl bg-card border border-border/70 items-center text-center shadow-sm">
-            <View className="h-9 w-9 rounded-xl bg-amber-500/10 items-center justify-center mb-2">
-              <SunMedium size={18} color="#b45309" />
-            </View>
-            <Text className="text-xs font-bold text-foreground text-center">Good Light</Text>
-            <Text className="text-[10px] text-muted-foreground text-center mt-0.5">Bright focus</Text>
-          </View>
-
-          <View className="flex-1 p-3.5 rounded-2xl bg-card border border-border/70 items-center text-center shadow-sm">
-            <View className="h-9 w-9 rounded-xl bg-primary/10 items-center justify-center mb-2">
-              <Target size={18} color="#19806d" />
-            </View>
-            <Text className="text-xs font-bold text-foreground text-center">Center Item</Text>
-            <Text className="text-[10px] text-muted-foreground text-center mt-0.5">Fill frame</Text>
-          </View>
-
-          <View className="flex-1 p-3.5 rounded-2xl bg-card border border-border/70 items-center text-center shadow-sm">
-            <View className="h-9 w-9 rounded-xl bg-destructive/10 items-center justify-center mb-2">
-              <AlertTriangle size={18} color="#b42318" />
-            </View>
-            <Text className="text-xs font-bold text-foreground text-center">No Hazards</Text>
-            <Text className="text-[10px] text-muted-foreground text-center mt-0.5">Batteries out</Text>
-          </View>
-        </View>
-
-        {/* Shortcuts Section */}
-        <View className="mt-8 mb-3">
-          <Text className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Activity & Pickups
-          </Text>
-        </View>
-
-        <View className="space-y-3">
-          <AnimatedPressable
-            accessibilityRole="button"
-            onPress={() => router.push('/(tabs)/request')}
-          >
-            <Card className="p-4 rounded-2xl border-border/70 bg-card flex-row items-center gap-3.5 shadow-sm">
-              <View className="h-10 w-10 rounded-xl bg-primary/10 items-center justify-center">
-                <MapPin size={20} color="#19806d" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-sm font-bold text-foreground">Nearby Pickups</Text>
-                <Text className="text-xs text-muted-foreground mt-0.5">
-                  Browse community requests in your area
-                </Text>
-              </View>
-              <ArrowRight size={16} color="#5b7072" />
-            </Card>
-          </AnimatedPressable>
-
-          <AnimatedPressable
-            accessibilityRole="button"
-            onPress={() => router.push('/(tabs)/activity')}
-            className="mt-3"
-          >
-            <Card className="p-4 rounded-2xl border-border/70 bg-card flex-row items-center gap-3.5 shadow-sm">
-              <View className="h-10 w-10 rounded-xl bg-blue-500/10 items-center justify-center">
-                <History size={20} color="#2563eb" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-sm font-bold text-foreground">My Activity</Text>
-                <Text className="text-xs text-muted-foreground mt-0.5">
-                  Track ongoing pickup requests & history
-                </Text>
-              </View>
-              <ArrowRight size={16} color="#5b7072" />
-            </Card>
-          </AnimatedPressable>
-        </View>
       </ScrollView>
 
       {/* SnapBot AI Modal on Home Screen */}
