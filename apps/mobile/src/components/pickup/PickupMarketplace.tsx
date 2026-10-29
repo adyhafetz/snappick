@@ -95,8 +95,8 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
       {/* Sleek Header */}
-      <View className="px-6 pt-3 pb-2 flex-row items-center justify-between">
-        <Text className="text-2xl font-black tracking-tight text-foreground">Nearby Pickups</Text>
+      <View className="px-6 pt-4 pb-2 flex-row items-center justify-between">
+        <Text className="text-3xl font-black tracking-tight text-foreground">Nearby Pickups</Text>
         <View className="flex-row items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/80 border border-border/80">
           {realtime === 'offline' ? (
             <WifiOff size={12} color="#b45309" />
@@ -144,7 +144,7 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
                 >
                   <View className="flex-row items-center gap-1">
                     {cell.hasMine && <User size={13} color="#ffffff" strokeWidth={2.6} />}
-                    <Text className="text-sm font-bold text-white">{cell.count}</Text>
+                    <Text className="text-xs font-bold text-white">{cell.count}</Text>
                   </View>
                 </View>
               </Marker>
@@ -265,7 +265,7 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
                 onPress={() => void claim(selected.id, refresh)}
                 className="w-full h-12 rounded-2xl bg-primary mt-3"
               >
-                <Text className="text-sm font-bold text-white">
+                <Text className="text-base font-bold text-white">
                   {online ? 'Claim Pickup' : 'Offline'}
                 </Text>
               </Button>

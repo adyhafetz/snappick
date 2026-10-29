@@ -22,3 +22,23 @@ export const colors = {
 export const spacing = { xxs: 4, xs: 8, sm: 12, md: 16, lg: 24, xl: 32, xxl: 40 };
 
 export const shape = { control: 8, surface: 8, round: 999 };
+
+export const typography = {
+  screenTitle: 'text-3xl font-black tracking-tight text-foreground',
+  cardTitle: 'text-base font-bold text-foreground',
+  sectionHeader: 'text-xs font-bold uppercase tracking-wider text-muted-foreground',
+  body: 'text-sm text-foreground',
+  bodyMuted: 'text-sm text-muted-foreground',
+  caption: 'text-xs text-muted-foreground',
+  badge: 'text-[11px] font-bold',
+  buttonPrimary: 'text-base font-bold',
+  buttonSmall: 'text-xs font-bold',
+};
+
+export const controlSizes = {
+  buttonPrimary: 'h-12 rounded-2xl',
+  buttonSmall: 'h-9 px-3.5 rounded-xl',
+  buttonIcon: 'h-10 w-10 rounded-2xl',
+  input: 'h-12 rounded-2xl',
+};
+

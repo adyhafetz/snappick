@@ -72,10 +72,6 @@ function SnapBotModalContent({
     setInput('');
     setLoading(true);
 
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
-
     try {
       const replyText = await askSnapBot(
         nextHistory.map((m) => ({ role: m.role, content: m.content })),
@@ -92,9 +88,6 @@ function SnapBotModalContent({
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
       setLoading(false);
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
     }
   };
 
@@ -132,6 +125,11 @@ function SnapBotModalContent({
           contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 20 }}
           className="flex-1"
           keyboardShouldPersistTaps="handled"
+          onContentSizeChange={() => {
+            if (messages.length > 1) {
+              scrollViewRef.current?.scrollToEnd({ animated: true });
+            }
+          }}
         >
           {/* Quick Suggestion Chips inside ScrollView */}
           {messages.length <= 1 && (
@@ -183,7 +181,7 @@ function SnapBotModalContent({
                   {item.content}
                 </Text>
                 <Text
-                  className={`text-[10px] mt-1 text-right ${
+                  className={`text-[11px] mt-1 text-right ${
                     item.role === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground'
                   }`}
                 >
@@ -228,7 +226,7 @@ function SnapBotModalContent({
             size="icon"
             disabled={loading || input.trim().length === 0}
             onPress={() => void handleSend()}
-            className="h-11 w-11 rounded-2xl bg-primary"
+            className="h-10 w-10 rounded-2xl bg-primary"
           >
             <Send size={18} className="text-primary-foreground" />
           </Button>

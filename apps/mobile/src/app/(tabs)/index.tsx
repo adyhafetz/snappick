@@ -83,7 +83,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 56 }}
+        contentContainerStyle={{ paddingBottom: 80 }}
         className="px-6 pt-4"
         refreshControl={
           <RefreshControl
@@ -102,7 +102,7 @@ export default function HomeScreen() {
           <View className="flex-row items-center gap-2">
             {isOfflineCache && (
               <View className="px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
-                <Text className="text-[10px] font-bold text-amber-700">Offline</Text>
+                <Text className="text-[11px] font-bold text-amber-700">Offline</Text>
               </View>
             )}
             <View className="h-10 w-10 rounded-2xl bg-primary/10 items-center justify-center">
@@ -255,7 +255,7 @@ export default function HomeScreen() {
                   </View>
                 </View>
                 <View className="h-7 px-2.5 rounded-full bg-primary/10 items-center justify-center">
-                  <Text className="text-[10px] font-bold text-primary">Recorded</Text>
+                  <Text className="text-[11px] font-bold text-primary">Recorded</Text>
                 </View>
               </Card>
             ))}

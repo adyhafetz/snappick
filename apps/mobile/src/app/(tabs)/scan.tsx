@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -35,6 +36,7 @@ import {
   ShieldCheck,
   BookOpen,
   ChevronDown,
+  X,
 } from 'lucide-react-native';
 
 import { AnimatedPressable } from '@/components/ui/animated-pressable';
@@ -113,6 +115,11 @@ export default function ScanScreen() {
   const [safetyConfirmed, setSafetyConfirmed] = useState(true);
   const [step, setStep] = useState<'review' | 'schedule'>('review');
   const [expandedGuideIds, setExpandedGuideIds] = useState<Record<string, boolean>>({});
+  const [materialModal, setMaterialModal] = useState<{
+    visible: boolean;
+    mode: 'add' | 'change';
+    targetItemId?: string;
+  }>({ visible: false, mode: 'add' });
 
   useEffect(() => {
     if (isFocused) {
@@ -375,42 +382,35 @@ export default function ScanScreen() {
     persistedRef.current = false;
   }, []);
 
-  const changeLabel = (item: ReviewItem) =>
-    Alert.alert(
-      'Change Material',
-      'Select detected material:',
-      LABELS.map((label) => ({
-        text: label.toUpperCase(),
-        onPress: () => {
-          updateItem(item.id, { label, confirmed: true });
-        },
-      }))
-    );
+  const changeLabel = (item: ReviewItem) => {
+    setMaterialModal({ visible: true, mode: 'change', targetItemId: item.id });
+  };
 
-  const addItem = () =>
-    Alert.alert(
-      'Add Item',
-      'Select material to add:',
-      LABELS.map((label) => ({
-        text: label.toUpperCase(),
-        onPress: () => {
-          const id = `manual-${Date.now()}`;
-          setItems((current) => [
-            ...current,
-            {
-              id,
-              label,
-              condition: 'unknown',
-              removed: false,
-              userAdded: true,
-              confirmed: true,
-            },
-          ]);
-          setSelectedId(id);
-          setExpandedGuideIds((prev) => ({ ...prev, [id]: true }));
+  const addItem = () => {
+    setMaterialModal({ visible: true, mode: 'add' });
+  };
+
+  const handleSelectMaterial = (label: string) => {
+    if (materialModal.mode === 'add') {
+      const id = `manual-${Date.now()}`;
+      setItems((current) => [
+        ...current,
+        {
+          id,
+          label,
+          condition: 'unknown',
+          removed: false,
+          userAdded: true,
+          confirmed: true,
         },
-      }))
-    );
+      ]);
+      setSelectedId(id);
+      setExpandedGuideIds((prev) => ({ ...prev, [id]: true }));
+    } else if (materialModal.mode === 'change' && materialModal.targetItemId) {
+      updateItem(materialModal.targetItemId, { label, confirmed: true });
+    }
+    setMaterialModal({ visible: false, mode: 'add' });
+  };
 
   const confirmEverythingClean = () => {
     setItems((current) =>
@@ -446,7 +446,7 @@ export default function ScanScreen() {
           <Text className="text-base font-bold text-white">Enable Camera</Text>
         </Button>
         <Button variant="outline" onPress={() => void pick()} className="w-full h-12 rounded-2xl">
-          <Text className="text-sm font-bold text-foreground">Choose from Gallery</Text>
+          <Text className="text-base font-bold text-foreground">Choose from Gallery</Text>
         </Button>
       </View>
     );
@@ -618,13 +618,13 @@ export default function ScanScreen() {
             {/* Header with status pill */}
             <View className="flex-row items-center justify-between mb-3">
               <View>
-                <Text className="text-xl font-black text-foreground">Detected Items</Text>
+                <Text className="text-2xl font-black tracking-tight text-foreground">Detected Items</Text>
                 <Text className="text-[11px] font-medium text-muted-foreground mt-0.5">
                   {activeRuleSet.label}
                 </Text>
               </View>
               <Badge variant="secondary" className="px-3 py-1 rounded-full">
-                <Text className="text-xs font-bold">{eligibleCount} eligible</Text>
+                <Text className="text-[11px] font-bold">{eligibleCount} eligible</Text>
               </Badge>
             </View>
 
@@ -639,7 +639,7 @@ export default function ScanScreen() {
             </AnimatedPressable>
 
             {/* Empty state */}
-            {result?.detections.length === 0 && (
+            {items.length === 0 && (
               <View className="py-6 items-center">
                 <Text className="text-xs font-medium text-muted-foreground text-center">
                   No items detected. Add one below if visible.
@@ -698,7 +698,7 @@ export default function ScanScreen() {
                           {presentation.label}
                         </Text>
                         <Badge variant={badgeVariant} className="px-2 py-0.5 rounded-md">
-                          <Text className="text-[10px] font-bold">{statusLabel}</Text>
+                          <Text className="text-[11px] font-bold">{statusLabel}</Text>
                         </Badge>
                       </View>
 
@@ -896,11 +896,11 @@ export default function ScanScreen() {
             >
               <ArrowLeft size={18} color="#183e48" />
             </AnimatedPressable>
-            <Text className="text-xl font-black text-foreground">Schedule Pickup</Text>
+            <Text className="text-2xl font-black tracking-tight text-foreground">Schedule Pickup</Text>
           </View>
 
           <Badge variant="secondary" className="px-3 py-1 rounded-full">
-            <Text className="text-xs font-bold">{eligibleCount} eligible</Text>
+            <Text className="text-[11px] font-bold">{eligibleCount} eligible</Text>
           </Badge>
         </View>
 
@@ -933,7 +933,82 @@ export default function ScanScreen() {
       </View>
     </View>
   )}
-</View>
+      {/* Material Selection Modal */}
+      <Modal
+        visible={materialModal.visible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setMaterialModal({ visible: false, mode: 'add' })}
+      >
+        <Pressable
+          className="flex-1 bg-black/60 items-center justify-center p-5"
+          onPress={() => setMaterialModal({ visible: false, mode: 'add' })}
+        >
+          <Pressable
+            className="w-full max-w-sm rounded-3xl bg-card border border-border/80 p-5 shadow-2xl"
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View className="flex-row items-center justify-between mb-4">
+              <View>
+                <Text className="text-lg font-black text-foreground">
+                  {materialModal.mode === 'add' ? 'Add Item' : 'Change Material'}
+                </Text>
+                <Text className="text-xs text-muted-foreground mt-0.5">
+                  Select a waste or recyclable category
+                </Text>
+              </View>
+              <AnimatedPressable
+                onPress={() => setMaterialModal({ visible: false, mode: 'add' })}
+                className="h-8 w-8 items-center justify-center rounded-full bg-secondary/80"
+              >
+                <X size={16} color="#5b7072" />
+              </AnimatedPressable>
+            </View>
+
+            <ScrollView className="max-h-96" showsVerticalScrollIndicator={false}>
+              <View className="gap-2">
+                {LABELS.map((label) => {
+                  const rule = activeRuleSet.classes[label];
+                  const isRecyclable = rule?.material === 'recyclable';
+                  const isNotRecyclable = rule?.material === 'not_recyclable';
+
+                  return (
+                    <AnimatedPressable
+                      key={label}
+                      onPress={() => handleSelectMaterial(label)}
+                      className="p-3 rounded-2xl border border-border/70 bg-secondary/30 flex-row items-center justify-between active:bg-primary/10"
+                    >
+                      <View className="flex-row items-center gap-3">
+                        <View
+                          className={`h-3 w-3 rounded-full ${
+                            isRecyclable
+                              ? 'bg-emerald-500'
+                              : isNotRecyclable
+                                ? 'bg-rose-500'
+                                : 'bg-slate-400'
+                          }`}
+                        />
+                        <Text className="text-sm font-bold capitalize text-foreground">
+                          {label}
+                        </Text>
+                      </View>
+                      <Badge
+                        variant={isRecyclable ? 'success' : isNotRecyclable ? 'destructive' : 'secondary'}
+                        className="px-2.5 py-0.5 rounded-full"
+                      >
+                        <Text className="text-[11px] font-bold capitalize">
+                          {isRecyclable ? 'Recyclable' : isNotRecyclable ? 'Non-recyclable' : 'Unsure'}
+                        </Text>
+                      </Badge>
+                    </AnimatedPressable>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </View>
   );
 }
 

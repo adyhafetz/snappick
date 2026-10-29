@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   LogOut,
@@ -102,13 +102,16 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 56 }}
+        contentContainerStyle={{ paddingBottom: 80 }}
         className="px-6 pt-4"
         keyboardShouldPersistTaps="handled"
       >
-        {/* Brand Bar */}
-        <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-2xl font-black tracking-tight text-foreground">Profile</Text>
+        {/* Header */}
+        <View className="mb-6">
+          <Text className="text-3xl font-black tracking-tight text-foreground">Profile</Text>
+          <Text className="text-sm font-medium text-muted-foreground mt-1">
+            Manage account preferences & privacy settings.
+          </Text>
         </View>
 
         {/* User Card */}
@@ -152,7 +155,7 @@ export default function ProfileScreen() {
 
         {/* Personal Details Section */}
         <Text className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 px-1">
-          Account details
+          ACCOUNT DETAILS
         </Text>
         <Card className="p-4 border-border/70 bg-card rounded-2xl shadow-sm mb-6 space-y-3">
           <View className="relative justify-center">
@@ -161,7 +164,7 @@ export default function ProfileScreen() {
               onChangeText={setDisplayName}
               placeholder="Display name"
               value={displayName}
-              className="pl-11 h-12 rounded-xl bg-secondary/30 border-border/60"
+              className="pl-11 h-12 rounded-2xl bg-secondary/30 border-border/60"
             />
             <View className="absolute left-3.5">
               <User size={18} color="#5b7072" />
@@ -175,7 +178,7 @@ export default function ProfileScreen() {
               onChangeText={setPhone}
               placeholder="Phone number (optional)"
               value={phone}
-              className="pl-11 h-12 rounded-xl bg-secondary/30 border-border/60"
+              className="pl-11 h-12 rounded-2xl bg-secondary/30 border-border/60"
             />
             <View className="absolute left-3.5">
               <Phone size={18} color="#5b7072" />
@@ -190,14 +193,14 @@ export default function ProfileScreen() {
             {saving ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
-              <Text className="text-sm font-bold text-white">Save Changes</Text>
+              <Text className="text-base font-bold text-white">Save Changes</Text>
             )}
           </Button>
         </Card>
 
         {/* Privacy & Settings Section */}
         <Text className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 px-1">
-          Privacy & Data
+          PRIVACY & DATA
         </Text>
         <Card className="p-4 border-border/70 bg-card rounded-2xl shadow-sm mb-6">
           {/* Storage Toggle */}
@@ -216,7 +219,20 @@ export default function ProfileScreen() {
               disabled={storageSaving}
               checked={profile.image_storage_consent}
               onCheckedChange={(value) => {
-                if (!value) void revokeImageStorage();
+                if (!value) {
+                  Alert.alert(
+                    'Turn off scan history?',
+                    'Disabling scan history storage revokes required data consent and will prompt you to review required permissions to continue using SnapPick.',
+                    [
+                      { text: 'Keep Enabled', style: 'cancel' },
+                      {
+                        text: 'Turn Off',
+                        style: 'destructive',
+                        onPress: () => void revokeImageStorage(),
+                      },
+                    ]
+                  );
+                }
               }}
             />
           </View>
@@ -248,7 +264,7 @@ export default function ProfileScreen() {
           className="w-full h-12 rounded-2xl border-destructive/20 bg-destructive/5 flex-row items-center justify-center gap-2"
         >
           <LogOut size={16} color="#b42318" />
-          <Text className="text-sm font-bold text-destructive">Sign Out</Text>
+          <Text className="text-base font-bold text-destructive">Sign Out</Text>
         </Button>
       </ScrollView>
     </SafeAreaView>

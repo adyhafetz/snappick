@@ -66,7 +66,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   }
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-background">
+    <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-background">
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
         className="px-6 py-8"
@@ -170,7 +170,7 @@ export function AuthForm({ mode }: AuthFormProps) {
               {busy ? (
                 <ActivityIndicator color="#183e48" />
               ) : (
-                <Text className="text-sm font-bold text-foreground">
+                <Text className="text-base font-bold text-foreground">
                   Continue with Google
                 </Text>
               )}

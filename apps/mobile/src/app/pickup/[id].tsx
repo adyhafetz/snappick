@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Linking, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useFocusEffect, router } from 'expo-router';
-import { ArrowLeft, Camera, Check, Image as ImageIcon, Play, RotateCcw, MapPin } from 'lucide-react-native';
+import { ArrowLeft, Camera, Check, Image as ImageIcon, Play, RotateCcw, MapPin, Clock, ShieldAlert } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { toByteArray } from 'base64-js';
 
@@ -16,6 +16,7 @@ import { supabase } from '@/lib/supabase';
 import { openPickupNavigation } from '@/lib/pickup/navigation';
 import { CollectionChecklist } from '@/components/pickup/CollectionChecklist';
 import { RoutePreviewMap } from '@/components/pickup/RoutePreviewMap';
+import { ProofPhotoModal } from '@/components/pickup/ProofPhotoModal';
 import { prepareProofImage } from '@/lib/pickup/proof';
 import { toSubmission, validateChecklist, type ChecklistReason, type ChecklistRow } from '@/lib/pickup/checklist';
 import { stripJpegMetadata } from '@/lib/pickup/proof-metadata';
@@ -33,6 +34,7 @@ export default function ClaimedPickupScreen() {
   const [error, setError] = useState('');
   const [rows, setRows] = useState<ChecklistRow[]>([]);
   const [proof, setProof] = useState<{ uri: string; width: number; height: number } | null>(null);
+  const [proofUrl, setProofUrl] = useState<string | null>(null);
   const [nonCollectionReason] = useState<ChecklistReason | undefined>();
 
   const load = useCallback(async () => {
@@ -134,18 +136,18 @@ export default function ClaimedPickupScreen() {
     if (!id) return;
     const { data, error: proofError } = await supabase.functions.invoke('get-pickup-proof', { body: { request_id: id } });
     if (proofError || typeof data?.signed_url !== 'string') { Alert.alert('Unavailable', 'Proof photo could not be opened.'); return; }
-    await Linking.openURL(data.signed_url);
+    setProofUrl(data.signed_url);
   };
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-background">
+    <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-background">
       <ScrollView contentContainerStyle={{ paddingBottom: 56 }} className="px-6 pt-4">
         {/* Top Navigation Row */}
         <View className="flex-row items-center gap-3 mb-5">
           <AnimatedPressable onPress={() => router.back()} className="h-10 w-10 rounded-2xl bg-secondary/80 border border-border items-center justify-center">
             <ArrowLeft size={18} color="#183e48" />
           </AnimatedPressable>
-          <Text className="text-xl font-black text-foreground">Pickup Task</Text>
+          <Text className="text-2xl font-black tracking-tight text-foreground">Pickup Task</Text>
         </View>
 
         {loading ? (
@@ -226,7 +228,7 @@ export default function ClaimedPickupScreen() {
                   className="w-full h-12 rounded-2xl bg-primary flex-row items-center justify-center gap-2"
                 >
                   <Play size={16} color="#ffffff" />
-                  <Text className="text-sm font-bold text-white">Start Pickup</Text>
+                  <Text className="text-base font-bold text-white">Start Pickup</Text>
                 </Button>
 
                 <Button
@@ -241,7 +243,7 @@ export default function ClaimedPickupScreen() {
                   className="w-full h-12 rounded-2xl border-border flex-row items-center justify-center gap-2"
                 >
                   <RotateCcw size={15} color="#5b7072" />
-                  <Text className="text-sm font-semibold text-foreground">Release to Map</Text>
+                  <Text className="text-base font-bold text-foreground">Release to Map</Text>
                 </Button>
               </View>
             )}
@@ -274,7 +276,7 @@ export default function ClaimedPickupScreen() {
                           variant="outline"
                           size="sm"
                           onPress={() => void takeProofWithCamera()}
-                          className="flex-1 h-10 rounded-2xl flex-row items-center justify-center gap-2"
+                          className="flex-1 h-9 rounded-xl flex-row items-center justify-center gap-2"
                         >
                           <Camera size={15} color="#19806d" />
                           <Text className="text-xs font-bold text-primary">Retake</Text>
@@ -283,7 +285,7 @@ export default function ClaimedPickupScreen() {
                           variant="outline"
                           size="sm"
                           onPress={() => void chooseProofFromGallery()}
-                          className="flex-1 h-10 rounded-2xl flex-row items-center justify-center gap-2"
+                          className="flex-1 h-9 rounded-xl flex-row items-center justify-center gap-2"
                         >
                           <ImageIcon size={15} color="#19806d" />
                           <Text className="text-xs font-bold text-primary">Choose Gallery</Text>
@@ -329,7 +331,7 @@ export default function ClaimedPickupScreen() {
                   ) : (
                     <>
                       <Check size={16} color="#ffffff" />
-                      <Text className="text-sm font-bold text-white">Complete & Submit</Text>
+                      <Text className="text-base font-bold text-white">Complete & Submit</Text>
                     </>
                   )}
                 </Button>
@@ -337,18 +339,78 @@ export default function ClaimedPickupScreen() {
             )}
 
             {pickup.status === 'awaiting_confirmation' && (
-              <Button
-                variant="outline"
-                onPress={() => void openProof()}
-                className="w-full h-12 rounded-2xl flex-row items-center justify-center gap-2 mt-3"
-              >
-                <Camera size={16} color="#19806d" />
-                <Text className="text-sm font-bold text-primary">View Submitted Proof</Text>
-              </Button>
+              <View className="gap-3 mt-3">
+                <Card className="p-4 rounded-2xl border-amber-500/30 bg-amber-500/5 shadow-sm">
+                  <View className="flex-row items-center gap-2 mb-2">
+                    <Clock size={18} color="#d97706" />
+                    <Text className="text-base font-bold text-amber-800">Awaiting Confirmation</Text>
+                  </View>
+                  <Text className="text-xs text-muted-foreground leading-relaxed">
+                    Your collection proof was submitted. The requester has been notified to verify and confirm the pickup.
+                  </Text>
+                </Card>
+                <Button
+                  variant="outline"
+                  onPress={() => void openProof()}
+                  className="w-full h-12 rounded-2xl flex-row items-center justify-center gap-2"
+                >
+                  <Camera size={16} color="#19806d" />
+                  <Text className="text-base font-bold text-primary">View Submitted Proof</Text>
+                </Button>
+              </View>
+            )}
+
+            {pickup.status === 'disputed' && (
+              <View className="gap-3 mt-3">
+                <Card className="p-4 rounded-2xl border-destructive/30 bg-destructive/5 shadow-sm">
+                  <View className="flex-row items-center gap-2 mb-2">
+                    <ShieldAlert size={18} color="#b42318" />
+                    <Text className="text-base font-bold text-destructive">Collection Under Dispute Review</Text>
+                  </View>
+                  <Text className="text-xs text-muted-foreground leading-relaxed">
+                    The requester reported an issue with this collection. The verification team is reviewing the submitted proof and checklist.
+                  </Text>
+                </Card>
+                <Button
+                  variant="outline"
+                  onPress={() => void openProof()}
+                  className="w-full h-12 rounded-2xl flex-row items-center justify-center gap-2"
+                >
+                  <Camera size={16} color="#19806d" />
+                  <Text className="text-base font-bold text-primary">View Submitted Proof</Text>
+                </Button>
+              </View>
+            )}
+
+            {pickup.status === 'completed' && (
+              <View className="gap-3 mt-3">
+                <Card className="p-4 rounded-2xl border-emerald-500/30 bg-emerald-500/5 shadow-sm">
+                  <View className="flex-row items-center gap-2 mb-2">
+                    <Check size={18} color="#16a34a" />
+                    <Text className="text-base font-bold text-emerald-800">Collection Verified & Completed</Text>
+                  </View>
+                  <Text className="text-xs text-muted-foreground leading-relaxed">
+                    This pickup request was confirmed and closed. Thank you for keeping our community clean!
+                  </Text>
+                </Card>
+                <Button
+                  variant="outline"
+                  onPress={() => void openProof()}
+                  className="w-full h-12 rounded-2xl flex-row items-center justify-center gap-2"
+                >
+                  <Camera size={16} color="#19806d" />
+                  <Text className="text-base font-bold text-primary">View Submitted Proof</Text>
+                </Button>
+              </View>
             )}
           </>
         ) : null}
       </ScrollView>
+      <ProofPhotoModal
+        visible={Boolean(proofUrl)}
+        photoUrl={proofUrl}
+        onClose={() => setProofUrl(null)}
+      />
     </SafeAreaView>
   );
 }
