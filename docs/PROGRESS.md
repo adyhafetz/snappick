@@ -7,8 +7,12 @@
 | 3 - Google sign-in, consent, profile | ✅ Complete — manual verification passed |
 | 4 - ML baseline M0 (public data) | ✅ Complete — manual verification passed |
 | 5 - On-device scan and review sheet | ✅ Complete — manual verification passed |
-| 6 - Guidance engine | ✅ Complete — manual verification passed |
+| 6 - Guidance engine & Community Recycling Guidelines | ✅ Complete — manual verification passed |
 | 7 - Pickup request | ✅ Complete — manual verification passed |
 | 8 - Collector marketplace and claim | ✅ Complete — manual verification passed |
 | 9 - Completion, proof, notifications | ✅ Complete — manual verification passed |
 | 10 - Feedback capture and Home stats | ✅ Complete — manual verification passed |
+| 11 - ML pipeline automation | ⏳ Up Next |
+| 12 - Model delivery, rollout, monitoring | ⏸️ Pending |
+| 13 - Web dashboard for the project owner | ⏸️ Pending |
+| 14 - Packaging and FYP submission bundle | ⏸️ Pending |

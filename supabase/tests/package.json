@@ -6,6 +6,7 @@
     "test:rls": "node rls.test.mjs",
     "test:pickup": "node pickup.test.mjs",
     "test:marketplace": "node marketplace.test.mjs",
+    "test:expiry": "node expiry.test.mjs",
     "test:completion": "node completion.test.mjs",
     "test:feedback": "node feedback.test.mjs"
   },

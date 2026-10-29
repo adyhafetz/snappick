@@ -1,19 +1,43 @@
-# Supabase tests
+# Supabase integration tests
 
-Install once from this directory with `npm install`. The isolation test uses two
-throwaway users and the public anon key; it never needs a service-role key.
+Install once from this directory with `npm install`.
 
-PowerShell example:
+The test suites verify Row-Level Security (RLS) isolation, pickup creation, collector marketplace claims, claim expiry cron behaviour, completion proof & notification flows, and active-learning feedback capture.
+
+## Running test suites
+
+Configure environment variables:
 
 ```powershell
-$env:SUPABASE_URL = "https://<project>.supabase.co"
+$env:SUPABASE_URL = "http://127.0.0.1:54321" # or your remote Supabase URL
 $env:SUPABASE_ANON_KEY = "<anon-key>"
-$env:TEST_USER_A_EMAIL = "snappick-test-a@example.com"
+$env:SUPABASE_SERVICE_ROLE_KEY = "<service-role-key>" # required for feedback & admin setup
+$env:TEST_USER_A_EMAIL = "test_a@example.com"
 $env:TEST_USER_A_PASSWORD = "<password>"
-$env:TEST_USER_B_EMAIL = "snappick-test-b@example.com"
+$env:TEST_USER_B_EMAIL = "test_b@example.com"
 $env:TEST_USER_B_PASSWORD = "<password>"
-npm run test:rls
+$env:TEST_USER_C_EMAIL = "test_c@example.com"
+$env:TEST_USER_C_PASSWORD = "<password>"
 ```
 
-`rls.test.mjs` signs in both users, verifies profile and scan isolation, checks
-anonymous access to private pickup details, and deletes its temporary scan.
+Available test commands:
+
+```powershell
+# Phase 2 & 3: RLS isolation between users and private table protections
+npm run test:rls
+
+# Phase 7: Pickup request creation, geofence area resolution, cancellation
+npm run test:pickup
+
+# Phase 8: Marketplace claim concurrency, 3-active-jobs cap, release
+npm run test:marketplace
+
+# Phase 8: Unstarted-claim expiry cron job simulation
+npm run test:expiry
+
+# Phase 9: Completion checklist, proof metadata, auto-completion, dispute & relist
+npm run test:completion
+
+# Phase 10: Feedback capture, label tiers (A/B/C/D), active learning gating, home stats
+npm run test:feedback
+```

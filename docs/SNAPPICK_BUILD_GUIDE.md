@@ -1,6 +1,6 @@
 # SNAPPICK_BUILD_GUIDE
 
-> **Status (Revision 5, temporary baseline first):** new repository and Supabase project. The working `waste-app` smoke model is the initial champion and immutable bundled fallback. Detector: YOLOv8n (Ultralytics) exported to float32 TFLite, Android only, seven verified labels, 384 x 384 centre-crop baseline. The temporary dataset/model prove the flow while local training and golden data are collected.
+> **Status (Revision 6: Community Recycling Guidelines, SnapBot AI, Phases 1–10 Complete):** new repository and Supabase project. The working `waste-app` smoke model is the initial champion and immutable bundled fallback. Detector: YOLOv8n (Ultralytics) exported to float32 TFLite, Android only, seven verified labels, 384 x 384 centre-crop baseline. Phases 1 through 10 have been implemented and manually verified; Phase 11 (ML pipeline automation) is next.
 
 Phase-by-phase instructions for building SnapPick with an AI coding assistant. Each phase produces working code **and** a verification checklist you run yourself. Design details live in `SNAPPICK_PLAN.md`. Machine setup lives in `SNAPPICK_PREREQUISITE.md` (finish it first).
 
@@ -33,24 +33,24 @@ and list every assumption you made.
 
 ## 2. Phase map
 
-| # | Phase | You get | Manual effort |
-|---|---|---|---|
-| 0 | Spike (done, separate project) | Proof that on-device detection, maps, and Navigate work | Done |
-| 1 | Repository foundation and email auth | Monorepo skeleton, app on your phone with 5 tabs, email sign-in | Low |
-| 2 | Database and security foundation | All core tables (with detection boxes), RLS, seeds, tests | Low |
-| 3 | Google sign-in, consent, profile | Google login, consent screens, profile edit | Medium (Google Cloud) |
-| 4 | ML baseline M0 (temporary verified model) | Existing YOLO `.tflite` formalized, manifest/contract tested, measured baseline | **Medium** (artifact audit, local golden set) |
-| 5 | On-device scan and review sheet | Working offline scanner with coloured boxes, timings recorded | Low |
-| 6 | Guidance engine | Local rules plus cached LLM advice | Medium (OpenAI) |
-| 7 | Pickup request | Map pin, geofence, masked location | Medium (map key, boundaries) |
-| 8 | Collector marketplace and claim | Request map, atomic claim, navigation | Medium (two devices) |
-| 9 | Completion, proof, notifications | Full pickup lifecycle | Medium (Firebase) |
-| 10 | Feedback capture and Home stats | Corrections and opt-in uploads feed the dataset | Low |
-| 11 | ML pipeline automation | Gated retraining pipeline on free infrastructure | **High** |
-| 12 | Model delivery, rollout, monitoring | App updates its own model safely | Low |
-| 13 | Public dashboard | Read-only web dashboard | Low (Vercel) |
-| 14 | Admin, disputes, retention, deletion | Governance features | Low |
-| 15 | Experiments, testing, pilot, release | Research evidence and release APK | **High** |
+| # | Phase | You get | Status | Manual effort |
+|---|---|---|---|---|
+| 0 | Spike (done, separate project) | Proof that on-device detection, maps, and Navigate work | ✅ Done | Done |
+| 1 | Repository foundation and email auth | Monorepo skeleton, app on your phone with 5 tabs, email sign-in | ✅ Complete | Low |
+| 2 | Database and security foundation | All core tables (with detection boxes), RLS, seeds, tests | ✅ Complete | Low |
+| 3 | Google sign-in, consent, profile | Google login, consent screens, profile edit | ✅ Complete | Medium (Google Cloud) |
+| 4 | ML baseline M0 (temporary verified model) | Existing YOLO `.tflite` formalized, manifest/contract tested, measured baseline | ✅ Complete | **Medium** (artifact audit, local golden set) |
+| 5 | On-device scan and review sheet | Working offline scanner with coloured boxes, timings recorded | ✅ Complete | Low |
+| 6 | Guidance engine | Community Recycling Guidelines plus SnapBot AI assistant | ✅ Complete | Medium (OpenAI) |
+| 7 | Pickup request | Map pin, geofence, masked location | ✅ Complete | Medium (map key, boundaries) |
+| 8 | Collector marketplace and claim | Request map, atomic claim, navigation | ✅ Complete | Medium (two devices) |
+| 9 | Completion, proof, notifications | Full pickup lifecycle, signed proof URLs, FCM v1 | ✅ Complete | Medium (Firebase) |
+| 10 | Feedback capture and Home stats | Corrections and opt-in uploads feed dataset, home stats RPC | ✅ Complete | Low |
+| 11 | ML pipeline automation | Gated retraining pipeline on free infrastructure | ⏳ Up Next | **High** |
+| 12 | Model delivery, rollout, monitoring | App updates its own model safely | ⏸️ Pending | Low |
+| 13 | Public dashboard | Read-only web dashboard | ⏸️ Pending | Low (Vercel) |
+| 14 | Admin, disputes, retention, deletion | Governance features | ⏸️ Pending | Low |
+| 15 | Experiments, testing, pilot, release | Research evidence and release APK | ⏸️ Pending | **High** |
 
 ---
 
@@ -149,8 +149,8 @@ Confidence policy (defaults, overridable per class in the model manifest): score
 ### 5.4 Database objects, RPCs, and Edge Functions
 
 - **Tables:** `profiles`, `pbt_rule_sets`, `scans`, `detections`, `label_feedback`, `feedback_samples`, `pickup_requests_public`, `pickup_request_private_details`, `pickup_waste_items`, `pickup_proofs`, `disputes`, `instruction_cache`, `llm_usage`, `perak_districts`, `push_tokens`, `reports`, `audit_log`, `model_versions`, `dataset_versions`, `training_runs`, `drift_daily`.
-- **RPCs:** `resolve_rule_set(lat, lng)`, `create_pickup_request(...)`, `cancel_pickup_request(id)`, `claim_pickup_request(id)`, `release_pickup_request(id)`, `start_pickup(id)`, `submit_collection(id, ...)`, `confirm_pickup(id)`, `raise_dispute(id, reason)`, `resolve_dispute(id, outcome, note)`, `relist_pickup(id)`.
-- **Edge Functions:** `snapbot-chat`, `get-pickup-private-details`, `notify`, `prune-expired-scans`, `delete-account`.
+- **RPCs:** `create_pickup_request(...)`, `cancel_pickup_request(id)`, `resolve_pickup_area(lat, lng)`, `my_pickup_requests()`, `claim_pickup_request(id)`, `release_pickup_request(id)`, `start_pickup_request(id)`, `my_claimed_pickups()`, `submit_collected_items(...)`, `confirm_pickup(id)`, `raise_dispute(id, reason)`, `resolve_dispute(id, outcome, note)`, `relist_pickup(id)`, `get_home_stats()`. (Note: early `resolve_rule_set` was dropped in favour of local Community Recycling Guidelines).
+- **Edge Functions:** `snapbot-chat`, `get-pickup-private-details`, `get-pickup-proof`, `notify`, `prune-expired-scans`, `delete-account`.
 - **Storage buckets (private):** `scans`, `proofs`, `models`.
 - **Geo rule:** the public location is `ST_SnapToGrid(exact_point, 0.01)`, computed on the server. Exact coordinates exist only in `pickup_request_private_details`.
 - **Column contracts (Phase 2 must follow these exactly):**

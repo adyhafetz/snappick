@@ -1,8 +1,8 @@
-# SnapPick Implementation Plan (Revision 6: Malaysian SAS guidelines, SnapBot AI, and continuous learning)
+# SnapPick Implementation Plan (Revision 6: Community Recycling Guidelines, SnapBot AI, and continuous learning)
 
-**Project:** SnapPick is an on-device AI recycling assistant and community pickup app for Perak, Malaysia. Residents photograph household waste, receive instant Malaysian Separation at Source (SAS) sorting and preparation guidance, request pickup for accepted recyclable materials within supported service boundaries, consult SnapBot AI for recycling questions, and track privacy-safe impact statistics.
+**Project:** SnapPick is an on-device AI recycling assistant and community pickup app for Perak, Malaysia. Residents photograph household waste, receive instant Community Recycling Guidelines sorting and preparation guidance, request pickup for accepted recyclable materials within supported service boundaries, consult SnapBot AI for recycling questions, and track privacy-safe impact statistics.
 
-**Scope decision:** This is a Final Year Project pilot, not an official municipal collection service. Sorting guidelines are unified under the standard Malaysian Separation at Source (SAS) framework for all seven detector classes, with instant on-device visual preparation cards and SnapBot conversational AI guidance. Community pickup requests are bounded to supported pilot service areas (Perak districts) using PostGIS geofencing.
+**Scope decision:** This is a Final Year Project pilot, not an official municipal collection service. Sorting guidelines are unified under local Community Recycling Guidelines for all seven detector classes, with instant on-device visual preparation cards and SnapBot conversational AI guidance. Community pickup requests are bounded to supported pilot service areas (Perak districts) using PostGIS geofencing.
 
 ---
 

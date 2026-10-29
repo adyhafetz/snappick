@@ -2,7 +2,6 @@ import * as React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -392,7 +391,7 @@ export default function ScanScreen() {
 
   const handleSelectMaterial = (label: string) => {
     if (materialModal.mode === 'add') {
-      const id = `manual-${Date.now()}`;
+      const id = `manual-${generateUUID()}`;
       setItems((current) => [
         ...current,
         {

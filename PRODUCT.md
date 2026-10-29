@@ -4,49 +4,42 @@
 
 ## Platform
 
-android
+Android (React Native / Expo SDK 57 new architecture, API 35–37 target).
 
 ## Users
 
-Residents in Perak who want to sort household waste, check recycling guidance, and coordinate community pickups. The app also serves residents who collect nearby community pickup requests. This audience is derived from the project plan; it has not been separately confirmed by the owner.
+1. **Residents in Perak, Malaysia:** Photograph household waste, receive instant Community Recycling Guidelines sorting and preparation advice, request community pickups within supported Perak district boundaries, and track real recycling impact stats.
+2. **Community Collectors:** Browse nearby pickup requests on an interactive map with privacy-masked 0.01° grid pins, claim jobs (up to 3 active jobs), preview driving routes, launch native navigation, complete collection checklists, and upload verification photo proofs.
+3. **Project Administrator / Research Lead:** Governs retraining triggers, evaluates candidate detector models against the frozen golden dataset, resolves disputes, and monitors continuous learning performance.
 
 ## Product Purpose
 
-SnapPick helps residents photograph household waste, receive sorting guidance, request pickup for eligible recyclable materials, and participate in nearby community pickups. Success means residents can understand what to do with an item and complete the supported pickup flow with clear safety and privacy boundaries.
+SnapPick bridges on-device computer vision and community-coordinated recycling pickups under local Community Recycling Guidelines. It empowers residents to sort waste correctly, reduces contamination through verified collection checklists, and powers an academic continuous-learning loop where consented, verified images systematically improve the on-device detector.
 
 ## Positioning
 
-SnapPick combines on-device waste detection with community-coordinated pickups. It is an academic pilot, not an official municipal collection service; local rules and service areas must be verified before public launch.
+SnapPick combines fast offline on-device waste detection with community coordination and continuous machine learning. It is an academic Final Year Project (FYP) pilot focused on Perak, adhering strictly to privacy by design (exact coordinates masked to 0.01° grid cells; images stripped of all EXIF/GPS metadata). It is a community pilot and not an official municipal or statutory collection scheme.
 
 ## Operating Context
 
-The primary workflow is used on Android phones around household waste: sign in, scan a photo or use the camera, review detected items and their condition, and continue into pickup flows where implemented. Users may also browse and claim nearby community requests. The product plan defines Home, Activity, Scan, Request, and Profile destinations.
+The five main navigation destinations:
+- **Home:** Real personal recycling impact statistics (`total_scans`, `verified_recyclable_items`, `active_requests`), offline cached status, primary scan action, and SnapBot AI assistant modal with cached responses.
+- **Scan:** On-device camera/gallery waste scanning with YOLOv8n TFLite (CPU delegate), bounding boxes, condition classification, instant visual preparation guide cards (720p animated WebP), and direct flow into Pickup Request.
+- **Request:** Interactive MapLibre pin placement with reverse geocoding to 13 Perak district boundaries, material summary selection, pickup time window scheduling, and immediate transition to Collector Marketplace for collectors.
+- **Activity:** Dual-tab management for "My Requests" (with cancellation, proof viewing, confirmation, dispute, and relist actions) and "Pickups I Claimed" (with Start, Release, route preview, and completion checklist handoff).
+- **Profile:** Account management, Google OAuth linking, privacy & consent toggles (storage consent, safety acknowledgment, continuous learning opt-in), and cache flushing.
 
 ## Capabilities and Constraints
 
-- Android only; no iOS implementation.
-- The current shipped scope through Phase 5 includes authentication, consent, profile/privacy controls, and on-device waste scanning with editable review items.
-- The bundled detector has seven fixed labels in order: metal, trash, glass, paper, cardboard, plastic, biological. Hazard declarations remain manual.
-- Model behavior is governed by `model_manifest.json`; the bundled 384 x 384 centre-crop fallback remains immutable.
-- The app is a community pilot, not an official municipal service. Avoid implying verified local recycling rules or pickup availability.
-- Future pickup, dashboard, and continuous-learning capabilities are defined in the plan but are not assumed to be implemented in the current surface.
-
-## Evidence on Hand
-
-- Product and workflow definition: `docs/SNAPPICK_PLAN.md`.
-- Implementation and phase contracts: `docs/SNAPPICK_BUILD_GUIDE.md` and `docs/phases/PHASE-1-CHECKLIST.md` through `docs/phases/PHASE-5-CHECKLIST.md`.
-- Current app routes and detector implementation: `apps/mobile/src/app/` and `apps/mobile/src/lib/detector/`.
-- No user research, pilot outcomes, municipal endorsement, or production-service evidence is recorded in this repository; do not fabricate any.
+- **Android only:** No iOS code, CoreML, or APNs.
+- **Detector taxonomy:** Seven fixed labels in immutable order: `metal`, `trash`, `glass`, `paper`, `cardboard`, `plastic`, `biological`. Hazardous materials (batteries, bulbs, chemicals, e-waste) remain mandatory manual declarations.
+- **Model manifest contract:** Detector parameters (layout, input size, output format, thresholds) are strictly driven by `model_manifest.json` and validated against tensor shapes.
+- **Privacy by design:** Exact coordinates exist only in `pickup_request_private_details` accessed via authorized Edge Functions. Public marketplace surfaces only grid-snapped coordinates (`ST_SnapToGrid(p, 0.01)`). All uploaded images are client-side downsampled to 800px max and stripped of EXIF/GPS metadata.
+- **Continuous learning pipeline:** Opted-in scans with active-learning signals (uncertain confidence 0.40–0.79, user corrections, collector count matches, 5% random baseline) feed the dataset via label tiers (A/B/C/D), gated retraining, and automated evaluation against a frozen golden evaluation set.
 
 ## Product Principles
 
-- Give practical sorting guidance without presenting uncertain model output as fact.
-- Keep hazard handling explicit and manual.
-- Preserve privacy boundaries and user consent.
-- Make pickup eligibility and its limits understandable.
-- Treat local collection rules as configurable and subject to verification.
-
-## Assumptions
-
-- Product facts above are taken from the repository documents because no structured question surface was available in this session; the owner has not separately confirmed inferred audience and success phrasing.
-- This redesign is limited to the existing Phase 1–5 screens and does not implement later-phase data, map, request, or statistics behavior.
+- **Guidance integrity:** Provide clear, practical household sorting and preparation instructions under Community Recycling Guidelines without asserting uncertain detector predictions as fact.
+- **Privacy by default:** Never expose exact user locations, names, phone numbers, or metadata to unauthorized parties or public views.
+- **Robust offline resilience:** Enable offline detection, cached home statistics, and persistent background upload queues that drain automatically upon reconnect.
+- **Transparent model lifecycle:** Bundled baseline fallback is immutable; new models deploy only after automated regression testing against frozen golden sets.
