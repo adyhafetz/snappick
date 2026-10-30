@@ -9,7 +9,7 @@
 
 ## 1. Executive Summary & Design System Foundations
 
-SnapPick is an AI-powered waste classification and community collection platform focused on Malaysian Separation at Source (SAS) regulations. The app operates under a **unilateral user model**: every authenticated resident can both request recyclable pickups and claim nearby collection tasks.
+SnapPick is an AI-powered waste classification and community collection platform focused on community recycling regulations. The app operates under a **unilateral user model**: every authenticated resident can both request recyclable pickups and claim nearby collection tasks.
 
 ### 1.1 Color Palette & Semantic Tokens
 
@@ -19,7 +19,7 @@ SnapPick is an AI-powered waste classification and community collection platform
 | `primary-green-dark` | `#15803D` | Active / Pressed | Button press states, focused border highlights |
 | `primary-green-subtle` | `#DCFCE7` | Surface Tint | Background for success pills, accepted category tags |
 | `warning-amber` | `#D97706` | Conditional / Action Required | "Clean & dry" preparation needed, pending claim status |
-| `warning-amber-subtle` | `#FEF3C7` | Warning Surface | SAS guidance alert cards, uncertain detection banners |
+| `warning-amber-subtle` | `#FEF3C7` | Warning Surface | Recycling guidance alert cards, uncertain detection banners |
 | `danger-rose` | `#DC2626` | Destructive / Ineligible | General waste (non-recyclable), dispute status, cancel CTAs |
 | `danger-rose-subtle` | `#FEE2E2` | Danger Surface | Hazardous item alerts, out-of-service geofence error banners |
 | `uncertain-grey` | `#64748B` | Low Confidence / Neutral | Detection confidence < threshold, disabled buttons, borders |
@@ -119,7 +119,7 @@ flowchart TD
 |                                       |
 |               [Logo Icon]             |
 |                SnapPick               |
-|     AI Waste Classification & SAS     |
+|     AI Waste Classification & Guides     |
 |                                       |
 |                                       |
 |           [Spinner / Progress]        |
@@ -148,7 +148,7 @@ flowchart TD
 ### [Screen 02] Onboarding Carousel (First-Time User)
 * **Route:** `(auth)/onboarding`
 * **Type:** Interactive 3-Step Swipe Carousel
-* **Purpose:** Educates residents on SnapPick's unique model: camera scanning, Malaysian SAS preparation, and community collection.
+* **Purpose:** Educates residents on SnapPick's unique model: camera scanning, recycling preparation, and community collection.
 
 #### UI Blueprint
 ```
@@ -170,7 +170,7 @@ flowchart TD
 
 #### Elements & Components
 * **Slide 1:** "AI-Powered Scanning" (Illustration of phone highlighting recyclable items with green boxes).
-* **Slide 2:** "Separation at Source (SAS)" (Illustration of official Malaysian blue/brown/orange bins + clean & dry preparation).
+* **Slide 2:** "Recycling Basics" (Illustration of official blue/brown/orange bins + clean & dry preparation).
 * **Slide 3:** "Community Pickups" (Illustration of neighborhood collector picking up prepared recyclables).
 * **Page Indicator Dots:** 3 dots, active dot expanded pill `#16A34A`, inactive dots `#CBD5E1`.
 * **Action Buttons:** Top-right "Skip" text button; Bottom full-width "Next" / "Get Started" button.
@@ -353,7 +353,7 @@ flowchart TD
 |  Privacy & AI Learning 🛡️             |
 |                                       |
 |  Help SnapPick improve detection for  |
-|  local Malaysian packaging.           |
+|  local packaging.           |
 |                                       |
 |  +---------------------------------+  |
 |  | Privacy Protections:            |  |
@@ -388,7 +388,7 @@ flowchart TD
 ### [Screen 08] Home Dashboard Screen
 * **Route:** `(tabs)/index`
 * **Type:** Main Hub / Root Tab
-* **Purpose:** Core launcher providing recycling impact metrics, instant scan CTA, SnapBot AI access, Malaysian SAS quick tips, and recent scan logs.
+* **Purpose:** Core launcher providing recycling impact metrics, instant scan CTA, SnapBot AI access, recycling quick tips, and recent scan logs.
 
 #### UI Blueprint
 ```
@@ -441,30 +441,30 @@ flowchart TD
   * Metric 3: Active Pickups count.
   * Metric 4: Estimated Carbon / Landfill diversion (kg).
 * **SnapBot AI Launcher Card:** Interactive card featuring prompt pills that directly invoke the chat modal with pre-filled questions.
-* **Malaysian SAS Quick Tips Carousel:** Cards illustrating the 3 national bins (Blue, Orange, Brown).
+* **Recycling Quick Tips Carousel:** Cards illustrating the 3 national bins (Blue, Orange, Brown).
 * **Recent Activity Section:** List items showing thumbnail icon, item title, timestamp, and status badge.
-* **Offline Banner (Dynamic):** Appears above header if device is offline: "Offline Mode: Scanning & SAS rules active. Submitting pickups requires internet."
+* **Offline Banner (Dynamic):** Appears above header if device is offline: "Offline Mode: Scanning & recycling rules active. Submitting pickups requires internet."
 
 ---
 
 ### [Screen 09] SnapBot Conversational AI Modal
 * **Route:** Modal overlay from Home or Scan
 * **Type:** Full-Height Bottom Sheet / Interactive Dialog
-* **Purpose:** Free-form conversational assistant powered by cached LLM edge functions. Answers Malaysian waste sorting, hazard disposal, and local SAS questions.
+* **Purpose:** Free-form conversational assistant powered by cached LLM edge functions. Answers waste sorting, hazard disposal, and local recycling questions.
 
 #### UI Blueprint
 ```
 +---------------------------------------+
 |  ====== [Drag Handle] ======      [X] |
 |  [Bot Avatar] SnapBot AI Assistant    |
-|  Online • Malaysian SAS Certified     |
+|  Online • Recycling Guide Active     |
 |                                       |
 |  Suggestions:                         |
 |  [How to recycle milk cartons?]       |
 |  [Where to drop e-waste in Ipoh?]     |
 |                                       |
 |  (Bot): Hello! I can help you sort    |
-|  packaging according to Malaysian SAS |
+|  packaging according to community guidelines |
 |  regulations. What do you have today? |
 |                                       |
 |  (User): Can I recycle aerosol cans?  |
@@ -533,7 +533,7 @@ flowchart TD
 * **Bottom Controls:**
   * Left: Gallery Picker button (opens device media gallery).
   * Center: Shutter Capture button (outer ring 72dp, inner green circle 58dp with press animation).
-  * Right: Guide button (opens Malaysian SAS explanation modal).
+  * Right: Guide button (opens recycling explanation modal).
 
 #### States & Variations
 * **Permission Denied State:** Renders a clean card with camera icon: "Camera access is needed to scan waste items" with "Enable Camera Permission" button.
@@ -563,7 +563,7 @@ flowchart TD
 |                                       |
 |   (v) Image Preprocessing (384px)     |
 |   (>) On-Device Neural Inference      |
-|   ( ) Malaysian SAS Rule Check        |
+|   ( ) Recycling Rule Check        |
 +---------------------------------------+
 ```
 
@@ -608,7 +608,7 @@ flowchart TD
 ```
 
 #### Elements & Components
-* **Top Bar:** "Retake Photo" back button, active rule-set identifier badge (`Perak SAS v1.2`).
+* **Top Bar:** "Retake Photo" back button, active rule-set identifier badge (`Perak Guidelines v1.2`).
 * **Overlay Canvas:**
   * Bounding Boxes positioned via normalized coordinates `[ymin, xmin, ymax, xmax]`.
   * Class pill tags mounted on top-left of each box showing label + confidence (e.g. `plastic 94%`).
@@ -636,14 +636,14 @@ flowchart TD
 |  | [Icon] Plastic Bottle    (94%) [X]|  |
 |  | Label: [ Plastic         v ]    |  |
 |  | State: (•)Clean  ( )Wet  ( )Damaged|
-|  | SAS: Rinse and remove cap.      |  |
+|  | Guide: Rinse and remove cap.      |  |
 |  +---------------------------------+  |
 |                                       |
 |  +---------------------------------+  |
 |  | [Icon] Cardboard Box     (88%) [X]|  |
 |  | Label: [ Cardboard       v ]    |  |
 |  | State: (•)Clean  ( )Wet  ( )Damaged|
-|  | SAS: Flatten flat for bundling. |  |
+|  | Guide: Flatten flat for bundling. |  |
 |  +---------------------------------+  |
 |                                       |
 |  [ + Add Item Not in Photo ]          |
@@ -668,7 +668,7 @@ flowchart TD
     * `Contaminated / Wet` (Ineligible - Red)
     * `Broken / Unsafe` (Ineligible - Red)
     * `Unknown` (Amber)
-  * SAS Preparation Instruction: Contextual tip (e.g., "Empty liquid, rinse clean, squash flat").
+  * Preparation Instruction: Contextual tip (e.g., "Empty liquid, rinse clean, squash flat").
   * Delete Button: Trash icon `[X]` to delete detection (captured as negative feedback).
 * **Add Item Manually Button:** "Add Item Not in Photo" opens a mini-dialog to declare items without camera boxes.
 * **Hazardous Materials Affirmation Checkbox:** Mandatory confirmation before submission.
@@ -1092,7 +1092,7 @@ flowchart TD
 |  DIAGNOSTICS & SYSTEM                 |
 |  Active Model: M0 (YOLOv8n-bundled)   |
 |  Model Hash: e3b0c44298fc1c14...      |
-|  Rule Set: Perak SAS v1.2.0           |
+|  Rule Set: Perak Guidelines v1.2.0           |
 |  [ Flush Offline Sync Queue (0) ]     |
 |                                       |
 |  LEGAL & SECURITY                     |
@@ -1115,7 +1115,7 @@ flowchart TD
 * **Model & Diagnostics Card:**
   * Active model version label (e.g., `M0 Bundled Fallback`).
   * Checksum hash pill (SHA-256).
-  * Active SAS rule-set version.
+  * Active rule-set version.
   * Offline queue flush button with pending item counter.
 * **Danger Zone:**
   * "Sign Out" button.
@@ -1126,20 +1126,20 @@ flowchart TD
 ### [Screen 23] Offline Notification & Status Banner
 * **Route:** Global Toast / Floating Banner
 * **Type:** Dynamic System Banner (Top-docked)
-* **Purpose:** Communicates offline status without interrupting camera scanning or SAS guidance.
+* **Purpose:** Communicates offline status without interrupting camera scanning or recycling guidance.
 
 #### UI Blueprint
 ```
 +---------------------------------------+
 | [WifiOff Icon] You are offline        |
-| Camera scanning & SAS guides active.  |
+| Camera scanning & recycling guides active.  |
 | Submitting pickups requires internet. |
 +---------------------------------------+
 ```
 
 #### Elements & Components
 * **Banner Surface:** Amber/Slate background (`#0F172A` with `#F59E0B` icon).
-* **Microcopy:** Clarifies that on-device YOLO detection and SAS preparation guides work with zero connectivity, while marketplace actions are paused.
+* **Microcopy:** Clarifies that on-device YOLO detection and recycling preparation guides work with zero connectivity, while marketplace actions are paused.
 
 ---
 
@@ -1166,7 +1166,7 @@ flowchart TD
 #### 25.1 Geofence Rejection State (Outside Perak Polygon)
 * **Trigger:** User sets pickup pin outside Perak service polygons.
 * **Headline:** "Location Outside Service Area 📍"
-* **Description:** "SnapPick community pickups are currently active exclusively within Perak municipal districts (Ipoh, Taiping, Kinta). Camera scanning and SAS guides remain available everywhere."
+* **Description:** "SnapPick community pickups are currently active exclusively within Perak municipal districts (Ipoh, Taiping, Kinta). Camera scanning and recycling guides remain available everywhere."
 * **Action:** `[ Adjust Pin on Map ]` / `[ Dismiss ]`.
 
 #### 25.2 Active Claims Exceeded Error

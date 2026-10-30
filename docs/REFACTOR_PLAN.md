@@ -5,7 +5,7 @@
 Your codebase is actually in **excellent shape** for Phases 1-10. The mobile app works end-to-end:
 - ✅ Authentication (email + Google OAuth)
 - ✅ On-device ML waste detection (YOLOv8n TFLite)
-- ✅ Scan review with Malaysian SAS guidance
+- ✅ Scan review with recycling guidance
 - ✅ SnapBot AI assistant (OpenAI GPT-4o-mini)
 - ✅ Pickup request creation with map + geofencing
 - ✅ Marketplace map for collectors to claim pickups

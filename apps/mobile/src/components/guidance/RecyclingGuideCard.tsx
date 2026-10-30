@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { BookOpen, AlertTriangle, ChevronRight } from 'lucide-react-native';
-import { getSasGuide } from '@/lib/guidance/malaysianSas';
-import { SasAnimation } from './SasAnimation';
+import { getRecyclingGuide } from '@/lib/guidance/recyclingGuides';
+import { RecyclingAnimation } from './RecyclingAnimation';
 
-interface SasGuideSectionProps {
+interface RecyclingGuideCardProps {
   itemClass: string;
 }
 
-export function SasGuideSection({ itemClass }: SasGuideSectionProps) {
-  const guide = getSasGuide(itemClass);
+export function RecyclingGuideCard({ itemClass }: RecyclingGuideCardProps) {
+  const guide = getRecyclingGuide(itemClass);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -51,7 +51,7 @@ export function SasGuideSection({ itemClass }: SasGuideSectionProps) {
 
       {/* Centered Animation (Seamlessly embedded into card, no extra borders) */}
       <View className="w-full items-center justify-center py-0.5">
-        <SasAnimation sasClass={guide.className} size={140} />
+        <RecyclingAnimation recyclingClass={guide.className} size={140} />
       </View>
 
       {/* Swipable Separation Steps */}

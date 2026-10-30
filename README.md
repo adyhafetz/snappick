@@ -8,7 +8,7 @@ The mobile app is fully functional with end-to-end features:
 
 - ✅ **Authentication:** Email + Google OAuth sign-in
 - ✅ **Waste Detection:** On-device YOLOv8n TFLite model (~1-2s inference)
-- ✅ **Guidance:** Malaysian SAS preparation guides + SnapBot AI assistant (OpenAI GPT-4o-mini)
+- ✅ **Guidance:** Recycling preparation guides + SnapBot AI assistant (OpenAI GPT-4o-mini)
 - ✅ **Pickup Requests:** Create requests with map pin, geofencing (13 Perak districts), privacy masking
 - ✅ **Marketplace:** Browse/claim pickups, navigate, complete with proof photo
 - ✅ **Activity Tracking:** My requests, claimed pickups, statistics

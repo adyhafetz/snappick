@@ -1,4 +1,4 @@
-export type SasClass =
+export type RecyclingGuideClass =
   | 'metal'
   | 'trash'
   | 'glass'
@@ -7,29 +7,29 @@ export type SasClass =
   | 'plastic'
   | 'biological';
 
-export interface SasPreparationStep {
+export interface RecyclingPreparationStep {
   stepNumber: number;
   title: string;
   detail: string;
 }
 
-export interface SasClassGuide {
-  className: SasClass;
+export interface RecyclingClassGuide {
+  className: RecyclingGuideClass;
   displayName: string;
-  malayName: string;
+  shortName: string;
   category: 'Recyclable' | 'Residual Waste';
   isRecyclable: boolean;
   quickSummary: string;
-  steps: [SasPreparationStep, SasPreparationStep, SasPreparationStep];
+  steps: [RecyclingPreparationStep, RecyclingPreparationStep, RecyclingPreparationStep];
   importantNote: string;
   snapBotSuggestions: string[];
 }
 
-export const MALAYSIAN_SAS_GUIDES: Record<SasClass, SasClassGuide> = {
+export const RECYCLING_GUIDES: Record<RecyclingGuideClass, RecyclingClassGuide> = {
   cardboard: {
     className: 'cardboard',
     displayName: 'Cardboard & Boxes',
-    malayName: 'Cardboard',
+    shortName: 'Cardboard',
     category: 'Recyclable',
     isRecyclable: true,
     quickSummary: 'Fold flat, strip tape & keep dry',
@@ -61,7 +61,7 @@ export const MALAYSIAN_SAS_GUIDES: Record<SasClass, SasClassGuide> = {
   plastic: {
     className: 'plastic',
     displayName: 'Plastic Bottles & Containers',
-    malayName: 'Plastic',
+    shortName: 'Plastic',
     category: 'Recyclable',
     isRecyclable: true,
     quickSummary: 'Rinse clean, squash flat & separate caps',
@@ -93,7 +93,7 @@ export const MALAYSIAN_SAS_GUIDES: Record<SasClass, SasClassGuide> = {
   metal: {
     className: 'metal',
     displayName: 'Metal Cans & Tins',
-    malayName: 'Metal',
+    shortName: 'Metal',
     category: 'Recyclable',
     isRecyclable: true,
     quickSummary: 'Rinse clean, crush cans & keep dry',
@@ -125,7 +125,7 @@ export const MALAYSIAN_SAS_GUIDES: Record<SasClass, SasClassGuide> = {
   paper: {
     className: 'paper',
     displayName: 'Paper & Newspapers',
-    malayName: 'Paper',
+    shortName: 'Paper',
     category: 'Recyclable',
     isRecyclable: true,
     quickSummary: 'Keep dry, stack flat & tie',
@@ -157,7 +157,7 @@ export const MALAYSIAN_SAS_GUIDES: Record<SasClass, SasClassGuide> = {
   glass: {
     className: 'glass',
     displayName: 'Glass Bottles & Jars',
-    malayName: 'Glass',
+    shortName: 'Glass',
     category: 'Recyclable',
     isRecyclable: true,
     quickSummary: 'Rinse clean, keep intact — never break',
@@ -189,7 +189,7 @@ export const MALAYSIAN_SAS_GUIDES: Record<SasClass, SasClassGuide> = {
   biological: {
     className: 'biological',
     displayName: 'Organic & Food Waste',
-    malayName: 'Organics',
+    shortName: 'Organics',
     category: 'Residual Waste',
     isRecyclable: false,
     quickSummary: 'Drain liquid, compost or seal tightly',
@@ -221,7 +221,7 @@ export const MALAYSIAN_SAS_GUIDES: Record<SasClass, SasClassGuide> = {
   trash: {
     className: 'trash',
     displayName: 'General Residual Waste',
-    malayName: 'Residual Waste',
+    shortName: 'Residual Waste',
     category: 'Residual Waste',
     isRecyclable: false,
     quickSummary: 'Bag securely for municipal collection',
@@ -244,18 +244,17 @@ export const MALAYSIAN_SAS_GUIDES: Record<SasClass, SasClassGuide> = {
     ],
     importantNote: 'Hazardous e-waste, car batteries, and chemicals must go to authorized drop-off depots.',
     snapBotSuggestions: [
-      'What belongs in Malaysian residual waste?',
+      'What belongs in general residual waste?',
       'Where can I dispose of e-waste and old electronics in Perak?',
       'What is the scheduled 2+1 collection system?',
     ],
   },
 };
 
-export function getSasGuide(className: string): SasClassGuide {
-  const normalized = className.toLowerCase().trim() as SasClass;
-  if (normalized in MALAYSIAN_SAS_GUIDES) {
-    return MALAYSIAN_SAS_GUIDES[normalized];
+export function getRecyclingGuide(className: string): RecyclingClassGuide {
+  const normalized = className.toLowerCase().trim() as RecyclingGuideClass;
+  if (normalized in RECYCLING_GUIDES) {
+    return RECYCLING_GUIDES[normalized];
   }
-  return MALAYSIAN_SAS_GUIDES.trash;
+  return RECYCLING_GUIDES.trash;
 }
-

@@ -1,7 +1,7 @@
 import { supabase } from '../supabase';
-import { getLocalSasFallback } from './snapbotCore';
+import { getLocalRecyclingFallback } from './snapbotCore';
 
-export { getLocalSasFallback };
+export { getLocalRecyclingFallback };
 
 export interface SnapBotMessage {
   id: string;
@@ -24,16 +24,16 @@ export async function askSnapBot(
 
     if (error) {
       console.warn('SnapBot Edge Function error, using local fallback:', error.message);
-      return getLocalSasFallback(messages[messages.length - 1]?.content || '', itemContext);
+      return getLocalRecyclingFallback(messages[messages.length - 1]?.content || '', itemContext);
     }
 
     if (data && typeof data.reply === 'string') {
       return data.reply;
     }
 
-    return getLocalSasFallback(messages[messages.length - 1]?.content || '', itemContext);
+    return getLocalRecyclingFallback(messages[messages.length - 1]?.content || '', itemContext);
   } catch (err) {
     console.warn('SnapBot network failure, using local fallback:', err);
-    return getLocalSasFallback(messages[messages.length - 1]?.content || '', itemContext);
+    return getLocalRecyclingFallback(messages[messages.length - 1]?.content || '', itemContext);
   }
 }

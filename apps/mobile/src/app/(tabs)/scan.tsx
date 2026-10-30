@@ -53,7 +53,7 @@ import { materialPresentation, pickupDecision } from '@/lib/detector/presentatio
 import type { Condition, Detection } from '@/lib/detector/types';
 import modelManifest from '@/assets/models/model_manifest.json';
 import { PickupRequestSection } from '@/components/pickup/PickupRequestSection';
-import { SasGuideSection } from '@/components/guidance/SasGuideSection';
+import { RecyclingGuideCard } from '@/components/guidance/RecyclingGuideCard';
 import { useAuth } from '@/providers/AuthProvider';
 import {
   persistScanSession,
@@ -746,7 +746,7 @@ export default function ScanScreen() {
                       })}
                     </View>
 
-                    {/* Collapsible Malaysian SAS Guide Toggle */}
+                    {/* Collapsible Recycling Guide Toggle */}
                     {(() => {
                       const isGuideExpanded =
                         expandedGuideIds[item.id] ?? (items.length === 1);
@@ -772,7 +772,7 @@ export default function ScanScreen() {
 
                           {isGuideExpanded && (
                             <View className="mt-2.5">
-                              <SasGuideSection itemClass={item.label} />
+                              <RecyclingGuideCard itemClass={item.label} />
                             </View>
                           )}
                         </>

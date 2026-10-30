@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { getSasGuide, MALAYSIAN_SAS_GUIDES, type SasClass } from './malaysianSas';
+import { getRecyclingGuide, RECYCLING_GUIDES, type RecyclingGuideClass } from './recyclingGuides';
 import { DETECTOR_LABELS } from '../detector/rules';
 
-describe('Malaysian SAS Guide dictionary', () => {
+describe('Recycling guide dictionary', () => {
   it('covers all 7 detector labels exactly without missing any', () => {
     expect(DETECTOR_LABELS).toEqual([
       'metal',
@@ -15,11 +15,11 @@ describe('Malaysian SAS Guide dictionary', () => {
     ]);
 
     for (const label of DETECTOR_LABELS) {
-      const guide = MALAYSIAN_SAS_GUIDES[label as SasClass];
+      const guide = RECYCLING_GUIDES[label as RecyclingGuideClass];
       expect(guide).toBeDefined();
       expect(guide.className).toBe(label);
       expect(guide.displayName.length).toBeGreaterThan(0);
-      expect(guide.malayName.length).toBeGreaterThan(0);
+      expect(guide.shortName.length).toBeGreaterThan(0);
       expect(guide.steps.length).toBe(3);
       expect(guide.steps[0].title.length).toBeGreaterThan(0);
       expect(guide.steps[1].title.length).toBeGreaterThan(0);
@@ -29,21 +29,21 @@ describe('Malaysian SAS Guide dictionary', () => {
     }
   });
 
-  it('correctly categorizes recyclables vs residual waste according to Malaysian SAS rules', () => {
-    // Under SAS: Paper, Cardboard, Plastic, Metal, Glass are dry recyclables
-    expect(getSasGuide('cardboard').isRecyclable).toBe(true);
-    expect(getSasGuide('paper').isRecyclable).toBe(true);
-    expect(getSasGuide('plastic').isRecyclable).toBe(true);
-    expect(getSasGuide('metal').isRecyclable).toBe(true);
-    expect(getSasGuide('glass').isRecyclable).toBe(true);
+  it('correctly categorizes recyclables vs residual waste', () => {
+    // Paper, cardboard, plastic, metal and glass are dry recyclables
+    expect(getRecyclingGuide('cardboard').isRecyclable).toBe(true);
+    expect(getRecyclingGuide('paper').isRecyclable).toBe(true);
+    expect(getRecyclingGuide('plastic').isRecyclable).toBe(true);
+    expect(getRecyclingGuide('metal').isRecyclable).toBe(true);
+    expect(getRecyclingGuide('glass').isRecyclable).toBe(true);
 
     // Food/biological and general trash are residual waste
-    expect(getSasGuide('biological').isRecyclable).toBe(false);
-    expect(getSasGuide('trash').isRecyclable).toBe(false);
+    expect(getRecyclingGuide('biological').isRecyclable).toBe(false);
+    expect(getRecyclingGuide('trash').isRecyclable).toBe(false);
   });
 
   it('falls back gracefully to trash guide if an unknown class is supplied', () => {
-    const unknown = getSasGuide('unknown_material');
+    const unknown = getRecyclingGuide('unknown_material');
     expect(unknown.className).toBe('trash');
   });
 });

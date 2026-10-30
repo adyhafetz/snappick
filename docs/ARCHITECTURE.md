@@ -73,7 +73,7 @@ SnapPick is a community-driven recycling platform for Perak, Malaysia combining:
 apps/mobile/src/
   app/(tabs)/              # Main 5 tabs (Home, Activity, Scan, Request, Profile)
   components/
-    guidance/              # SnapBot AI modal, Malaysian SAS guides
+    guidance/              # SnapBot AI modal, recycling preparation guides
     pickup/                # Pickup request form, marketplace, proof modal
     ui/                    # Reusable UI components (Button, Card, Input, etc.)
   lib/
@@ -97,7 +97,7 @@ apps/mobile/src/
 |-----|---------|-------------|
 | **Home** | Dashboard & stats | Total scans, verified items, active pickups, recent activity, SnapBot AI button |
 | **Activity** | Track requests & claims | "My Requests" (pending/completed) + "Claimed Pickups" (in-progress/completed) |
-| **Scan** | Capture + classify waste | Camera → ML detection → Review sheet → Malaysian SAS guide → Schedule pickup |
+| **Scan** | Capture + classify waste | Camera → ML detection → Review sheet → Recycling guide → Schedule pickup |
 | **Request** | Pickup marketplace map | Browse nearby pickup requests, claim, navigate, complete with proof photo |
 | **Profile** | Account settings | Edit name/phone, toggle privacy (image storage, training opt-in), sign out |
 
@@ -109,7 +109,7 @@ Camera Capture → Preprocess (centre crop 384×384)
   → TFLite Inference (~1-2s on CPU)
   → Decode + NMS → Draw bounding boxes
   → User review (confirm/remove/change class/set condition)
-  → Malaysian SAS preparation guide (collapsible per item)
+  → Recycling preparation guide (collapsible per item)
   → Safety checklist (no batteries/bulbs/e-waste)
   → Schedule pickup OR discard
 ```

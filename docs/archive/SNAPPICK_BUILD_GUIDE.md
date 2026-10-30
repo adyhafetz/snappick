@@ -397,9 +397,9 @@ Implement Phase 5 (On-device scan and review sheet) as described in the guide.
 
 ---
 
-## Phase 6: Guidance engine (Malaysian SAS guides and SnapBot AI)
+## Phase 6: Guidance engine (recycling guides and SnapBot AI)
 
-**Goal.** Instant Malaysian Separation at Source (SAS) visual preparation cards for all 7 classes, and SnapBot conversational AI recycling assistant.
+**Goal.** Instant recycling preparation cards for all 7 classes, and SnapBot conversational AI recycling assistant.
 **Plan sections.** 5, 7.
 **Depends on.** Phases 2 and 5.
 
@@ -409,19 +409,19 @@ Implement Phase 5 (On-device scan and review sheet) as described in the guide.
 
 **Prompt**
 ```
-Implement Phase 6 (Guidance engine) as described in the guide: Malaysian SAS preparation
+Implement Phase 6 (Guidance engine) as described in the guide: recycling preparation
 dictionary for all 7 classes, 720p animated visuals, and Home screen SnapBot AI assistant.
 ```
 
 **The AI builds**
-- Malaysian Separation at Source (SAS) dictionary (`malaysianSas.ts`) for all seven detector classes with step-by-step preparation cards and 720p animated WebPs (`SasAnimation.tsx`) integrated into the detection review sheet.
+- Recycling preparation dictionary (`recyclingGuides.ts`) for all seven detector classes with step-by-step preparation cards and 720p animated WebPs (`RecyclingAnimation.tsx`) integrated into the detection review sheet.
 - Home screen **SnapBot AI Recycling Assistant** (`SnapBotModal.tsx`) backed by Edge Function `snapbot-chat`.
 - Deterministic response caching (`instruction_cache` with SHA-256 question hash) to minimize OpenAI API usage and latency.
 - Rate limiting, token caps, and local offline fallback for SnapBot.
 - 100% offline scanning: preparation steps and eligibility render immediately on-device without network calls.
 
 **Verify**
-- Scanning any item renders instant Malaysian SAS preparation cards and animations.
+- Scanning any item renders instant recycling preparation cards and animations.
 - Airplane mode displays full guidance offline.
 - Tapping "Ask SnapBot" opens the AI chat assistant. Repeated questions return cached responses instantly.
 - Logs and prompts contain no user IDs, coordinates, images, or personal notes.

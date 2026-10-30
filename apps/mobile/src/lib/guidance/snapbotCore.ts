@@ -27,6 +27,3 @@ export function getLocalRecyclingFallback(query: string, itemContext?: string): 
 
   return 'Always ensure your recyclables are clean, dry, and flattened to save space. Keep hazardous waste like batteries and e-waste separate. What specific item can I help you sort?';
 }
-
-// Backward-compatible alias
-export const getLocalSasFallback = getLocalRecyclingFallback;

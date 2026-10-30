@@ -83,7 +83,7 @@ SnapPick is **unilateral**: every authenticated user is both a requester and a p
 
 | Role | Can do |
 |---|---|
-| User | Scan waste, view Malaysian SAS guidance & animations, chat with SnapBot AI, create/cancel pickup requests, browse and claim nearby requests, upload proof, and confirm or dispute completed pickups. |
+| User | Scan waste, view recycling guidance & animations, chat with SnapBot AI, create/cancel pickup requests, browse and claim nearby requests, upload proof, and confirm or dispute completed pickups. |
 | Admin | Review feedback corrections, approve retrained model releases, and handle reports. |
 
 Bottom navigation is **Home, Activity, Scan, Request, Profile**. The Request tab always shows the map of pending requests. Activity has two sections: **My Requests** and **Pickups I Claimed**. Home features the **SnapBot AI Assistant** and live **Your Recycling Impact** statistics (total scans, verified items, active pickups).
@@ -175,7 +175,7 @@ Broad visual labels do not by themselves prove pickup eligibility. The guideline
 - Use Google Colab or Kaggle for finite, checkpointed runs. Warm-start later candidates from the current champion while retaining replay data.
 - Follow `docs/DATASET_COLLECTION_GUIDE.md` when taking photos and `docs/MODEL_IMPROVEMENT_GUIDE.md` when building, evaluating, and promoting a candidate.
 
-Each class maps to a recyclable state and step-by-step preparation instructions through the on-device Malaysian Separation at Source (SAS) guideline dictionary. National guidance includes paper/cardboard, glass, plastic, and metal as recyclable material families. [SWCorp material categories](https://www.swcorp.gov.my/sisa-domestik-dan-pembersihan-awam/)
+Each class maps to a recyclable state and step-by-step preparation instructions through the on-device community recycling guideline dictionary. National guidance includes paper/cardboard, glass, plastic, and metal as recyclable material families. [SWCorp material categories](https://www.swcorp.gov.my/sisa-domestik-dan-pembersihan-awam/)
 
 ### Condition confirmation
 
@@ -219,7 +219,7 @@ The version numbers above are targets. Re-verify current versions and compatibil
 
 The app provides instant guidance without requiring location permission:
 
-1. Scanning and sorting advice work 100% offline using the bundled **Community Recycling Guidelines** (Malaysian SAS standard for all 7 detector classes).
+1. Scanning and sorting advice work 100% offline using the bundled **Community Recycling Guidelines** for all 7 detector classes.
 2. Preparation instructions and 720p animated visuals render directly on the device with zero network delay.
 3. Location permission is never required for scanning; it is requested only when pinning a pickup location on the map.
 4. When a requester sets a pickup pin, the server validates through PostGIS that the location falls within a supported community service district (Perak DOSM boundaries). Out-of-area pins are blocked.
@@ -275,8 +275,8 @@ Every scan records `preprocess_ms` and `inference_ms`, which also feed the drift
 
 SnapPick separates routine sorting guidance from conversational AI to ensure zero-latency scanning while providing helpful assistance:
 
-### 1. On-Device Malaysian SAS Guidance (Scan Screen)
-- For all 7 classes, the app bundles the official **Malaysian Separation at Source (SAS)** dictionary (`malaysianSas.ts`) with clear step-by-step preparation cards (e.g. "Empty & Rinse", "Squash Flat", "Remove Cap").
+### 1. On-Device Recycling Guidance (Scan Screen)
+- For all 7 classes, the app bundles the official **community recycling** dictionary (`recyclingGuides.ts`) with clear step-by-step preparation cards (e.g. "Empty & Rinse", "Squash Flat", "Remove Cap").
 - High-quality 720p animated WebP illustrations render inside collapsible review cards to demonstrate preparation steps visually.
 - Fully offline: zero network roundtrips, no API keys, and instant UI responsiveness.
 
@@ -289,7 +289,7 @@ SnapPick separates routine sorting guidance from conversational AI to ensure zer
 
 ### Fully offline behaviour
 
-Offline scanning always returns bounding boxes, eligibility based on community guidelines, and Malaysian SAS preparation cards without contacting Supabase or OpenAI. Creating or claiming a pickup requires connectivity and is disabled with a clear "Connect to submit pickup" message while offline.
+Offline scanning always returns bounding boxes, eligibility based on community guidelines, and recycling preparation cards without contacting Supabase or OpenAI. Creating or claiming a pickup requires connectivity and is disabled with a clear "Connect to submit pickup" message while offline.
 
 ---
 
