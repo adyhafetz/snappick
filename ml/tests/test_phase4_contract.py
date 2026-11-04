@@ -7,7 +7,7 @@ from ml.src.dataset_audit import stable_split
 
 def manifest():
     return {
-        "version": "v0", "file": "snappick_det_v0.tflite", "sha256": "0" * 64,
+        "version": "v0", "file": "waste_detector_v0.tflite", "sha256": "0" * 64,
         "framework": {"name": "ultralytics", "version": "unverified"},
         "role": "bundled_fallback",
         "input": {"width": 384, "height": 384, "layout": "NCHW", "dtype": "float32", "normalize": "0-1", "resize": "centre_crop"},
