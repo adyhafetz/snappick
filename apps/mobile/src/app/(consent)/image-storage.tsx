@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, router } from 'expo-router';
-import { Camera, ShieldCheck, EyeOff, Lock, AlertCircle } from 'lucide-react-native';
+import { Camera, ShieldCheck, EyeOff, Lock, AlertCircle, Cloud, Smartphone } from 'lucide-react-native';
 
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { Button } from '@/components/ui/button';
@@ -20,13 +20,13 @@ export default function ImageStorageConsentScreen() {
   if (profileLoading) return <LoadingScreen message="Loading profile..." />;
   if (hasImageStorageConsent(profile)) return <Redirect href="/(consent)/safety" />;
 
-  async function accept() {
+  async function chooseStorageConsent(enabled: boolean) {
     setBusy(true);
     setMessage(null);
     try {
       await updateProfile({
-        image_storage_consent: true,
-        image_storage_consent_at: new Date().toISOString(),
+        image_storage_consent: enabled,
+        image_storage_consent_at: enabled ? new Date().toISOString() : null,
         image_storage_consent_version: CONSENT_VERSION,
       });
       router.replace('/(consent)/safety');
@@ -56,10 +56,10 @@ export default function ImageStorageConsentScreen() {
           </View>
 
           <Text className="text-3xl font-black tracking-tight text-foreground leading-tight">
-            Private by default
+            Cloud Storage
           </Text>
           <Text className="text-sm text-muted-foreground mt-2 leading-relaxed">
-            Your scans are securely stored only so you can review your history.
+            Choose how your waste photos are stored.
           </Text>
 
           {/* Visual Guarantee Chips */}
@@ -108,14 +108,27 @@ export default function ImageStorageConsentScreen() {
 
           <Button
             disabled={busy}
-            onPress={() => void accept()}
-            className="w-full h-12 rounded-2xl bg-primary shadow-sm"
+            onPress={() => void chooseStorageConsent(true)}
+            className="w-full h-12 rounded-2xl bg-primary shadow-sm flex-row items-center justify-center gap-2"
           >
             {busy ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
-              <Text className="text-base font-bold text-white">Agree & Continue</Text>
+              <>
+                <Cloud size={18} color="#ffffff" />
+                <Text className="text-base font-bold text-white">Enable Sync</Text>
+              </>
             )}
+          </Button>
+
+          <Button
+            variant="ghost"
+            disabled={busy}
+            onPress={() => void chooseStorageConsent(false)}
+            className="w-full h-11 rounded-2xl mt-2 flex-row items-center justify-center gap-2"
+          >
+            <Smartphone size={16} color="#5b7072" />
+            <Text className="text-sm font-semibold text-muted-foreground">Keep Offline</Text>
           </Button>
         </View>
       </ScrollView>

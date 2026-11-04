@@ -3,13 +3,13 @@ import { useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, router } from 'expo-router';
-import { ShieldAlert, AlertTriangle, Users, MapPin, AlertCircle } from 'lucide-react-native';
+import { ShieldAlert, AlertTriangle, Users, MapPin, AlertCircle, ShieldCheck } from 'lucide-react-native';
 
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
-import { CONSENT_VERSION, hasImageStorageConsent, hasRequiredConsents } from '@/lib/consent';
+import { CONSENT_VERSION, hasRequiredConsents } from '@/lib/consent';
 import { useAuth } from '@/providers/AuthProvider';
 
 export default function SafetyConsentScreen() {
@@ -18,7 +18,7 @@ export default function SafetyConsentScreen() {
   const [message, setMessage] = useState<string | null>(null);
 
   if (profileLoading) return <LoadingScreen message="Loading profile..." />;
-  if (!hasImageStorageConsent(profile)) return <Redirect href="/(consent)/image-storage" />;
+  if (profile?.image_storage_consent_version !== CONSENT_VERSION) return <Redirect href="/(consent)/image-storage" />;
   if (hasRequiredConsents(profile)) return <Redirect href="/(tabs)" />;
 
   async function accept() {
@@ -57,10 +57,10 @@ export default function SafetyConsentScreen() {
           </View>
 
           <Text className="text-3xl font-black tracking-tight text-foreground leading-tight">
-            Community Safety
+            Safety Declaration
           </Text>
           <Text className="text-sm text-muted-foreground mt-2 leading-relaxed">
-            Quick safety checks ensure clean, reliable pickups for everyone.
+            Keep community collectors safe from hazards.
           </Text>
 
           {/* Safety Chips */}
@@ -110,12 +110,15 @@ export default function SafetyConsentScreen() {
           <Button
             disabled={busy}
             onPress={() => void accept()}
-            className="w-full h-12 rounded-2xl bg-primary shadow-sm"
+            className="w-full h-12 rounded-2xl bg-primary shadow-sm flex-row items-center justify-center gap-2"
           >
             {busy ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
-              <Text className="text-base font-bold text-white">I Agree & Understand</Text>
+              <>
+                <ShieldCheck size={18} color="#ffffff" />
+                <Text className="text-base font-bold text-white">I Agree</Text>
+              </>
             )}
           </Button>
         </View>

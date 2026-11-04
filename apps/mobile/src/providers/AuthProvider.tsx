@@ -32,6 +32,8 @@ export type Profile = {
   training_opt_in: boolean;
   training_opt_in_at: string | null;
   is_admin: boolean;
+  rating_avg?: number | null;
+  rating_count?: number | null;
   created_at: string;
   updated_at: string;
 };

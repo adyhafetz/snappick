@@ -1,6 +1,6 @@
 {
   "version": "v0",
-  "file": "snappick_det_v0.tflite",
+  "file": "waste_detector_v0.tflite",
   "sha256": "ffb5240658fdffabbf27ee5de6a9cc33c27a20882467723a0f4771a41468dd7d",
   "framework": {
     "name": "ultralytics",

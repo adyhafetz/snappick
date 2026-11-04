@@ -1,6 +1,15 @@
 import * as React from 'react';
 import { useState } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link } from 'expo-router';
 import { AlertCircle, CheckCircle2, Mail, Lock, Sparkles } from 'lucide-react-native';
@@ -23,7 +32,16 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [notice, setNotice] = useState<string | null>(null);
   const isSignIn = mode === 'sign-in';
 
+  // Clear errors and notices when switching between Sign In and Sign Up
+  const [prevMode, setPrevMode] = useState(mode);
+  if (prevMode !== mode) {
+    setPrevMode(mode);
+    setError(null);
+    setNotice(null);
+  }
+
   async function submit() {
+    Keyboard.dismiss();
     setError(null);
     setNotice(null);
     const trimmedEmail = email.trim().toLowerCase();
@@ -53,6 +71,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   }
 
   async function submitGoogle() {
+    Keyboard.dismiss();
     setError(null);
     setNotice(null);
     setBusy(true);
@@ -67,129 +86,147 @@ export function AuthForm({ mode }: AuthFormProps) {
 
   return (
     <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-background">
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
-        className="px-6 py-8"
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        className="flex-1"
       >
-        {/* Brand Header */}
-        <View className="items-center mb-8">
-          <View className="h-16 w-16 rounded-3xl bg-primary/10 border border-primary/20 items-center justify-center mb-4 shadow-sm">
-            <Sparkles size={32} color="#19806d" />
-          </View>
-          <Text className="text-3xl font-black tracking-tight text-foreground">SnapPick</Text>
-          <Text className="text-sm font-medium text-muted-foreground mt-1">
-            {isSignIn ? 'Welcome back' : 'Smart waste sorting made simple'}
-          </Text>
-        </View>
-
-        {/* Card Form */}
-        <Card className="border-border/70 bg-card shadow-sm p-5 rounded-3xl">
-          <CardContent className="p-0 space-y-4">
-            {error && (
-              <View className="flex-row items-center gap-2.5 rounded-2xl bg-destructive/10 border border-destructive/20 p-3.5 mb-2">
-                <AlertCircle size={18} color="#b42318" />
-                <Text className="flex-1 text-xs font-semibold text-destructive leading-tight">
-                  {error}
-                </Text>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+            className="px-6 py-8"
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Brand Header */}
+            <View className="items-center mb-8">
+              <View className="h-16 w-16 rounded-3xl bg-primary/10 border border-primary/20 items-center justify-center mb-4 shadow-sm">
+                <Sparkles size={32} color="#19806d" />
               </View>
-            )}
-
-            {notice && (
-              <View className="flex-row items-center gap-2.5 rounded-2xl bg-primary/10 border border-primary/20 p-3.5 mb-2">
-                <CheckCircle2 size={18} color="#19806d" />
-                <Text className="flex-1 text-xs font-semibold text-primary leading-tight">
-                  {notice}
-                </Text>
-              </View>
-            )}
-
-            {/* Email Field */}
-            <View className="relative justify-center">
-              <Input
-                accessibilityLabel="Email"
-                autoCapitalize="none"
-                autoComplete="email"
-                keyboardType="email-address"
-                onChangeText={setEmail}
-                placeholder="Email address"
-                value={email}
-                className="pl-11 h-12 rounded-2xl bg-secondary/40 border-border/60"
-              />
-              <View className="absolute left-3.5">
-                <Mail size={18} color="#5b7072" />
-              </View>
+              <Text className="text-3xl font-black tracking-tight text-foreground">
+                {isSignIn ? 'Welcome Back' : 'Get Started'}
+              </Text>
+              <Text className="text-sm font-medium text-muted-foreground mt-1">
+                {isSignIn
+                  ? 'Sign in to continue your recycling pickups.'
+                  : 'Create an account to scan and request pickups.'}
+              </Text>
             </View>
 
-            {/* Password Field */}
-            <View className="relative justify-center mt-3">
-              <Input
-                accessibilityLabel="Password"
-                autoCapitalize="none"
-                autoComplete={isSignIn ? 'current-password' : 'new-password'}
-                onChangeText={setPassword}
-                placeholder="Password (6+ chars)"
-                secureTextEntry
-                value={password}
-                className="pl-11 h-12 rounded-2xl bg-secondary/40 border-border/60"
-              />
-              <View className="absolute left-3.5">
-                <Lock size={18} color="#5b7072" />
-              </View>
+            {/* Card Form */}
+            <Card className="border-border/70 bg-card shadow-sm p-5 rounded-3xl">
+              <CardContent className="p-0 space-y-4">
+                {error && (
+                  <View className="flex-row items-center gap-2.5 rounded-2xl bg-destructive/10 border border-destructive/20 p-3.5 mb-2">
+                    <AlertCircle size={18} color="#b42318" />
+                    <Text className="flex-1 text-xs font-semibold text-destructive leading-tight">
+                      {error}
+                    </Text>
+                  </View>
+                )}
+
+                {notice && (
+                  <View className="flex-row items-center gap-2.5 rounded-2xl bg-primary/10 border border-primary/20 p-3.5 mb-2">
+                    <CheckCircle2 size={18} color="#19806d" />
+                    <Text className="flex-1 text-xs font-semibold text-primary leading-tight">
+                      {notice}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Email Field */}
+                <View className="relative justify-center">
+                  <Input
+                    accessibilityLabel="Email"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    keyboardType="email-address"
+                    onChangeText={setEmail}
+                    placeholder="Email address"
+                    value={email}
+                    className="pl-11 h-12 rounded-2xl bg-secondary/40 border-border/60"
+                  />
+                  <View className="absolute left-3.5">
+                    <Mail size={18} color="#5b7072" />
+                  </View>
+                </View>
+
+                {/* Password Field */}
+                <View className="relative justify-center mt-3">
+                  <Input
+                    accessibilityLabel="Password"
+                    autoCapitalize="none"
+                    autoComplete={isSignIn ? 'current-password' : 'new-password'}
+                    onChangeText={setPassword}
+                    placeholder="Password (6+ chars)"
+                    secureTextEntry
+                    value={password}
+                    className="pl-11 h-12 rounded-2xl bg-secondary/40 border-border/60"
+                  />
+                  <View className="absolute left-3.5">
+                    <Lock size={18} color="#5b7072" />
+                  </View>
+                </View>
+
+                {/* Submit Button */}
+                <Button
+                  disabled={busy}
+                  onPress={() => void submit()}
+                  className="w-full h-12 rounded-2xl bg-primary shadow-sm mt-2"
+                >
+                  {busy ? (
+                    <ActivityIndicator color="#ffffff" />
+                  ) : (
+                    <Text className="text-base font-bold text-white">
+                      {isSignIn ? 'Sign In' : 'Get Started'}
+                    </Text>
+                  )}
+                </Button>
+
+                {/* Divider */}
+                <View className="my-2 flex-row items-center gap-3">
+                  <Separator className="flex-1" />
+                  <Text className="text-[11px] font-bold text-muted-foreground uppercase">or</Text>
+                  <Separator className="flex-1" />
+                </View>
+
+                {/* Google Button */}
+                <Button
+                  disabled={busy}
+                  variant="outline"
+                  onPress={() => void submitGoogle()}
+                  className="w-full h-12 rounded-2xl bg-card border-border/80"
+                >
+                  {busy ? (
+                    <ActivityIndicator color="#183e48" />
+                  ) : (
+                    <Text className="text-base font-bold text-foreground">
+                      Continue with Google
+                    </Text>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Toggle Mode Link with Accessible Touch Target */}
+            <View className="mt-8 flex-row justify-center items-center">
+              <Text className="text-sm text-muted-foreground">
+                {isSignIn ? "Don't have an account? " : 'Already registered? '}
+              </Text>
+              <Link href={isSignIn ? '/(auth)/sign-up' : '/(auth)/sign-in'} asChild>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={isSignIn ? 'Sign up' : 'Sign in'}
+                  activeOpacity={0.7}
+                  className="min-h-[48px] justify-center px-2 py-2"
+                >
+                  <Text className="text-sm font-bold text-primary">
+                    {isSignIn ? 'Sign up' : 'Sign in'}
+                  </Text>
+                </TouchableOpacity>
+              </Link>
             </View>
-
-            {/* Submit Button */}
-            <Button
-              disabled={busy}
-              onPress={() => void submit()}
-              className="w-full h-12 rounded-2xl bg-primary shadow-sm mt-2"
-            >
-              {busy ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text className="text-base font-bold text-white">
-                  {isSignIn ? 'Sign In' : 'Get Started'}
-                </Text>
-              )}
-            </Button>
-
-            {/* Divider */}
-            <View className="my-2 flex-row items-center gap-3">
-              <Separator className="flex-1" />
-              <Text className="text-[11px] font-bold text-muted-foreground uppercase">or</Text>
-              <Separator className="flex-1" />
-            </View>
-
-            {/* Google Button */}
-            <Button
-              disabled={busy}
-              variant="outline"
-              onPress={() => void submitGoogle()}
-              className="w-full h-12 rounded-2xl bg-card border-border/80"
-            >
-              {busy ? (
-                <ActivityIndicator color="#183e48" />
-              ) : (
-                <Text className="text-base font-bold text-foreground">
-                  Continue with Google
-                </Text>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Toggle Mode */}
-        <View className="mt-8 flex-row justify-center items-center">
-          <Text className="text-sm text-muted-foreground">
-            {isSignIn ? "Don't have an account? " : 'Already registered? '}
-          </Text>
-          <Link href={isSignIn ? '/(auth)/sign-up' : '/(auth)/sign-in'}>
-            <Text className="text-sm font-bold text-primary">
-              {isSignIn ? 'Sign up' : 'Sign in'}
-            </Text>
-          </Link>
-        </View>
-      </ScrollView>
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

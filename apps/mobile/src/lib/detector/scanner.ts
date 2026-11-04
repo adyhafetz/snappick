@@ -8,29 +8,79 @@ import type { Detection, ModelManifest } from './types';
 import { createInputTensor, createTransform, type RgbaImage } from './preprocess';
 import { classWiseNms, decodeYoloOutput, toDetections } from './postprocess';
 import { parseManifest, validateManifestAgainstTensors } from './manifest';
+import {
+  getActiveModelVersion,
+  getActiveModelConfig,
+  rollbackToBundledFallback,
+} from './manager';
 
-// Keep the M0 binary in assets/models, outside Expo Router's route tree.
+// Keep the baseline binary in assets/models, outside Expo Router's route tree.
 // Metro needs a static require for an immutable bundled binary asset.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const MODEL_ASSET = require('../../../assets/models/snappick_det_v0.tflite');
+const MODEL_ASSET = require('../../../assets/models/waste_detector_v0.tflite');
 
 export type ScanTimings = { preprocessMs: number; inferenceMs: number; decodeNmsMs: number };
 export type ScanResult = { detections: Detection[]; timings: ScanTimings; imageWidth: number; imageHeight: number; manifest: ModelManifest };
 
-let modelPromise: Promise<{ model: TensorflowModel; manifest: ModelManifest }> | undefined;
+let bundledModelPromise: Promise<{ model: TensorflowModel; manifest: ModelManifest }> | undefined;
+let activeModelPromise: Promise<{ model: TensorflowModel; manifest: ModelManifest }> | undefined;
 
 export async function loadBundledDetector(): Promise<{ model: TensorflowModel; manifest: ModelManifest }> {
-  if (!modelPromise) {
-    modelPromise = (async () => {
+  if (!bundledModelPromise) {
+    bundledModelPromise = (async () => {
       const manifest = parseManifest(manifestJson);
       const model = await loadTensorflowModel(MODEL_ASSET, []);
-      const input = model.inputs[0]; const output = model.outputs[0];
+      const input = model.inputs[0];
+      const output = model.outputs[0];
       if (!input || !output) throw new Error('Bundled model has no input or output tensor.');
       validateManifestAgainstTensors(manifest, input, output);
       return { model, manifest };
-    })().catch((error) => { modelPromise = undefined; throw error; });
+    })().catch((error) => {
+      bundledModelPromise = undefined;
+      throw error;
+    });
   }
-  return modelPromise;
+  return bundledModelPromise;
+}
+
+export async function loadActiveDetector(): Promise<{ model: TensorflowModel; manifest: ModelManifest }> {
+  const activeVersion = await getActiveModelVersion();
+  if (activeVersion === 'v0') {
+    return loadBundledDetector();
+  }
+
+  if (!activeModelPromise) {
+    activeModelPromise = (async () => {
+      try {
+        const config = await getActiveModelConfig();
+        if (!config || !config.url) {
+          throw new Error(`No remote model URL found for active version ${activeVersion}`);
+        }
+
+        const manifest = parseManifest({
+          ...manifestJson,
+          version: activeVersion,
+          thresholds: (config.manifest?.thresholds as typeof manifestJson.thresholds) || manifestJson.thresholds,
+        });
+
+        const model = await loadTensorflowModel({ url: config.url }, []);
+        const input = model.inputs[0];
+        const output = model.outputs[0];
+        if (!input || !output) throw new Error('Remote model has no input or output tensor.');
+        validateManifestAgainstTensors(manifest, input, output);
+        return { model, manifest };
+      } catch (err) {
+        console.warn(`Failed loading remote model ${activeVersion}, falling back to bundled v0:`, err);
+        await rollbackToBundledFallback();
+        return loadBundledDetector();
+      }
+    })().catch(async () => {
+      activeModelPromise = undefined;
+      return loadBundledDetector();
+    });
+  }
+
+  return activeModelPromise;
 }
 
 async function prepareJpeg(uri: string, width: number, height: number, manifest: ModelManifest): Promise<{ image: RgbaImage; encodedWidth: number; encodedHeight: number }> {
@@ -47,7 +97,7 @@ async function prepareJpeg(uri: string, width: number, height: number, manifest:
 }
 
 export async function scanPhoto(uri: string, width: number, height: number): Promise<ScanResult> {
-  const { model, manifest } = await loadBundledDetector();
+  const { model, manifest } = await loadActiveDetector();
   const preprocessStart = globalThis.performance?.now?.() ?? Date.now();
   const prepared = await prepareJpeg(uri, width, height, manifest);
   const input = createInputTensor(prepared.image, manifest);
@@ -64,4 +114,3 @@ export async function scanPhoto(uri: string, width: number, height: number): Pro
   const decodeNmsMs = (globalThis.performance?.now?.() ?? Date.now()) - decodeStart;
   return { detections, timings: { preprocessMs, inferenceMs, decodeNmsMs }, imageWidth: width, imageHeight: height, manifest };
 }
-

@@ -9,71 +9,46 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect, type Href } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router';
 import {
   ArrowRight,
-  Ban,
-  Camera,
-  Check,
   Inbox,
+  Package,
   RefreshCw,
-  RotateCcw,
-  ShieldAlert,
   Truck,
 } from 'lucide-react-native';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { ProofPhotoModal } from '@/components/pickup/ProofPhotoModal';
+import { PickupRatingModal } from '@/components/pickup/PickupRatingModal';
+import { PickupDisputeModal } from '@/components/pickup/PickupDisputeModal';
+import { PickupStatusPill } from '@/components/pickup/PickupStatusPill';
+import { MyRequestDetailsModal, type MyRequestItem } from '@/components/pickup/MyRequestDetailsModal';
 import { supabase } from '@/lib/supabase';
-import { formatPickupSummary, formatPickupWindow } from '@/lib/pickup/marketplace';
+import { formatPickupWindow } from '@/lib/pickup/collect';
+import { isStatusActive } from '@/lib/pickup/status';
 
-type MyRequest = {
-  id: string;
-  status: string;
-  district_name: string | null;
-  material_summary: { class?: string; quantity?: number }[];
-  pickup_window_start: string | null;
-  pickup_window_end: string | null;
-  created_at: string;
-};
-
-type ClaimedPickup = Omit<MyRequest, 'created_at'> & { updated_at: string };
+type MyRequest = MyRequestItem;
+type ClaimedPickup = MyRequestItem;
 
 type TabType = 'requests' | 'claimed';
 type FilterType = 'all' | 'active' | 'completed';
 
-const ACTIVE_STATUSES = new Set(['pending', 'accepted', 'in_progress', 'awaiting_confirmation']);
-function isStatusActive(status: string): boolean {
-  return ACTIVE_STATUSES.has(status);
-}
-
-function statusVariant(status: string): 'default' | 'secondary' | 'destructive' | 'success' | 'warning' | 'unsure' {
-  switch (status) {
-    case 'confirmed':
-    case 'completed':
-      return 'success';
-    case 'in_progress':
-    case 'accepted':
-      return 'default';
-    case 'pending':
-    case 'awaiting_confirmation':
-      return 'warning';
-    case 'cancelled':
-    case 'disputed':
-    case 'not_collected':
-      return 'destructive';
-    default:
-      return 'secondary';
-  }
-}
-
-const ItemSeparator = () => <View className="h-3" />;
+const ItemSeparator = () => <View className="h-3.5" />;
 
 export default function ActivityScreen() {
-  const [activeTab, setActiveTab] = useState<TabType>('requests');
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const [prevParamTab, setPrevParamTab] = useState(params.tab);
+  const [activeTab, setActiveTab] = useState<TabType>(params.tab === 'claimed' ? 'claimed' : 'requests');
+
+  if (params.tab !== prevParamTab) {
+    setPrevParamTab(params.tab);
+    if (params.tab === 'requests' || params.tab === 'claimed') {
+      setActiveTab(params.tab);
+    }
+  }
+
   const [filter, setFilter] = useState<FilterType>('all');
   const [requests, setRequests] = useState<MyRequest[]>([]);
   const [claimed, setClaimed] = useState<ClaimedPickup[]>([]);
@@ -82,7 +57,13 @@ export default function ActivityScreen() {
   const [loadError, setLoadError] = useState('');
   const [claimedLoadError, setClaimedLoadError] = useState('');
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<MyRequest | null>(null);
+  const [selectedClaimed, setSelectedClaimed] = useState<ClaimedPickup | null>(null);
+  const [startingClaimedId, setStartingClaimedId] = useState<string | null>(null);
+  const [releasingClaimedId, setReleasingClaimedId] = useState<string | null>(null);
   const [proofUrl, setProofUrl] = useState<string | null>(null);
+  const [ratingRequestId, setRatingRequestId] = useState<string | null>(null);
+  const [disputeRequestId, setDisputeRequestId] = useState<string | null>(null);
 
   const loadRequests = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -94,7 +75,7 @@ export default function ActivityScreen() {
 
     const { data, error } = await supabase
       .from('my_pickup_requests')
-      .select('id,status,district_name,material_summary,pickup_window_start,pickup_window_end,created_at')
+      .select('id,status,district_name,material_summary,pickup_window_start,pickup_window_end,created_at,collector_name,collector_rating,collector_rating_count')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -106,7 +87,7 @@ export default function ActivityScreen() {
 
     const { data: claimedRows, error: claimedError } = await supabase
       .from('my_claimed_pickups')
-      .select('id,status,district_name,material_summary,pickup_window_start,pickup_window_end,created_at,updated_at')
+      .select('id,status,district_name,material_summary,pickup_window_start,pickup_window_end,created_at,updated_at,requester_name,requester_rating,requester_rating_count')
       .order('updated_at', { ascending: false });
 
     if (claimedError) {
@@ -136,6 +117,52 @@ export default function ActivityScreen() {
     }, [loadRequests])
   );
 
+  const handleStartClaimedPickup = useCallback(async (requestId: string) => {
+    setStartingClaimedId(requestId);
+    try {
+      const { error } = await supabase.rpc('start_pickup', { request_id: requestId });
+      if (error) {
+        Alert.alert('Could not start pickup', 'Pickup state may have changed. Please refresh.');
+        await loadRequests();
+        return;
+      }
+      setSelectedClaimed(null);
+      router.push(`/pickup/${requestId}` as Href);
+    } finally {
+      setStartingClaimedId(null);
+    }
+  }, [loadRequests]);
+
+  const handleReleaseClaimedPickup = useCallback((requestId: string) => {
+    Alert.alert(
+      'Release pickup?',
+      'This task will be returned to the community marketplace for other collectors.',
+      [
+        { text: 'Keep', style: 'cancel' },
+        {
+          text: 'Release',
+          style: 'destructive',
+          onPress: () => {
+            setReleasingClaimedId(requestId);
+            void (async () => {
+              try {
+                const { error } = await supabase.rpc('release_pickup_request', { request_id: requestId });
+                if (error) {
+                  Alert.alert('Could not release', 'Pickup state may have changed.');
+                  return;
+                }
+                setSelectedClaimed(null);
+                await loadRequests();
+              } finally {
+                setReleasingClaimedId(null);
+              }
+            })();
+          },
+        },
+      ]
+    );
+  }, [loadRequests]);
+
   const cancelRequest = useCallback((requestId: string) => {
     Alert.alert('Cancel pickup?', 'This pending request will be cancelled.', [
       { text: 'Keep', style: 'cancel' },
@@ -161,31 +188,6 @@ export default function ActivityScreen() {
     ]);
   }, [loadRequests]);
 
-  const confirmPickup = useCallback(async (requestId: string) => {
-    const { error } = await supabase.rpc('confirm_pickup', { request_id: requestId });
-    if (error) Alert.alert('Could not confirm', 'Confirmation window may have closed.');
-    await loadRequests();
-  }, [loadRequests]);
-
-  const disputePickup = useCallback((requestId: string) => {
-    Alert.alert('Report a problem', 'Report that the collection needs review?', [
-      { text: 'Keep', style: 'cancel' },
-      {
-        text: 'Report',
-        style: 'destructive',
-        onPress: () =>
-          void (async () => {
-            const { error } = await supabase.rpc('raise_dispute', {
-              request_id: requestId,
-              reason: 'Pickup proof disputed',
-            });
-            if (error) Alert.alert('Could not report', 'The dispute window may have closed.');
-            await loadRequests();
-          })(),
-      },
-    ]);
-  }, [loadRequests]);
-
   const openProof = useCallback(async (requestId: string) => {
     const { data, error } = await supabase.functions.invoke('get-pickup-proof', {
       body: { request_id: requestId },
@@ -196,12 +198,6 @@ export default function ActivityScreen() {
     }
     setProofUrl(data.signed_url);
   }, []);
-
-  const relistPickup = useCallback(async (requestId: string) => {
-    const { error } = await supabase.rpc('relist_pickup', { request_id: requestId });
-    if (error) Alert.alert('Could not relist', 'Only uncollected requests can be relisted.');
-    await loadRequests();
-  }, [loadRequests]);
 
   // Counts for My Requests
   const activeRequestsCount = useMemo(
@@ -244,142 +240,84 @@ export default function ActivityScreen() {
       if (activeTab === 'requests') {
         const request = item as MyRequest;
         return (
-          <Card className="p-4 rounded-2xl border-border/70 bg-card shadow-sm">
-            <View className="flex-row items-start justify-between gap-3">
+          <TouchableOpacity
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Pickup request in ${request.district_name ?? 'Perak area'}`}
+            onPress={() => {
+              if (request.status === 'pending') {
+                setSelectedRequest(request);
+              } else {
+                router.push(`/pickup/${request.id}` as Href);
+              }
+            }}
+            className="p-4 rounded-3xl border border-border/80 bg-card shadow-xs"
+          >
+            {/* Top Row: Icon + District & Day/Date + Status Badge */}
+            <View className="flex-row items-center gap-3">
+              <View className="h-11 w-11 rounded-2xl bg-primary/10 border border-primary/20 items-center justify-center">
+                <Package size={20} color="#19806d" strokeWidth={2.2} />
+              </View>
               <View className="flex-1">
-                <Text className="text-base font-bold text-foreground">
+                <Text className="text-base font-bold text-foreground" numberOfLines={1}>
                   {request.district_name ?? 'Perak area'}
                 </Text>
-                <Text className="mt-1 text-xs font-semibold text-primary">
-                  {formatPickupSummary(request.material_summary)}
+                <Text className="mt-0.5 text-xs text-muted-foreground font-medium" numberOfLines={1}>
+                  {formatPickupWindow(request.pickup_window_start, request.pickup_window_end)}
                 </Text>
               </View>
-              <Badge variant={statusVariant(request.status)} className="px-2.5 py-0.5 rounded-full">
-                <Text className="text-[11px] font-bold capitalize">
-                  {request.status.replaceAll('_', ' ')}
-                </Text>
-              </Badge>
+              <PickupStatusPill status={request.status} role="requester" />
             </View>
-
-            <Text className="mt-2 text-xs text-muted-foreground">
-              {formatPickupWindow(request.pickup_window_start, request.pickup_window_end)}
-            </Text>
-
-            {request.status === 'pending' && (
-              <Button
-                onPress={() => cancelRequest(request.id)}
-                disabled={cancelling === request.id}
-                variant="outline"
-                size="sm"
-                className="h-9 px-3 rounded-xl border-destructive/20 bg-destructive/5 gap-1.5 mt-3 self-start"
-              >
-                {cancelling === request.id ? (
-                  <ActivityIndicator size="small" color="#b42318" />
-                ) : (
-                  <Ban size={13} color="#b42318" />
-                )}
-                <Text className="text-xs font-bold text-destructive">Cancel</Text>
-              </Button>
-            )}
-
-            {request.status === 'awaiting_confirmation' && (
-              <View className="mt-3 gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onPress={() => void openProof(request.id)}
-                  className="self-start rounded-xl gap-1.5 h-9 px-3"
-                >
-                  <Camera size={13} color="#19806d" />
-                  <Text className="text-xs font-bold text-primary">View Proof</Text>
-                </Button>
-                <View className="flex-row gap-2">
-                  <Button
-                    size="sm"
-                    onPress={() => void confirmPickup(request.id)}
-                    className="flex-1 h-9 rounded-xl bg-primary gap-1"
-                  >
-                    <Check size={14} color="#ffffff" />
-                    <Text className="text-xs font-bold text-white">Confirm</Text>
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onPress={() => disputePickup(request.id)}
-                    className="flex-1 h-9 rounded-xl border-destructive/20 bg-destructive/5 gap-1"
-                  >
-                    <ShieldAlert size={14} color="#b42318" />
-                    <Text className="text-xs font-bold text-destructive">Report</Text>
-                  </Button>
-                </View>
-              </View>
-            )}
-
-            {request.status === 'not_collected' && (
-              <Button
-                size="sm"
-                variant="outline"
-                onPress={() => void relistPickup(request.id)}
-                className="rounded-xl h-9 px-3 gap-1.5 mt-3 self-start"
-              >
-                <RotateCcw size={13} color="#19806d" />
-                <Text className="text-xs font-bold text-primary">Relist</Text>
-              </Button>
-            )}
-          </Card>
+          </TouchableOpacity>
         );
       }
 
       const pickup = item as ClaimedPickup;
-      const statusText = pickup.status ? pickup.status.replaceAll('_', ' ') : 'Unknown';
       return (
-        <Card className="p-4 rounded-2xl border-border/70 bg-card shadow-sm">
-          <View className="flex-row items-start justify-between gap-3">
+        <TouchableOpacity
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`Open claimed pickup for ${pickup.district_name ?? 'Perak area'}`}
+          onPress={() => {
+            if (pickup.status === 'accepted') {
+              setSelectedClaimed(pickup);
+            } else {
+              router.push(`/pickup/${pickup.id}` as Href);
+            }
+          }}
+          className="p-4 rounded-3xl border border-border/80 bg-card shadow-xs"
+        >
+          {/* Top Row: Icon + District & Day/Date + Status Badge (Identical to My Requests) */}
+          <View className="flex-row items-center gap-3">
+            <View className="h-11 w-11 rounded-2xl bg-primary/10 border border-primary/20 items-center justify-center">
+              <Truck size={20} color="#19806d" strokeWidth={2.2} />
+            </View>
             <View className="flex-1">
-              <Text className="text-base font-bold text-foreground">
+              <Text className="text-base font-bold text-foreground" numberOfLines={1}>
                 {pickup.district_name ?? 'Perak area'}
               </Text>
-              <Text className="mt-1 text-xs font-semibold text-primary">
-                {formatPickupSummary(pickup.material_summary)}
-              </Text>
-              <Text className="mt-1 text-xs text-muted-foreground">
+              <Text className="mt-0.5 text-xs text-muted-foreground font-medium" numberOfLines={1}>
                 {formatPickupWindow(pickup.pickup_window_start, pickup.pickup_window_end)}
               </Text>
             </View>
-            <Badge variant={statusVariant(pickup.status)} className="px-2.5 py-0.5 rounded-full">
-              <Text className="text-[11px] font-bold capitalize">
-                {statusText}
-              </Text>
-            </Badge>
+            <PickupStatusPill status={pickup.status} role="collector" />
           </View>
-
-          <Button
-            size="sm"
-            onPress={() => router.push(`/pickup/${pickup.id}` as Href)}
-            className="h-9 px-3 rounded-xl bg-primary flex-row items-center gap-1.5 mt-3 self-start"
-          >
-            <Text className="text-xs font-bold text-white">Open Pickup</Text>
-            <ArrowRight size={13} color="#ffffff" />
-          </Button>
-        </Card>
+        </TouchableOpacity>
       );
     },
-    [activeTab, cancelling, cancelRequest, confirmPickup, disputePickup, openProof, relistPickup]
+    [activeTab]
   );
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
       {/* Sticky Header with Title, Segmented Tabs & Filter Chips */}
       <View className="px-6 pt-4 pb-3">
-        <View className="mb-4">
+        <View className="mb-3.5">
           <Text className="text-3xl font-black tracking-tight text-foreground">Activity</Text>
-          <Text className="text-sm font-medium text-muted-foreground mt-1">
-            Track your pickup requests & claimed tasks.
-          </Text>
         </View>
 
         {/* Primary Segmented Tabs: My Requests vs Claimed */}
-        <View className="flex-row p-1 rounded-2xl bg-secondary/60 border border-border/80">
+        <View className="flex-row p-1.5 rounded-2xl bg-secondary/50 border border-border/80">
           <TouchableOpacity
             accessibilityRole="tab"
             accessibilityLabel={`My Requests, ${requests.length} total`}
@@ -388,14 +326,14 @@ export default function ActivityScreen() {
               setActiveTab('requests');
               setFilter('all');
             }}
-            className={`flex-1 py-2 flex-row items-center justify-center gap-1.5 rounded-xl border ${
+            className={`flex-1 py-2.5 flex-row items-center justify-center gap-2 rounded-xl border ${
               activeTab === 'requests'
-                ? 'bg-card shadow-sm border-border/60'
+                ? 'bg-card shadow-xs border-border/60'
                 : 'bg-transparent shadow-none border-transparent'
             }`}
           >
             <Inbox
-              size={15}
+              size={16}
               color={activeTab === 'requests' ? '#19806d' : '#5b7072'}
               strokeWidth={activeTab === 'requests' ? 2.4 : 1.8}
             />
@@ -409,7 +347,7 @@ export default function ActivityScreen() {
               My Requests
             </Text>
             <View
-              className={`px-1.5 py-0.5 rounded-full ${
+              className={`px-2 py-0.5 rounded-full ${
                 activeTab === 'requests' ? 'bg-primary/10' : 'bg-muted'
               }`}
             >
@@ -431,14 +369,14 @@ export default function ActivityScreen() {
               setActiveTab('claimed');
               setFilter('all');
             }}
-            className={`flex-1 py-2 flex-row items-center justify-center gap-1.5 rounded-xl border ${
+            className={`flex-1 py-2.5 flex-row items-center justify-center gap-2 rounded-xl border ${
               activeTab === 'claimed'
-                ? 'bg-card shadow-sm border-border/60'
+                ? 'bg-card shadow-xs border-border/60'
                 : 'bg-transparent shadow-none border-transparent'
             }`}
           >
             <Truck
-              size={15}
+              size={16}
               color={activeTab === 'claimed' ? '#19806d' : '#5b7072'}
               strokeWidth={activeTab === 'claimed' ? 2.4 : 1.8}
             />
@@ -449,10 +387,10 @@ export default function ActivityScreen() {
                   : 'font-semibold text-muted-foreground'
               }`}
             >
-              Claimed
+              Claimed Tasks
             </Text>
             <View
-              className={`px-1.5 py-0.5 rounded-full ${
+              className={`px-2 py-0.5 rounded-full ${
                 activeTab === 'claimed' ? 'bg-primary/10' : 'bg-muted'
               }`}
             >
@@ -468,185 +406,185 @@ export default function ActivityScreen() {
         </View>
 
         {/* Status Filter Chips: All, Active, Completed */}
-        <View className="flex-row items-center gap-2 mt-2.5">
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={`Filter all, ${currentTotal} items`}
-            activeOpacity={0.7}
-            onPress={() => setFilter('all')}
-            className={`px-3 py-1.5 rounded-full flex-row items-center gap-1.5 border ${
-              filter === 'all'
-                ? 'bg-primary border-primary'
-                : 'bg-card border-border/80'
-            }`}
-          >
-            <Text
-              className={`text-xs ${
-                filter === 'all' ? 'font-bold text-white' : 'font-semibold text-muted-foreground'
-              }`}
-            >
-              All
-            </Text>
-            <Text
-              className={`text-[10px] font-bold ${
-                filter === 'all' ? 'text-white/80' : 'text-muted-foreground'
-              }`}
-            >
-              {currentTotal}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={`Filter active, ${currentActive} items`}
-            activeOpacity={0.7}
-            onPress={() => setFilter('active')}
-            className={`px-3 py-1.5 rounded-full flex-row items-center gap-1.5 border ${
-              filter === 'active'
-                ? 'bg-primary border-primary'
-                : 'bg-card border-border/80'
-            }`}
-          >
-            <Text
-              className={`text-xs ${
-                filter === 'active' ? 'font-bold text-white' : 'font-semibold text-muted-foreground'
-              }`}
-            >
-              Active
-            </Text>
-            <Text
-              className={`text-[10px] font-bold ${
-                filter === 'active' ? 'text-white/80' : 'text-muted-foreground'
-              }`}
-            >
-              {currentActive}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={`Filter completed, ${currentCompleted} items`}
-            activeOpacity={0.7}
-            onPress={() => setFilter('completed')}
-            className={`px-3 py-1.5 rounded-full flex-row items-center gap-1.5 border ${
-              filter === 'completed'
-                ? 'bg-primary border-primary'
-                : 'bg-card border-border/80'
-            }`}
-          >
-            <Text
-              className={`text-xs ${
-                filter === 'completed' ? 'font-bold text-white' : 'font-semibold text-muted-foreground'
-              }`}
-            >
-              Completed
-            </Text>
-            <Text
-              className={`text-[10px] font-bold ${
-                filter === 'completed' ? 'text-white/80' : 'text-muted-foreground'
-              }`}
-            >
-              {currentCompleted}
-            </Text>
-          </TouchableOpacity>
+        <View className="flex-row items-center gap-2 mt-3">
+          {(['all', 'active', 'completed'] as FilterType[]).map((tabFilter) => {
+            const isActive = filter === tabFilter;
+            const count = tabFilter === 'all' ? currentTotal : tabFilter === 'active' ? currentActive : currentCompleted;
+            const label = tabFilter === 'all' ? 'All' : tabFilter === 'active' ? 'Active' : 'Completed';
+            return (
+              <TouchableOpacity
+                key={tabFilter}
+                accessibilityRole="button"
+                accessibilityLabel={`Filter ${label}, ${count} items`}
+                activeOpacity={0.7}
+                onPress={() => setFilter(tabFilter)}
+                className={`px-3.5 py-1.5 rounded-full flex-row items-center gap-1.5 border ${
+                  isActive
+                    ? 'bg-primary border-primary shadow-2xs'
+                    : 'bg-card border-border/80'
+                }`}
+              >
+                <Text
+                  className={`text-xs ${
+                    isActive ? 'font-bold text-white' : 'font-semibold text-muted-foreground'
+                  }`}
+                >
+                  {label}
+                </Text>
+                <View
+                  className={`px-1.5 py-0.2 rounded-full ${
+                    isActive ? 'bg-white/20' : 'bg-secondary'
+                  }`}
+                >
+                  <Text
+                    className={`text-[10px] font-bold ${
+                      isActive ? 'text-white' : 'text-muted-foreground'
+                    }`}
+                  >
+                    {count}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
-      {/* Single Unified Virtualized FlatList */}
+      {/* Virtualized FlatList */}
       <FlatList
         data={activeData}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 4, paddingBottom: 80 }}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 6, paddingBottom: 80 }}
         ItemSeparatorComponent={ItemSeparator}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => void loadRequests(true)}
             colors={['#19806d']}
+            progressViewOffset={10}
           />
         }
         ListEmptyComponent={
           isListLoading ? (
-            <View className="py-12 items-center">
+            <View className="py-14 items-center">
               <ActivityIndicator color="#19806d" size="small" />
-              <Text className="mt-2 text-xs font-bold text-muted-foreground">Loading...</Text>
+              <Text className="mt-2 text-xs font-bold text-muted-foreground">Loading activity...</Text>
             </View>
           ) : activeError ? (
-            <View className="py-6 items-center">
+            <View className="py-8 items-center">
               <Text className="text-xs text-destructive text-center font-medium">{activeError}</Text>
               <Button
                 onPress={() => void loadRequests()}
                 variant="outline"
                 size="sm"
-                className="rounded-xl gap-1.5 mt-3"
+                className="rounded-2xl gap-2 mt-3.5 h-10 px-4"
               >
                 <RefreshCw size={14} color="#19806d" />
                 <Text className="text-xs font-bold">Retry</Text>
               </Button>
             </View>
           ) : activeTab === 'requests' ? (
-            <Card className="p-6 items-center justify-center border-dashed border-border/80 bg-card rounded-2xl shadow-sm">
-              <View className="h-12 w-12 rounded-2xl bg-secondary/60 items-center justify-center mb-2.5">
-                <Inbox size={22} color="#5b7072" />
+            <View className="p-6 items-center justify-center border-dashed border-border/80 bg-card rounded-3xl shadow-xs mt-2">
+              <View className="h-14 w-14 rounded-2xl bg-secondary/60 items-center justify-center mb-3">
+                <Inbox size={26} color="#5b7072" />
               </View>
-              <Text className="text-sm font-bold text-foreground text-center">
+              <Text className="text-base font-bold text-foreground text-center">
                 {filter === 'active'
                   ? 'No active requests'
                   : filter === 'completed'
                     ? 'No completed requests'
-                    : 'No pickup requests'}
+                    : 'No Active Requests'}
               </Text>
-              <Text className="text-xs text-muted-foreground text-center mt-0.5">
+              <Text className="text-xs text-muted-foreground text-center mt-1 max-w-[260px] leading-relaxed">
                 {filter === 'active' || filter === 'all'
-                  ? 'Scan recyclable items to schedule a pickup.'
+                  ? 'Scan items to schedule your first free pickup.'
                   : 'Past completed or cancelled requests will appear here.'}
               </Text>
               {(filter === 'active' || filter === 'all') && (
                 <Button
                   onPress={() => router.push('/(tabs)/scan')}
-                  className="h-10 px-4 rounded-xl bg-primary flex-row items-center gap-1.5 shadow-sm mt-4"
+                  className="h-11 px-5 rounded-2xl bg-primary flex-row items-center gap-2 shadow-xs mt-4"
                 >
                   <Text className="text-sm font-bold text-white">Scan Waste</Text>
-                  <ArrowRight size={14} color="#ffffff" />
+                  <ArrowRight size={15} color="#ffffff" />
                 </Button>
               )}
-            </Card>
+            </View>
           ) : (
-            <Card className="p-6 items-center justify-center border-dashed border-border/80 bg-card rounded-2xl shadow-sm">
-              <View className="h-12 w-12 rounded-2xl bg-secondary/60 items-center justify-center mb-2.5">
-                <Truck size={22} color="#5b7072" />
+            <View className="p-6 items-center justify-center border-dashed border-border/80 bg-card rounded-3xl shadow-xs mt-2">
+              <View className="h-14 w-14 rounded-2xl bg-secondary/60 items-center justify-center mb-3">
+                <Truck size={26} color="#5b7072" />
               </View>
-              <Text className="text-sm font-bold text-foreground text-center">
+              <Text className="text-base font-bold text-foreground text-center">
                 {filter === 'active'
-                  ? 'No active claimed pickups'
+                  ? 'No active claimed tasks'
                   : filter === 'completed'
-                    ? 'No past claimed pickups'
-                    : 'No claimed pickups'}
+                    ? 'No past claimed tasks'
+                    : 'No Claimed Tasks'}
               </Text>
-              <Text className="text-xs text-muted-foreground text-center mt-0.5">
+              <Text className="text-xs text-muted-foreground text-center mt-1 max-w-[260px] leading-relaxed">
                 {filter === 'active' || filter === 'all'
-                  ? 'Browse nearby pickups in the Marketplace tab to claim tasks.'
+                  ? 'Explore nearby pickups on the map to collect.'
                   : 'Your completed collection tasks will appear here.'}
               </Text>
               {(filter === 'active' || filter === 'all') && (
                 <Button
-                  onPress={() => router.push('/(tabs)/request')}
-                  className="h-10 px-4 rounded-xl bg-primary flex-row items-center gap-1.5 shadow-sm mt-4"
+                  onPress={() => router.push('/(tabs)/collect')}
+                  className="h-11 px-5 rounded-2xl bg-primary flex-row items-center gap-2 shadow-xs mt-4"
                 >
-                  <Text className="text-sm font-bold text-white">Browse Marketplace</Text>
-                  <ArrowRight size={14} color="#ffffff" />
+                  <Text className="text-sm font-bold text-white">Find Pickups</Text>
+                  <ArrowRight size={15} color="#ffffff" />
                 </Button>
               )}
-            </Card>
+            </View>
           )
         }
         renderItem={renderItem}
+      />
+
+      <MyRequestDetailsModal
+        visible={Boolean(selectedRequest)}
+        mode="request"
+        request={selectedRequest}
+        onClose={() => setSelectedRequest(null)}
+        onCancelRequest={cancelRequest}
+        cancelling={cancelling === selectedRequest?.id}
+        onViewProof={(requestId) => void openProof(requestId)}
+        onConfirm={(requestId) => setRatingRequestId(requestId)}
+        onReportDispute={(requestId) => setDisputeRequestId(requestId)}
+      />
+
+      <MyRequestDetailsModal
+        visible={Boolean(selectedClaimed)}
+        mode="claimed"
+        request={selectedClaimed}
+        onClose={() => setSelectedClaimed(null)}
+        onStartPickup={(requestId) => void handleStartClaimedPickup(requestId)}
+        starting={startingClaimedId === selectedClaimed?.id}
+        onReleasePickup={(requestId) => handleReleaseClaimedPickup(requestId)}
+        releasing={releasingClaimedId === selectedClaimed?.id}
+        onContinuePickup={(requestId) => {
+          setSelectedClaimed(null);
+          router.push(`/pickup/${requestId}` as Href);
+        }}
       />
 
       <ProofPhotoModal
         visible={Boolean(proofUrl)}
         photoUrl={proofUrl}
         onClose={() => setProofUrl(null)}
+      />
+      <PickupRatingModal
+        visible={Boolean(ratingRequestId)}
+        requestId={ratingRequestId}
+        onClose={() => setRatingRequestId(null)}
+        onSuccess={() => void loadRequests()}
+      />
+      <PickupDisputeModal
+        visible={Boolean(disputeRequestId)}
+        requestId={disputeRequestId}
+        onClose={() => setDisputeRequestId(null)}
+        onSuccess={() => void loadRequests()}
       />
     </SafeAreaView>
   );

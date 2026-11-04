@@ -3,7 +3,14 @@ export type ChecklistReason = typeof CHECKLIST_REASONS[number];
 export const CONDITIONS = ['clean_dry', 'contaminated_wet', 'broken_unsafe', 'unknown'] as const;
 export type ChecklistCondition = typeof CONDITIONS[number];
 
-export type ChecklistRow = { id: string; requesterQuantity: number; collectedQuantity: number; condition: ChecklistCondition; reason?: ChecklistReason };
+export type ChecklistRow = {
+  id: string;
+  appClass?: string;
+  requesterQuantity: number;
+  collectedQuantity: number;
+  condition: ChecklistCondition;
+  reason?: ChecklistReason;
+};
 
 export function validateChecklist(rows: ChecklistRow[], hasEvidence = false, nonCollectionReason?: ChecklistReason): string | null {
   if (rows.length === 0) return 'Add at least one checklist item.';

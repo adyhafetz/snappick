@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatPickupSummary, formatPickupWindow, groupMarketplaceRequests } from './marketplace';
+import { formatPickupSummary, formatPickupWindow, groupMarketplaceRequests } from './collect';
 import { getNavigationLinks, openPickupNavigation } from './navigation';
 import { BUNDLED_RULE_SET } from '../detector/rules';
 import { canSubmitPickup, eligibilityChanges, evaluatePickupItems, isValidCoordinate, summarizeEligibleItems, validatePickupForm } from './pickup';

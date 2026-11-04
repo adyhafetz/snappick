@@ -70,7 +70,10 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:clean": "node ../../scripts/db-clean.mjs",
+    "db:seed": "node ../../scripts/db-seed.mjs",
+    "db:reset": "node ../../scripts/db-reset.mjs"
   },
   "private": true
 }

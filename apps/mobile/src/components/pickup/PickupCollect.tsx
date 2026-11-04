@@ -4,20 +4,21 @@ import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Camera as MapCamera, Map, Marker } from '@maplibre/maplibre-react-native';
-import { CircleAlert, LocateFixed, RefreshCw, User, WifiOff, X } from 'lucide-react-native';
+import Svg, { Path } from 'react-native-svg';
+import { CircleAlert, LocateFixed, PackageCheck, Recycle, RefreshCw, User, WifiOff, X } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import * as Network from 'expo-network';
 
 import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
-import { groupMarketplaceRequests, formatPickupSummary, formatPickupWindow, type MarketplaceRequest } from '@/lib/pickup/marketplace';
+import { groupMarketplaceRequests, formatPickupSummary, formatPickupWindow, type MarketplaceRequest } from '@/lib/pickup/collect';
 import { supabase } from '@/lib/supabase';
 
 const MAP_STYLE = process.env.EXPO_PUBLIC_MAP_STYLE_URL?.trim() || 'https://tiles.openfreemap.org/styles/liberty';
 const INITIAL_POINT: [number, number] = [101.0901, 4.5975];
 
-export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () => void } = {}) {
+export function PickupCollect({ onCreateRequest }: { onCreateRequest?: () => void } = {}) {
   const camera = useRef<React.ElementRef<typeof MapCamera>>(null);
   const network = Network.useNetworkState();
   const online = network.isConnected === true && network.isInternetReachable !== false;
@@ -96,7 +97,7 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
       {/* Sleek Header */}
       <View className="px-6 pt-4 pb-2 flex-row items-center justify-between">
-        <Text className="text-3xl font-black tracking-tight text-foreground">Nearby Pickups</Text>
+        <Text className="text-3xl font-black tracking-tight text-foreground">Collect</Text>
         <View className="flex-row items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/80 border border-border/80">
           {realtime === 'offline' ? (
             <WifiOff size={12} color="#b45309" />
@@ -121,6 +122,9 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
           <MapCamera ref={camera} initialViewState={{ center: INITIAL_POINT, zoom: 10.5 }} minZoom={4} maxZoom={19} />
           {cells.map((cell) => {
             const isSelected = selectedCell?.key === cell.key;
+            const pinColor = cell.hasMine ? '#d97706' : '#19806d';
+            const focusStroke = cell.hasMine ? '#fbbf24' : '#34d399';
+
             return (
               <Marker
                 key={cell.key}
@@ -132,20 +136,76 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
                 }}
               >
                 <View
-                  className={`min-w-11 h-11 px-2.5 items-center justify-center rounded-2xl border-2 shadow-md ${
-                    cell.hasMine
-                      ? isSelected
-                        ? 'border-amber-300 bg-amber-600'
-                        : 'border-white bg-amber-600'
-                      : isSelected
-                        ? 'border-emerald-300 bg-primary'
-                        : 'border-white bg-primary'
-                  }`}
+                  style={{
+                    alignItems: 'center',
+                    transform: [{ scale: isSelected ? 1.15 : 1 }],
+                  }}
                 >
-                  <View className="flex-row items-center gap-1">
-                    {cell.hasMine && <User size={13} color="#ffffff" strokeWidth={2.6} />}
-                    <Text className="text-xs font-bold text-white">{cell.count}</Text>
+                  {/* Single Seamless Teardrop Vector Shape (No white border, no interior seams) */}
+                  <View style={{ width: 40, height: 46 }}>
+                    <Svg width={40} height={46} viewBox="0 0 40 46">
+                      <Path
+                        d="M 20 43.5 L 7.5 27.8 A 16 16 0 1 1 32.5 27.8 Z"
+                        fill={pinColor}
+                        stroke={isSelected ? focusStroke : 'none'}
+                        strokeWidth={isSelected ? 2.5 : 0}
+                        strokeLinejoin="round"
+                      />
+                    </Svg>
+
+                    {/* Centered Icon inside pin head */}
+                    <View
+                      pointerEvents="none"
+                      style={{
+                        position: 'absolute',
+                        top: 9,
+                        left: 11,
+                        width: 18,
+                        height: 18,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {cell.hasMine ? (
+                        <User size={18} color="#ffffff" strokeWidth={2.5} />
+                      ) : (
+                        <Recycle size={18} color="#ffffff" strokeWidth={2.5} />
+                      )}
+                    </View>
+
+                    {/* Cluster count badge (only when > 1 requests share cell) */}
+                    {cell.count > 1 && (
+                      <View
+                        style={{
+                          position: 'absolute',
+                          top: -3,
+                          right: -3,
+                          backgroundColor: '#0f172a',
+                          borderRadius: 999,
+                          minWidth: 18,
+                          height: 18,
+                          paddingHorizontal: 4,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderWidth: 1,
+                          borderColor: '#ffffff',
+                        }}
+                      >
+                        <Text className="text-[9px] font-black text-white">{cell.count}</Text>
+                      </View>
+                    )}
                   </View>
+
+                  {/* Soft Ground Shadow Anchor */}
+                  <View
+                    style={{
+                      width: isSelected ? 16 : 12,
+                      height: 3,
+                      borderRadius: 1.5,
+                      backgroundColor: 'rgba(0, 0, 0, 0.22)',
+                      marginTop: 1,
+                    }}
+                  />
                 </View>
               </Marker>
             );
@@ -263,10 +323,11 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
               <Button
                 disabled={!online}
                 onPress={() => void claim(selected.id, refresh)}
-                className="w-full h-12 rounded-2xl bg-primary mt-3"
+                className="w-full h-12 rounded-2xl bg-primary mt-3 flex-row items-center justify-center gap-2"
               >
+                <PackageCheck size={18} color="#ffffff" />
                 <Text className="text-base font-bold text-white">
-                  {online ? 'Claim Pickup' : 'Offline'}
+                  {online ? 'Claim Task' : 'Offline'}
                 </Text>
               </Button>
             )}
@@ -281,7 +342,7 @@ export function PickupMarketplace({ onCreateRequest }: { onCreateRequest?: () =>
         )}
 
         {!loading && requests.length === 0 && !loadError && (
-          <View className="absolute bottom-6 left-4 right-4 rounded-2xl bg-card p-4 border border-border shadow-md">
+          <View className="absolute bottom-8 left-6 right-6 rounded-3xl bg-card p-4 border border-border/80 shadow-md">
             <Text className="text-sm font-bold text-foreground text-center">No pending pickups nearby</Text>
             <Text className="text-xs text-muted-foreground text-center mt-0.5">Check back later or scan waste to request one.</Text>
           </View>
@@ -317,3 +378,5 @@ async function claim(requestId: string, refresh: () => Promise<void>) {
   await refresh();
   router.replace('/(tabs)/activity');
 }
+
+export const PickupMarketplace = PickupCollect;

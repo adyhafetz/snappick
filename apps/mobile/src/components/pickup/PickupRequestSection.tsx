@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import * as Network from 'expo-network';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CircleAlert, LocateFixed, MapPin, ShieldCheck } from 'lucide-react-native';
+import { Calendar, ChevronDown, CircleAlert, LocateFixed, MapPin, Send, ShieldCheck } from 'lucide-react-native';
 import { Camera as MapCamera, Map } from '@maplibre/maplibre-react-native';
 
 import { AnimatedPressable } from '@/components/ui/animated-pressable';
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
+import { useAuth } from '@/providers/AuthProvider';
 import { BUNDLED_RULE_SET, parseRuleSet, type RuleSet } from '@/lib/detector/rules';
 import { clearPickupDraft } from '@/lib/pickup/draft-storage';
 import {
@@ -49,6 +50,7 @@ export function PickupRequestSection({
   activeRuleSet,
   onSuccess,
 }: PickupRequestSectionProps) {
+  const { profile } = useAuth();
   const camera = useRef<React.ElementRef<typeof MapCamera>>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const networkState = Network.useNetworkState();
@@ -69,6 +71,7 @@ export function PickupRequestSection({
     accessInstructions: '',
     pickupNote: '',
   });
+  const [showOptionalDetails, setShowOptionalDetails] = useState(false);
   const [pickupDay, setPickupDay] = useState<(typeof DATE_CHOICES)[number]>(1);
   const [pickupTime, setPickupTime] = useState<TimeChoice>('morning');
   const [submitting, setSubmitting] = useState(false);
@@ -133,12 +136,16 @@ export function PickupRequestSection({
         try {
           const parsed = JSON.parse(stored);
           if (parsed && typeof parsed === 'object') {
+            if (parsed.landmark || parsed.accessInstructions || parsed.pickupNote) {
+              setShowOptionalDetails(true);
+            }
             setForm((current) => ({
               ...current,
               unitNumber: parsed.unitNumber || current.unitNumber,
               street: parsed.street || current.street,
               landmark: parsed.landmark || current.landmark,
               accessInstructions: parsed.accessInstructions || current.accessInstructions,
+              pickupNote: parsed.pickupNote || current.pickupNote,
             }));
           }
         } catch {
@@ -212,6 +219,17 @@ export function PickupRequestSection({
   const submit = async () => {
     setError('');
     if (!online) return setError('Connect to submit pickup.');
+    if (!profile?.image_storage_consent) {
+      Alert.alert(
+        'Cloud Storage Required',
+        'Community pickups require cloud photo storage so collectors can verify recyclable items. Turn on "Save Scan Photos to Cloud" in Profile settings to continue.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Settings', onPress: () => router.push('/(tabs)/profile') },
+        ]
+      );
+      return;
+    }
     if (eligibleItems.length === 0) return setError('At least one reviewed item must be eligible for pickup.');
     const formError = validatePickupForm(form);
     if (formError) return setError(formError);
@@ -258,7 +276,7 @@ export function PickupRequestSection({
       }));
       onSuccess();
       Alert.alert('Pickup requested', 'Your request is pending and your exact address remains private.');
-      router.replace('/(tabs)/activity');
+      router.replace({ pathname: '/(tabs)/activity', params: { tab: 'requests' } });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Pickup could not be submitted. Try again when connected.');
     } finally {
@@ -266,30 +284,22 @@ export function PickupRequestSection({
     }
   };
 
-  const areaMessage = areaState === 'ready' && area
-    ? `${area.districtName} · ${ruleSet.label} v${ruleSet.version}`
-    : areaState === 'outside'
-      ? 'Outside the supported Perak service area'
-      : areaState === 'unauthenticated'
-        ? 'Sign in to check service area'
-        : areaState === 'unavailable'
-          ? 'Perak service-area data is unavailable'
-          : areaState === 'error'
-            ? 'Could not verify this location. Try again.'
-            : 'Checking district…';
-
   const updateForm = (key: keyof PickupForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
   return (
     <View className="px-6 pt-3 pb-12">
-      {/* Map & Location Card */}
-      <Card className="p-4 rounded-2xl border-border/80 bg-card shadow-sm mb-4">
-        <View className="flex-row items-center gap-1.5 mb-2.5">
-          <MapPin size={16} color="#19806d" />
-          <Text className="text-sm font-bold text-foreground">Collection Location</Text>
+      {/* Unified Map & Address Details Card */}
+      <Card className="p-5 rounded-3xl border-border/80 bg-card shadow-xs mb-4">
+        {/* Header with icon in box */}
+        <View className="flex-row items-center gap-2.5 mb-3.5">
+          <View className="h-9 w-9 rounded-2xl bg-primary/10 border border-primary/20 items-center justify-center">
+            <MapPin size={18} color="#19806d" strokeWidth={2.2} />
+          </View>
+          <Text className="text-base font-bold text-foreground">Address Details</Text>
         </View>
 
-        <View className="h-[200px] overflow-hidden rounded-xl bg-muted relative border border-border/70 shadow-xs">
+        {/* Embedded Interactive Map */}
+        <View className="h-[180px] overflow-hidden rounded-2xl bg-muted relative border border-border/70 shadow-xs mb-3.5">
           <Map
             mapStyle={mapStyle}
             style={{ flex: 1 }}
@@ -316,9 +326,6 @@ export function PickupRequestSection({
               <Text className="text-xs font-bold text-foreground">Loading...</Text>
             </View>
           )}
-          <View className="absolute left-3 top-3 max-w-[76%] rounded-xl bg-card/95 px-3 py-1.5 shadow-sm border border-border/60">
-            <Text className="text-xs font-bold text-foreground">{areaMessage}</Text>
-          </View>
           <AnimatedPressable
             accessibilityRole="button"
             accessibilityLabel="Use current location"
@@ -328,18 +335,36 @@ export function PickupRequestSection({
             <LocateFixed size={18} color="#19806d" />
           </AnimatedPressable>
         </View>
-        {!!locationState && <Text className="pt-2 text-xs text-muted-foreground">{locationState}</Text>}
-      </Card>
+        {!!locationState && <Text className="mb-3 text-xs text-muted-foreground">{locationState}</Text>}
 
-      {/* Address fields Card */}
-      <Card className="p-4 rounded-2xl border-border/80 bg-card shadow-sm mb-4">
-        <Text className="text-sm font-bold text-foreground mb-3">Address & Access Details</Text>
+        {/* Address Fields */}
         <View className="gap-2.5">
           <Field label="Unit / House No." value={form.unitNumber} onChangeText={(value) => updateForm('unitNumber', value)} placeholder="e.g. 12A" maxLength={40} />
           <Field label="Street" value={form.street} onChangeText={(value) => updateForm('street', value)} placeholder="e.g. Jalan Sultan Azlan Shah" maxLength={160} />
-          <Field label="Landmark (optional)" value={form.landmark} onChangeText={(value) => updateForm('landmark', value)} placeholder="e.g. Next to community hall" maxLength={160} />
-          <Field label="Access instructions (optional)" value={form.accessInstructions} onChangeText={(value) => updateForm('accessInstructions', value)} placeholder="Gate code or entrance notes" multiline maxLength={500} />
-          <Field label="Pickup note (optional)" value={form.pickupNote} onChangeText={(value) => updateForm('pickupNote', value)} placeholder="Notes for collector" multiline maxLength={500} />
+
+          {/* Optional details toggle */}
+          <AnimatedPressable
+            accessibilityRole="button"
+            onPress={() => setShowOptionalDetails((prev) => !prev)}
+            className="flex-row items-center justify-between pt-1 pb-0.5"
+          >
+            <Text className="text-xs font-semibold text-primary">
+              {showOptionalDetails ? 'Hide additional notes' : '+ Add landmark, gate code or note'}
+            </Text>
+            <ChevronDown
+              size={14}
+              color="#19806d"
+              style={{ transform: [{ rotate: showOptionalDetails ? '180deg' : '0deg' }] }}
+            />
+          </AnimatedPressable>
+
+          {showOptionalDetails && (
+            <View className="gap-2.5 pt-1">
+              <Field label="Landmark (optional)" value={form.landmark} onChangeText={(value) => updateForm('landmark', value)} placeholder="e.g. Next to community hall" maxLength={160} />
+              <Field label="Access instructions (optional)" value={form.accessInstructions} onChangeText={(value) => updateForm('accessInstructions', value)} placeholder="Gate code or entrance notes" multiline maxLength={500} />
+              <Field label="Pickup note (optional)" value={form.pickupNote} onChangeText={(value) => updateForm('pickupNote', value)} placeholder="Notes for collector" multiline maxLength={500} />
+            </View>
+          )}
         </View>
 
         <View className="mt-3.5 flex-row items-center gap-1.5 pt-2.5 border-t border-border/50">
@@ -351,8 +376,14 @@ export function PickupRequestSection({
       </Card>
 
       {/* Pickup Window Card */}
-      <Card className="p-4 rounded-2xl border-border/80 bg-card shadow-sm mb-4">
-        <Text className="text-sm font-bold text-foreground mb-2.5">Preferred Collection Time</Text>
+      <Card className="p-5 rounded-3xl border-border/80 bg-card shadow-xs mb-4">
+        {/* Header with icon in box */}
+        <View className="flex-row items-center gap-2.5 mb-3.5">
+          <View className="h-9 w-9 rounded-2xl bg-primary/10 border border-primary/20 items-center justify-center">
+            <Calendar size={18} color="#19806d" strokeWidth={2.2} />
+          </View>
+          <Text className="text-base font-bold text-foreground">Collection Window</Text>
+        </View>
         <Text className="text-xs text-muted-foreground mb-1.5 font-medium">Select day:</Text>
         <View className="flex-row gap-2 mb-3">
           {DATE_CHOICES.map((choice) => (
@@ -362,7 +393,13 @@ export function PickupRequestSection({
         <Text className="text-xs text-muted-foreground mb-1.5 font-medium">Select time window:</Text>
         <View className="flex-row gap-2">
           {TIME_CHOICES.map((choice) => (
-            <WindowChoice key={choice.id} label={choice.label} selected={pickupTime === choice.id} onPress={() => setPickupTime(choice.id)} />
+            <TimeWindowChoice
+              key={choice.id}
+              title={choice.id === 'morning' ? 'Morning' : 'Afternoon'}
+              subtitle={choice.id === 'morning' ? '9am – 12pm' : '1pm – 4pm'}
+              selected={pickupTime === choice.id}
+              onPress={() => setPickupTime(choice.id)}
+            />
           ))}
         </View>
       </Card>
@@ -389,12 +426,15 @@ export function PickupRequestSection({
             <Button
               disabled={isSubmitDisabled}
               onPress={() => void submit()}
-              className="w-full h-12 rounded-2xl bg-primary shadow-sm"
+              className="w-full h-12 rounded-2xl bg-primary shadow-sm flex-row items-center justify-center gap-2"
             >
               {submitting ? (
                 <ActivityIndicator size="small" color="#ffffff" />
               ) : (
-                <Text className="text-base font-bold text-white">Submit Pickup Request</Text>
+                <>
+                  <Send size={16} color="#ffffff" />
+                  <Text className="text-base font-bold text-white">Submit Request</Text>
+                </>
               )}
             </Button>
 
@@ -409,7 +449,7 @@ export function PickupRequestSection({
                   : areaState === 'loading'
                   ? 'Checking service area...'
                   : areaState === 'outside'
-                  ? 'Selected location is outside supported Perak service area'
+                  ? 'Selected location is outside supported service area'
                   : 'Complete required fields to submit'}
               </Text>
             )}
@@ -456,6 +496,31 @@ function WindowChoice(props: { label: string; selected: boolean; onPress: () => 
     >
       <Text className={`text-xs font-bold ${props.selected ? 'text-primary' : 'text-foreground'}`}>
         {props.label}
+      </Text>
+    </AnimatedPressable>
+  );
+}
+
+function TimeWindowChoice(props: {
+  title: string;
+  subtitle: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <AnimatedPressable
+      accessibilityRole="radio"
+      accessibilityState={{ selected: props.selected }}
+      onPress={props.onPress}
+      className={`min-h-[52px] flex-1 items-center justify-center rounded-xl border p-2 ${
+        props.selected ? 'border-primary bg-primary/10' : 'border-border/70 bg-card'
+      }`}
+    >
+      <Text className={`text-xs font-bold ${props.selected ? 'text-primary' : 'text-foreground'}`}>
+        {props.title}
+      </Text>
+      <Text className={`text-[10px] font-medium mt-0.5 ${props.selected ? 'text-primary' : 'text-muted-foreground'}`}>
+        {props.subtitle}
       </Text>
     </AnimatedPressable>
   );

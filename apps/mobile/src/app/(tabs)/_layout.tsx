@@ -84,9 +84,9 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="request"
+        name="collect"
         options={{
-          title: 'Marketplace',
+          title: 'Collect',
           tabBarIcon: ({ color, focused }) => (
             <View
               className={`h-8 w-12 items-center justify-center rounded-full ${

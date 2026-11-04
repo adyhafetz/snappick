@@ -52,14 +52,13 @@ export function ProofPhotoModal({
               </View>
               <View>
                 <Text className="text-sm font-bold text-foreground">{title}</Text>
-                <Text className="text-xs text-muted-foreground">
-                  Verified photo from collection
-                </Text>
               </View>
             </View>
             <AnimatedPressable
               onPress={onClose}
-              className="h-8 w-8 items-center justify-center rounded-full bg-secondary/80"
+              accessibilityRole="button"
+              accessibilityLabel="Close proof modal"
+              className="min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-secondary/80"
             >
               <X size={16} color="#5b7072" />
             </AnimatedPressable>

@@ -14,7 +14,7 @@ const badgeVariants = cva(
         destructive: 'border-transparent bg-destructive',
         outline: 'border-border bg-transparent',
         success: 'border-primary/20 bg-primary/10',
-        warning: 'border-amber-200 bg-amber-50',
+        warning: 'border-amber-500/40 bg-amber-500/10',
         unsure: 'border-slate-200 bg-slate-100',
       },
     },
@@ -32,7 +32,7 @@ const badgeTextVariants = cva('text-xs font-semibold', {
       destructive: 'text-destructive-foreground',
       outline: 'text-foreground',
       success: 'text-primary font-bold',
-      warning: 'text-amber-800',
+      warning: 'text-amber-900 font-bold dark:text-amber-300',
       unsure: 'text-slate-800',
     },
   },
@@ -54,4 +54,3 @@ function Badge({ className, variant, ...props }: BadgeProps) {
 
 export { Badge, badgeTextVariants, badgeVariants };
 export type { BadgeProps };
-

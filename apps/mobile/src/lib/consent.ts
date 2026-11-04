@@ -17,5 +17,5 @@ export function hasSafetyAcknowledgement(profile: Profile | null) {
 }
 
 export function hasRequiredConsents(profile: Profile | null) {
-  return hasImageStorageConsent(profile) && hasSafetyAcknowledgement(profile);
+  return hasSafetyAcknowledgement(profile);
 }
