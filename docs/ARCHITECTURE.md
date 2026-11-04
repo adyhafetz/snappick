@@ -1,413 +1,283 @@
 # SnapPick Architecture
 
-**Last Updated:** 2026-10-30  
-**Status:** Phases 1–10 Complete | ML Pipeline DB Ready | Dashboard & Admin Not Built
+**Last Updated:** 2026-11-04  
+**Status:** Mobile App Production-Ready (95%+ Complete) | Database & Migrations Complete | Focus Shifting to Admin Panel (`apps/admin`)
 
 ---
 
 ## Overview
 
 SnapPick is a community-driven recycling platform for Perak, Malaysia combining:
-- **On-device ML waste detection** (YOLOv8n TFLite, 7 material classes)
-- **Community pickup marketplace** (residents request, collectors claim & complete)
-- **Continuous learning pipeline** (user feedback → model retraining → improvement)
+- **On-device ML waste detection** (Ultralytics YOLOv8n TFLite running on CPU, 7 material classes)
+- **Community pickup marketplace** (residents request pickups within Perak districts; community collectors claim, navigate, and complete)
+- **Streamlined proof & verification** (1-tap photo verification, EXIF/GPS stripped client-side, 48-hour requester confirmation, dispute handling, mutual user ratings)
+- **Continuous learning pipeline** (user feedback and active learning signals feed gated retraining)
 
-**Core Innovation:** The ML detector improves over time from consented, verified user images through a gated retraining pipeline.
+**Core Innovation:** The ML detector improves over time from consented, verified user images through a gated retraining pipeline with staged OTA model delivery.
 
 ---
 
 ## System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Mobile App (React Native)                    │
-│  Tabs: Home | Activity | Scan | Request | Profile                    │
-│  • Camera + On-Device TFLite Inference (CPU, ~1-2s)                 │
-│  • MapLibre (pickup locations, no API key)                           │
-│  • SnapBot AI Assistant (OpenAI GPT-4o-mini)                         │
-│  • Offline queue for scan uploads                                    │
-└─────────────────────────────────────────────────────────────────────┘
-                               ↓ (Supabase Client SDK)
-┌─────────────────────────────────────────────────────────────────────┐
-│                    Supabase Backend (PostgreSQL + PostGIS)           │
-│  Auth: Email + Google OAuth                                          │
-│  Database: 21 tables with RLS, PostGIS geofencing                   │
-│  Storage: Scan images + proof photos (signed URLs)                   │
-│  Edge Functions: SnapBot, Private Details, Proof URLs, FCM          │
-│  pg_cron: Auto-expire claims, auto-complete pickups, daily drift     │
-└─────────────────────────────────────────────────────────────────────┘
-          ↓ (public anon)                    ↓ (admin JWT)
-┌──────────────────────┐         ┌───────────────────────────────────┐
-│   Public Dashboard   │         │         Admin Panel                │
-│   apps/dashboard     │         │         apps/admin                 │
-│   Next.js 15         │         │         Next.js 15                 │
-│   No login required  │         │         Requires is_admin()        │
-│   Community stats    │         │         Model management           │
-│   Pickup trends      │         │         Feedback review            │
-│   Material breakdown │         │         Dispute resolution         │
-│   District map       │         │         Drift monitoring           │
-└──────────────────────┘         └───────────────────────────────────┘
-                               ↓ (Manual / GitHub Actions)
-┌─────────────────────────────────────────────────────────────────────┐
-│                    ML Pipeline (Python + Kaggle)                     │
-│  1. Export feedback samples from database                            │
-│  2. Label with Label Studio (admin manual review)                    │
-│  3. Train YOLOv8n on Kaggle GPU (Ultralytics)                       │
-│  4. Export to TFLite, validate contract                              │
-│  5. Admin approves version in admin panel → staged rollout           │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          Mobile App (React Native / Expo SDK 57)            │
+│  Tabs: Home | Activity | Scan | Collect | Profile                            │
+│  • Camera / Gallery + On-Device TFLite Inference (CPU delegate, ~1-2s)       │
+│  • MapLibre GL Native (OpenFreeMap vector tiles, no API key required)        │
+│  • SnapBot AI Assistant (OpenAI GPT-4o-mini proxy with local cache)          │
+│  • Route Preview & Navigation handoff (Google Maps / Waze)                   │
+│  • Offline queue for scan uploads & cached home statistics                   │
+│  • Staged OTA Model Update Manager & remote model activation                │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                       ↓ (Supabase Client SDK)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Supabase Backend (PostgreSQL 15 + PostGIS 3)             │
+│  Auth: Email + Google OAuth                                                 │
+│  Database: 28 migrations, 22 tables with RLS, PostGIS boundary geofencing   │
+│  Realtime: Broadcast channel ('pickup-marketplace') for live job updates     │
+│  Storage: Scan images ('scans') + proof photos ('proofs') + models ('models')│
+│  Edge Functions: SnapBot, Private Details, Short-lived Proof URLs, FCM Notify│
+│  pg_cron: Auto-expire claims (24h), auto-complete pickups (48h), daily drift │
+└─────────────────────────────────────────────────────────────────────────────┘
+                 ↓ (public anon)                             ↓ (admin JWT)
+┌──────────────────────────────┐             ┌────────────────────────────────┐
+│   Public Dashboard           │             │         Admin Panel            │
+│   apps/dashboard             │             │         apps/admin             │
+│   Next.js 15                 │             │         Next.js 15             │
+│   No login required          │             │         Requires is_admin()    │
+│   Community stats            │             │         Model version approval │
+│   Pickup trends              │             │         Staged rollout control │
+│   Material breakdown         │             │         Feedback queue review  │
+│   District map               │             │         Dispute resolution     │
+│   Model transparency tab     │             │         Drift & latency monitor│
+└──────────────────────────────┘             └────────────────────────────────┘
+                                       ↓ (Automated / Kaggle)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    ML Retraining Pipeline (Python + Kaggle GPU)             │
+│  1. Query active learning samples (Tier A/B/C/D) via RPC                    │
+│  2. Label verification / annotation via Label Studio                        │
+│  3. Retrain YOLOv8n on Kaggle GPU                                           │
+│  4. Export to TFLite, validate export contract & tensor shapes              │
+│  5. Gate check against frozen golden evaluation set (mAP regression guard)   │
+│  6. Register version in DB → Admin approves rollout → Staged OTA delivery   │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Mobile App (Expo SDK 57 / React Native 0.86)
+## Mobile App (`apps/mobile`)
 
 ### Tech Stack
-- **Framework:** Expo 57, React Native 0.86.3, React 19.2.3
-- **Navigation:** Expo Router (file-based routing)
-- **Styling:** NativeWind (Tailwind CSS for React Native)
-- **Storage:** AsyncStorage (offline caching)
-- **Camera:** expo-camera
-- **Map:** @maplibre/maplibre-react-native (OpenFreeMap tiles, no API key)
-- **ML:** react-native-fast-tflite (TensorFlow Lite with CPU delegate)
-- **Auth:** Supabase Auth (@supabase/supabase-js)
+- **Framework:** Expo SDK 57, React Native 0.86.3, React 19.2.3 (New Architecture enabled)
+- **Navigation:** Expo Router (file-based routing with typed routes)
+- **Styling:** NativeWind 4.2.7 (Tailwind CSS for React Native)
+- **Storage:** `@react-native-async-storage/async-storage` (offline caching, active model config)
+- **Camera & Media:** `expo-camera`, `expo-image-picker`, `expo-image`, `expo-image-manipulator`
+- **Map:** `@maplibre/maplibre-react-native` (OpenFreeMap tiles, zero external API key dependencies)
+- **ML Engine:** `react-native-fast-tflite` 3.0.1 (TensorFlow Lite with CPU delegate)
+- **Auth:** Supabase Auth (`@supabase/supabase-js` 2.117.2) with Google Sign-In support
+- **Icons:** `lucide-react-native`
 
-### App Structure
-```
+### Code Structure
+```text
 apps/mobile/src/
-  app/(tabs)/              # 5 tabs (Home, Activity, Scan, Request, Profile)
-  app/(auth)/              # Sign in / sign up
-  app/(consent)/           # Image storage + safety consent screens
-  app/pickup/[id].tsx      # Pickup detail
-  components/
-    guidance/              # SnapBot AI modal, recycling preparation guides
-    pickup/                # Pickup request form, marketplace, proof modal
-    ui/                    # Button, Card, Input, Badge, Switch, Text, etc.
-  lib/
-    detector/              # ML model loading, preprocessing, inference, NMS
-    guidance/              # SnapBot API client, LLM prompt templates
-    home/                  # Home stats RPC calls
-    pickup/                # Marketplace, draft storage, validation
-    consent.ts             # User consent flow management
-    supabase.ts            # Supabase client setup
-  providers/
-    AuthProvider.tsx       # Global auth state management
-  assets/
-    models/                # Bundled TFLite model + manifest
-      waste_detector_v0.tflite
-      model_manifest.json
-```
-
-### 5 Core Tabs
-
-| Tab | Purpose | Key Features |
-|-----|---------|-------------|
-| **Home** | Dashboard & stats | Total scans, verified items, active pickups, recent activity, SnapBot AI button |
-| **Activity** | Track requests & claims | "My Requests" (pending/completed) + "Claimed Pickups" (in-progress/completed) |
-| **Scan** | Capture + classify waste | Camera → ML detection → Review sheet → Recycling guide → Schedule pickup |
-| **Request** | Pickup marketplace map | Browse nearby pickup requests, claim, navigate, complete with proof photo |
-| **Profile** | Account settings | Edit name/phone, toggle privacy (image storage, training opt-in), sign out |
-
-### Key Flows
-
-#### 1. Scan Flow
-```
-Camera Capture → Preprocess (centre crop 384×384)
-  → TFLite Inference (~1-2s on CPU)
-  → Decode + NMS → Draw bounding boxes
-  → User review (confirm/remove/change class/set condition)
-  → Recycling preparation guide (collapsible per item)
-  → Safety checklist (no batteries/bulbs/e-waste)
-  → Schedule pickup OR discard
-```
-
-#### 2. Pickup Request Flow
-```
-Eligible items from scan → Pickup form
-  → Map: drag pin to select location
-  → PostGIS geofence check (must be in Perak district)
-  → Privacy: grid snap to 0.01° (~1km)
-  → Enter address: unit/street/landmark/access instructions
-  → Pick day (1-3 days ahead) + time window (morning/afternoon)
-  → Submit → Creates pending request on marketplace
-```
-
-#### 3. Claim & Complete Flow
-```
-Marketplace map → Tap cluster/marker → View request details
-  → Claim (atomic lock, max 3 active claims per user)
-  → Navigate (opens Google Maps/Waze with coordinates)
-  → Collect items → Take proof photo (800px, EXIF stripped)
-  → Upload proof → Requester confirms/disputes
-  → Auto-complete after 48h if no dispute
+├── app/
+│   ├── _layout.tsx                     # Root layout, AuthProvider, navigation stack
+│   ├── index.tsx                       # Entry redirector
+│   ├── (auth)/                         # Sign-in and sign-up screens
+│   ├── (consent)/                      # Image storage & safety consent screens
+│   ├── (tabs)/                         # 5 Core Bottom Tabs
+│   │   ├── _layout.tsx                 # Tab bar styling & auth protection
+│   │   ├── index.tsx                   # [Home] Stats, Perak Eco News, SnapBot trigger
+│   │   ├── activity.tsx                # [Activity] Dual-tab: My Requests & Claimed Pickups
+│   │   ├── scan.tsx                    # [Scan] 3-step: Review -> Guidance -> Schedule
+│   │   ├── collect.tsx                 # [Collect] Realtime collector marketplace map
+│   │   └── profile.tsx                 # [Profile] Settings, Privacy, OTA Model Updates
+│   └── pickup/
+│       └── [id].tsx                    # Pickup detail screen (Requester & Collector views)
+├── components/
+│   ├── guidance/
+│   │   ├── RecyclingAnimation.tsx      # Material-specific animated guide cards (WebP)
+│   │   └── SnapBotModal.tsx            # AI assistant modal with cached responses
+│   ├── pickup/
+│   │   ├── CollectionChecklist.tsx     # Checklist row items for collector verification
+│   │   ├── MyRequestDetailsModal.tsx   # Detailed modal for requester's view of request
+│   │   ├── PickupCollect.tsx           # Full interactive map marketplace component
+│   │   ├── PickupDisputeModal.tsx      # Dispute submission modal for requesters
+│   │   ├── PickupRatingModal.tsx       # 1-5 star mutual rating modal with attribute tags
+│   │   ├── PickupRequestSection.tsx    # Integrated pickup scheduling & pin placement form
+│   │   ├── PickupStatusPill.tsx        # Color-coded badge for all request statuses
+│   │   ├── ProofPhotoModal.tsx         # Full-screen proof photo viewer
+│   │   └── RoutePreviewMap.tsx         # Embedded MapLibre route preview & turn-by-turn launcher
+│   └── ui/                             # Base UI components (Button, Card, Input, Badge, Switch, Text)
+├── lib/
+│   ├── detector/                       # Preprocessing, inference, postprocessing, active learning
+│   │   ├── manager.ts                  # Active model resolution, OTA update checking, activation
+│   │   ├── manifest.ts                 # Manifest validation & tensor contract checks
+│   │   ├── persistence.ts              # Scan & detection recording in Supabase
+│   │   ├── postprocess.ts              # Bounding box decode & Non-Maximum Suppression (NMS)
+│   │   ├── preprocess.ts               # 384x384 centre crop, normalization, float32 conversion
+│   │   ├── rules.ts                    # Waste eligibility rules engine
+│   │   ├── scanner.ts                  # End-to-end photo scan coordinator
+│   │   └── upload-queue.ts             # Offline upload queue for active learning samples
+│   ├── guidance/                       # SnapBot client & recycling preparation guides
+│   ├── home/                           # Home impact stats fetcher & offline cache
+│   ├── news/                           # Perak environmental news and recycling updates
+│   ├── pickup/                         # Marketplace grouping, routing, navigation, proof preparation
+│   ├── consent.ts                      # Consent checking and persistence
+│   ├── notifications.ts                # FCM token registration
+│   └── supabase.ts                     # Supabase client singleton
+└── assets/
+    └── models/                         # Bundled immutable model and contract manifest
+        ├── model_manifest.json         # Input layout, labels, thresholds, NMS configs
+        └── waste_detector_v0.tflite    # 12.7 MB YOLOv8n TFLite binary
 ```
 
 ---
 
-## Database Schema (PostgreSQL + PostGIS)
+## The 5 Core Tabs
+
+| Tab | Icon | Purpose | Key Implementation Details |
+|-----|------|---------|----------------------------|
+| **Home** | `Home` | User dashboard & impact overview | Displays personal statistics (`total_scans`, `verified_recyclable_items`, `active_requests`), offline-cached fallback, Perak Eco News carousel/feed, recent scans preview, and SnapBot AI launcher. Flushes offline upload queue on focus. |
+| **Activity** | `History` | Track pickups & claims | Dual tab view: **"My Requests"** (view details modal, cancel pending, view proof photo, confirm collection, dispute modal, rate collector) and **"Claimed Pickups"** (start job, release claim, route preview, complete collection, rate requester). Filterable by All / Active / Completed. Listens to Realtime broadcast updates. |
+| **Scan** | `ScanLine` | 3-step waste classification & pickup flow | **Step 1: Review** — Camera capture or gallery picker, on-device TFLite inference (~1-2s), bounding boxes, condition picker, item correction/addition. Auto-persists scan data and queues training samples if active learning criteria met.<br>**Step 2: Guidance** — Animated recycling preparation guides (WebP) per detected class and mandatory safety declaration checklist.<br>**Step 3: Schedule** — Inline MapLibre pin placement, 13 Perak district boundary check, date & time window selection, creating pending request. |
+| **Collect** | `MapPin` | Realtime collector marketplace | Interactive MapLibre map displaying pending pickup requests grouped into 0.01° grid cells (~1km). Realtime WebSocket connection (`pickup-marketplace` broadcast channel). Features GPS auto-locate, request preview card, and one-tap atomic claim (enforces 3 concurrent claim limit). |
+| **Profile** | `User` | Preferences, privacy, & OTA updates | Edit display name and contact phone, view collector reputation rating, toggle privacy settings (image storage consent, training contribution opt-in), check for OTA model updates and activate candidate versions, and permanent account deletion (`delete_my_account` RPC). |
+
+---
+
+## Detailed User Flows
+
+### 1. Scan & Detection Flow
+```
+User takes photo / picks from gallery
+  → Image preprocessed (384×384 centre crop, RGB normalization, NCHW layout)
+  → On-device TFLite inference (~1-2s on CPU)
+  → Raw tensor [1, 11, 3024] decoded → IoU 0.5 NMS applied
+  → Step 1 (Review): Bounding boxes rendered over image
+      • User can edit material class, adjust condition (clean/dry vs contaminated), or add manual items
+      • Detections & corrections logged to DB
+      • If user has consented, active learning gating determines if image is uploaded (Tier A-D)
+  → Step 2 (Guidance): Animated preparation instructions shown for each detected material
+      • User acknowledges safety checklist (no batteries, e-waste, bulbs, or biohazards)
+  → Step 3 (Schedule): Seamless handoff to pickup creation
+```
+
+### 2. Pickup Scheduling Flow
+```
+Eligible items from Scan step carried into Pickup form
+  → MapLibre map allows user to drag pin or use current GPS location
+  → PostGIS geofence check via RPC resolve_pickup_area() verifies location is within 13 Perak districts
+  → Coordinates snapped to 0.01° grid (~1km) for public marketplace views
+  → User enters private address: unit number, street, landmark, access instructions
+  → User selects pickup date (1-3 days ahead) and time window (morning / afternoon)
+  → Atomic RPC create_pickup_request() stores public metadata and private details in a single transaction
+  → Broadcast event triggers realtime marketplace refresh
+```
+
+### 3. Collector Claim & Navigation Flow
+```
+Collector views Collect tab
+  → Pending requests displayed as clustered markers on MapLibre map
+  → Collector selects a pin → Views material summary, district, time window, and requester rating
+  → Collector taps "Claim Pickup" → Atomic claim RPC locks row (enforces max 3 active jobs)
+  → Job appears in Activity → "Claimed Pickups"
+  → Collector taps "Start Pickup" (status: claimed → in_progress)
+  → Opens /pickup/[id] detail screen:
+      • Fetches private address details via authorized Edge Function
+      • Displays RoutePreviewMap with route path and distance/duration
+      • Button to launch native turn-by-turn navigation (Google Maps or Waze)
+```
+
+### 4. Streamlined Collection & Completion Flow
+```
+Collector arrives at location and inspects items
+  → Happy Path (Items Collected):
+      • Collector taps "Take Proof Photo"
+      • Photo captured, downsampled to 800px, EXIF/GPS metadata completely stripped client-side
+      • Photo uploaded to private Supabase storage bucket ('proofs')
+      • Collector taps "Submit Collection" → submit_collection RPC sets status to awaiting_confirmation
+      • 48-hour confirmation deadline starts
+  → Alternative Path (Issue / Unable to Collect):
+      • Collector selects non-collection reason ('contaminated', 'missing', 'unsafe', 'access_issue', 'other')
+      • Takes proof photo of site/issue
+      • submit_collection RPC immediately transitions status to not_collected
+  → Requester Confirmation & Disputes:
+      • Requester receives notification, views uploaded proof in Activity
+      • If satisfied: Requester taps "Confirm Collection" → status: completed
+      • If issue: Requester taps "Dispute" → enters dispute reason → status: disputed (routed to Admin Panel)
+      • Auto-completion: If requester takes no action within 48 hours, pg_cron auto-completes request
+  → Mutual Ratings:
+      • Requester rates collector (1–5 stars + badges: "Punctual", "Friendly", "Careful")
+      • Collector rates requester (1–5 stars + badges: "Well Packed", "Clean Items", "Easy Access")
+```
+
+---
+
+## Database Architecture (`supabase`)
+
+### 28 Applied Migrations Summary
+1. `initial_schema`: Core tables, profiles, districts, pbt rule sets
+2. `security_hardening`: RLS policies, spatial indexes
+3. `auth_triggers`: Profile creation on sign-up, Google OAuth handling
+4. `pickup_requests`: Public metadata, private details, waste items
+5. `marketplace_rpcs`: `create_pickup_request`, `claim_pickup_request`, `cancel_pickup_request`
+6. `proof_and_completion`: `submit_collection`, `confirm_pickup`, `raise_dispute`, `relist_pickup`
+7. `cron_jobs`: Auto-expiration of unfulfilled claims (24h) and auto-completion (48h)
+8. `scans_and_feedback`: Scan tracking, active learning queues (`feedback_samples` Tiers A–D)
+9. `malaysian_sas_guidance`: Perak SAS (Separation at Source) guidelines
+10. `ml_retraining_pipeline`: `model_versions`, `training_runs`, `dataset_versions`, trigger RPCs
+11. `model_rollout_monitoring`: Staged rollout buckets, daily drift computation, rollout RPCs
+12. `public_dashboard_views`: Privacy-masked views (`dashboard_*`) with small-count suppression (<5 masked)
+13. `account_deletion_ratings`: `delete_my_account` RPC, mutual user ratings system and views
+14. `simplified_collection_flow`: Streamlined 1-tap `submit_collection` RPC and database cleanup utilities
+15. `requester_details_view`: Upgraded `my_claimed_pickups` view with requester names and rating aggregates
 
 ### Core Tables
-
-| Table | Purpose |
-|-------|---------|
-| `profiles` | User accounts with consent and privacy flags |
-| `scans` | Scan sessions with model version, timings, retention date |
-| `detections` | One row per detected box with class, score, condition, eligibility |
-| `label_feedback` | User corrections and collector verification |
-| `feedback_samples` | Active-learning upload queue with label tiers A/B/C/D |
-| `pickup_requests_public` | Pickup metadata with grid-snapped location |
-| `pickup_request_private_details` | Exact address (requester + collector only) |
-| `pickup_waste_items` | Items per request with quantities and conditions |
-| `pickup_proofs` | Proof photos with confirmation/dispute state |
-| `disputes` | Pickup disputes for admin resolution |
-| `instruction_cache` | SnapBot LLM response cache (SHA-256 keyed) |
-| `llm_usage` | Token and cost tracking |
-| `push_tokens` | FCM device tokens |
-| `perak_districts` | 13 DOSM district PostGIS boundaries |
-| `pbt_rule_sets` | Recycling guidelines by district |
-| `audit_log` | Admin actions with timestamps |
-| `reports` | User reports and blocks |
-| `model_versions` | Detector version registry with rollout percentage |
-| `training_runs` | ML pipeline run history with metrics and gate results |
-| `dataset_versions` | Training dataset manifests |
-| `drift_daily` | Daily per-version model performance metrics |
-
-### Key Database Functions (RPCs)
-
-| Function | Purpose |
-|----------|---------| 
-| `resolve_pickup_area(lat, lng)` | PostGIS district containment check |
-| `create_pickup_request(...)` | Atomic request + privacy + items with grid snap |
-| `claim_pickup_request(id)` | Atomic claim with 3-job cap |
-| `submit_collected_items(...)` | Proof upload + status transition |
-| `confirm_pickup(id)` | Requester confirms completion |
-| `raise_dispute(id, reason)` | Requester opens dispute |
-| `cancel_pickup_request(id)` | Cancel pending request |
-| `relist_pickup(id)` | Relist not_collected request |
-| `get_home_stats()` | User's personal stats |
-| `set_scan_image_path(scan_id, path)` | Links uploaded scan image to scan record |
-| `get_ml_retraining_trigger_stats()` | Checks retraining conditions |
-| `compute_drift_daily(date)` | Aggregates daily model metrics |
-| `admin_approve_model_version(version, rollout_percent)` | Admin approves a detector version |
-| `admin_rollback_model_version(version, reason)` | Admin rolls back a detector version |
-| `get_eligible_model_for_user(user_id)` | Staged rollout: returns which version a user should download |
-| `compute_user_rollout_bucket(user_id)` | Deterministic 0–99 hash bucket for staged rollout |
-
-### Views
-
-| View | Purpose |
-|------|---------|
-| `pending_pickup_marketplace` | Public pickups with grid clustering, no private details |
-| `my_pickup_requests` | User's own requests |
-| `my_claimed_pickups` | User's claimed pickups |
-| `dashboard_overview_kpis` | Public dashboard aggregate KPIs |
-| `dashboard_material_breakdown` | Material family counts and estimated weight |
-| `dashboard_pickup_trends` | Daily request/completion counts (90 days) |
-| `dashboard_district_aggregates` | Per-district totals with small-count suppression (<5 masked) |
-| `dashboard_model_transparency` | Public model version info (version number, size, status) |
-
-### Automated Jobs (pg_cron)
-
-| Job | Schedule | Action |
-|-----|----------|--------|
-| `release_expired_claims` | Every 30 min | Release `accepted` claims older than 24h back to `pending` |
-| `auto_complete_confirmed` | Every 30 min | Auto-complete `awaiting_confirmation` after 48h |
-| `compute-daily-drift-job` | Daily 00:15 | Compute yesterday's drift_daily metrics |
+| Table | Purpose | Access Control |
+|-------|---------|----------------|
+| `profiles` | User accounts, display names, phone numbers, privacy consent flags, ratings | Self read/write; public read for display info |
+| `scans` | Recorded scan sessions with model version, preprocess/inference timings | Owner only |
+| `detections` | Bounding boxes, predicted classes, confidence scores, condition states | Owner only |
+| `label_feedback` | User corrections (removed boxes, changed labels, condition changes) | Owner insert; Admin read |
+| `feedback_samples` | Active learning sample queue classified into Tiers A, B, C, D | Admin / ML service |
+| `pickup_requests_public` | Public pickup request metadata (snapped 0.01° grid location, district, status) | Public read; Requester insert/cancel; Collector claim |
+| `pickup_request_private_details` | Exact latitude/longitude, unit number, street address, access notes | Requester & assigned Collector only (Edge Function proxy) |
+| `pickup_waste_items` | Individual items per request with quantities and conditions | Public read; Requester & Collector update |
+| `pickup_proofs` | Verification photo paths, capture timestamps, non-collection flags | Requester & Collector read via signed URLs |
+| `disputes` | Formally disputed collections requiring administrator resolution | Requester insert; Admin update |
+| `ratings` | Mutual ratings between requesters and collectors (1-5 stars, feedback tags) | Rater insert; Both parties read |
+| `perak_districts` | 13 DOSM official Perak district boundaries (PostGIS polygons) | Public read |
+| `model_versions` | Detector registry (v0, v1...), SHA256 hashes, rollout %, champion status | Public read; Admin write |
+| `training_runs` | Retraining logs, validation mAP metrics, golden set gate evaluation results | Admin only |
+| `drift_daily` | Daily aggregated model metrics (correction rate, uncertain share, latency) | Admin only |
 
 ---
 
-## ML Pipeline (Python)
+## Testing Strategy & Status
 
-### Current Model: Version v0
-- **Framework:** Ultralytics YOLOv8n
-- **Input:** 384×384×3, centre-crop, float32, normalized [0-1], NCHW layout
-- **Output:** Raw YOLO format `[1, 11, 3024]` (cx, cy, w, h, 7 class scores)
-- **NMS:** IoU 0.5, max 30 boxes
-- **Classes:** `["metal", "trash", "glass", "paper", "cardboard", "plastic", "biological"]`
-- **Thresholds:** Confident ≥ 0.8, Uncertain 0.40–0.79
-- **Dataset:** Temporary Kaggle baseline (sumn2u/garbage-classification-v2-bbox-384)
-- **Size:** 12.7 MB
-
-> [!NOTE]
-> Version v0 is the immutable bundled fallback. Its metrics (mAP) are not yet measured on a local golden set — this happens when local data collection begins.
-
-### Version Lifecycle
-
-```
-v0 (bundled, active)
-  ↓ local dataset collected + training run
-v1 (candidate) → gate check on frozen golden set
-  ↓ admin approves in Admin Panel
-v1 (rolling out: 10%) → v1 (rolling out: 100%) → v1 (active)
-  ↓ future training
-v2 (candidate) ...
-```
-
-Each new version:
-1. Is registered in `model_versions` with its SHA-256 and metrics
-2. Requires admin approval in the Admin Panel before any rollout
-3. Is delivered to eligible users via `get_eligible_model_for_user()` (deterministic hash bucket)
-4. Falls back to v0 on any download or verification failure
-
-### ML Scripts (`ml/src/`)
-
-| Script | Purpose |
-|--------|---------|
-| `inspect_tflite.py` | Inspect model tensor shapes and dtypes |
-| `contract.py` | Validate manifest against TFLite binary |
-| `dataset_audit.py` | Verify training dataset integrity |
-| `parity.py` | Compare Python vs mobile inference outputs |
-| `smoke_test.py` | End-to-end model load + inference test |
-
-### Feedback Loop
-
-```
-1. User scans → detections saved to DB with consent flags
-2. Active learning gating selects samples:
-   - Confidence 0.40–0.79 (uncertain) → 100% upload
-   - User corrections (remove/change class) → 100% upload
-   - Random 5% of clean detections → baseline sampling
-3. Samples queued in feedback_samples (Tier A/B/C/D)
-4. Admin exports → Label Studio → manual annotation (Tier A gold labels)
-5. Retrain YOLOv8n → Export TFLite → Validate contract
-6. Admin approves new version in Admin Panel → staged rollout
-```
+### Automated Test Suites
+- **Mobile Unit Tests (apps/mobile):** **75 passed across 13 test files** (`npm test`)
+  - `active-learning.test.ts`: Gating criteria (uncertain confidence, user corrections, sampling)
+  - `detector.test.ts`: Tensor shape matching, class label alignment, NMS bounding box deduplication
+  - `manager.test.ts`: Active model version resolution, config persistence, remote model update checks
+  - `rules.test.ts`: Condition-based recycling eligibility decision logic
+  - `upload-queue.test.ts`: Offline persistence and batch flushing logic
+  - `snapbot.test.ts` & `recyclingGuides.test.ts`: Guidance templates, prompt sanitization, cache keys
+  - `stats.test.ts`: Home stats fetching and offline AsyncStorage caching
+  - `pickup.test.ts`, `checklist.test.ts`, `status.test.ts`, `routing.test.ts`, `proof.test.ts`: Pickup validations, window math, route parsing, EXIF stripping
+- **ML Scripts & Invariants (ml):** 10 tests verifying contract integrity, tensor formats, and boundary importer
+- **Supabase Integration Tests (supabase/tests):** RLS policy tests, atomic claim race condition tests, expiry cron tests, and feedback queue tests
 
 ---
 
-## Edge Functions (Deno on Supabase)
+## Upcoming Focus: Admin Panel (`apps/admin`)
 
-| Function | Purpose | Auth |
-|----------|---------|------|
-| `snapbot-chat` | OpenAI GPT-4o-mini proxy with caching and rate limiting | User JWT |
-| `get-pickup-private-details` | Return exact address for claimed pickup | User JWT + collector check |
-| `get-pickup-proof` | Short-lived (5 min) signed URL for proof photo | User JWT + participant check |
-| `notify` | FCM push notifications with RS256 signing | Internal |
-
----
-
-## Web Apps (Next.js 15)
-
-### Public Dashboard (`apps/dashboard`) — Community Facing
-
-- **No login required** — reads from `dashboard_*` views (anon SELECT grant)
-- **Port:** 3000
-- **Shows:** Pickup KPIs, material breakdown chart, pickup trends, district map, model transparency tab
-- **Privacy:** Small-count suppression (<5 per district masked), no PII, no exact addresses
-- **Hosting:** Vercel
-
-### Admin Panel (`apps/admin`) — Admin Only
-
-- **Requires** Supabase session with `is_admin()` privilege
-- **Port:** 3001 (dev)
-- **Sections:**
-  | Section | What it does |
-  |---------|-------------|
-  | Detector Versions | View all versions by number (v0, v1…), see rollout%, approve/reject/roll back |
-  | Training Runs | Monitor pipeline runs, check trigger stats, view gate results |
-  | Feedback Queue | Review label corrections, manage Tier A annotation queue |
-  | Disputes | Resolve requester–collector disputes (uphold / reject / inconclusive) |
-  | Drift Monitor | Daily correction rate, uncertain share, inference latency charts per version |
-  | Audit Log | All admin actions with timestamps |
-
-> [!IMPORTANT]
-> The Admin Panel uses plain version numbers (v0, v1, v2…) in its UI. Internal DB role names (`bundled_fallback`, `champion`, `candidate`) are only used in queries, never in user-facing labels.
-
----
-
-## Third-Party Services
-
-| Service | Purpose | Key Location |
-|---------|---------|-------------|
-| **Supabase** | Auth, database, storage, edge functions | `apps/mobile/.env`, `apps/dashboard/.env.local`, `apps/admin/.env.local` |
-| **OpenAI** | SnapBot AI (gpt-4o-mini) | Supabase Edge Function env only |
-| **Firebase Cloud Messaging** | Push notifications (Android) | Supabase Edge Function env only |
-| **Google OAuth** | Sign-in with Google | Firebase Console + Google Cloud Console |
-| **MapLibre** | Map rendering | No API key (OpenFreeMap tiles) |
-| **Kaggle** | GPU training for ML models | Manual upload/download |
-
----
-
-## Privacy & Security
-
-### Privacy-by-Design Features
-- **Grid Snapping:** Exact coordinates masked to 0.01° (~1km) in public marketplace
-- **Private Details Table:** Exact location + address only accessible to requester & collector via authorized Edge Function
-- **No User IDs in LLM Prompts:** SnapBot receives only waste class names
-- **Signed URLs:** Proof photos accessible via short-lived (5 min) signed URLs
-- **Consent Gating:** Images uploaded only with `image_storage_consent` + `training_opt_in`
-- **EXIF Stripping:** All uploaded images downsampled to 800px, EXIF/GPS stripped client-side
-- **Dashboard Suppression:** District counts < 5 masked in public views
-
-### Row-Level Security
-Every table has RLS enabled. Key policies:
-- `profiles` — users read/write own profile only
-- `scans`, `detections` — users read/write own data only
-- `pickup_requests_public` — all can read marketplace, users write own requests
-- `pickup_request_private_details` — requester + collector only
-- Admin tables (`model_versions`, `training_runs`, etc.) — `is_admin()` required for write
-
----
-
-## Testing
-
-### Mobile App Tests (63 tests)
-```bash
-cd apps/mobile
-npm test
-```
-- Detector preprocessing, NMS, rules engine, presentation logic
-- Pickup form validation, grid snapping, window calculation
-- Guidance prompt templates, cache key generation
-
-### ML Tests (10 tests)
-```bash
-cd ml
-python -m unittest discover -s tests
-python -m pytest ../../scripts/test_import_perak_districts.py
-```
-
-### Supabase Integration Tests
-```bash
-cd supabase/tests
-npm run test:rls
-npm run test:pickup
-npm run test:marketplace
-npm run test:expiry
-npm run test:completion
-npm run test:feedback
-```
-
----
-
-## Build Status
-
-```
-Phase 1  Auth & Routing               ✅ Complete
-Phase 2  DB Security & RLS            ✅ Complete
-Phase 3  Google OAuth                  ✅ Complete
-Phase 4  Model Audit (v0 baseline)    ✅ Complete (mAP metrics pending local data)
-Phase 5  On-Device Scanner            ✅ Complete
-Phase 6  Guidance & SnapBot           ✅ Complete
-Phase 7  Pickup Requests + Map        ✅ Complete
-Phase 8  Collector Marketplace        ✅ Complete
-Phase 9  Completion & Proofs          ✅ Complete
-Phase 10 Feedback & Home Stats        ✅ Complete
-
-Phase 11 ML Automation                ⚠️  DB done; train.py / GitHub Actions to build
-Phase 12 Model Delivery (app side)    ⚠️  DB/RPCs done; app download logic to build
-Phase 13 Public Dashboard             ⚠️  DB views done; Next.js pages to write
-Phase 14 Admin Panel                  ⚠️  DB done; Next.js scaffold created; pages to wire up
-
-Phase 15 Research & Pilot             ❌  Needs local dataset + training cycles
-```
-
----
-
-## References
-
-- **Development Guide:** [DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md)
-- **Dataset Collection:** [DATASET_COLLECTION_GUIDE.md](./DATASET_COLLECTION_GUIDE.md)
-- **Model Improvement:** [MODEL_IMPROVEMENT_GUIDE.md](./MODEL_IMPROVEMENT_GUIDE.md)
-- **Environment Setup:** [ENVIRONMENT.md](./ENVIRONMENT.md)
-- **Development Rules:** [../AGENTS.md](../AGENTS.md)
+The mobile application is feature-complete and tested. The primary focus is now the **Admin Panel** (`apps/admin`), built with Next.js 15:
+1. **Authentication & Admin Shell:** Enforce `is_admin()` JWT check, navigation shell with responsive drawer.
+2. **Model Version Management:** Review all detector versions, inspect contract manifests, approve candidate models, and manage staged rollout percentages (0% -> 10% -> 50% -> 100%).
+3. **Continuous Learning / Feedback Review:** Interface to inspect Tier A active-learning images, review user corrections, and trigger dataset export for retraining.
+4. **Dispute Resolution:** Review requester dispute claims, inspect uploaded proof photos via signed URLs, and issue binding resolutions (uphold completion / cancel request).
+5. **Drift & Performance Monitoring:** Visual charts for daily model accuracy drift, uncertain prediction ratios, and on-device inference latency distributions.

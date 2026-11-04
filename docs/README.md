@@ -1,11 +1,12 @@
 # SnapPick Documentation
 
-Welcome to SnapPick! This folder contains all technical documentation for the project.
+Welcome to SnapPick! This directory contains the technical documentation, architecture specifications, development guides, and machine reference.
 
 ## Quick Start
 
 - **New to the project?** Read [ARCHITECTURE.md](./ARCHITECTURE.md) first
 - **Setting up locally?** Follow [DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md)
+- **Toolchain & versions?** Check [ENVIRONMENT.md](./ENVIRONMENT.md)
 - **Want to contribute?** Check [../AGENTS.md](../AGENTS.md) for development rules
 
 ## Documentation Index
@@ -14,48 +15,37 @@ Welcome to SnapPick! This folder contains all technical documentation for the pr
 
 | Document | Description |
 |----------|-------------|
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture, database schema, app structure, what's built |
-| [DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md) | Setup, running tests, common tasks, troubleshooting |
-| [ENVIRONMENT.md](./ENVIRONMENT.md) | Machine setup, installed versions, toolchain reference |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture, database schema, app structure, user flows |
+| [BRAND_IDENTITY.md](./BRAND_IDENTITY.md) | Brand philosophy, color tokens, typography scale, UI patterns, and tone of voice |
+| [DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md) | Setup, running tests, database utilities, common tasks, troubleshooting |
+| [ENVIRONMENT.md](./ENVIRONMENT.md) | Machine setup, installed package versions, toolchain reference |
 | [DATASET_COLLECTION_GUIDE.md](./DATASET_COLLECTION_GUIDE.md) | How to collect local Perak-specific training dataset |
-| [MODEL_IMPROVEMENT_GUIDE.md](./MODEL_IMPROVEMENT_GUIDE.md) | ML model retraining workflow (manual) |
-| [SPIKE_RESULTS.md](./SPIKE_RESULTS.md) | Historical: Phase 0 spike findings (archived) |
-
-### Internal
-
-| Document | Description |
-|----------|-------------|
-| [REFACTOR_PLAN.md](./REFACTOR_PLAN.md) | Documentation refactor decisions (2026-10-30) |
+| [MODEL_IMPROVEMENT_GUIDE.md](./MODEL_IMPROVEMENT_GUIDE.md) | ML model retraining and continuous learning workflow |
+| [SPIKE_RESULTS.md](./SPIKE_RESULTS.md) | Historical: Phase 0 spike findings (archived reference) |
 
 ## Project Status
 
-**Current:** Phases 1–10 Complete (Mobile app production-ready)
+**Current Status:** Mobile App 95%+ Complete & Production-Ready | Focus Shifting to Admin Panel (`apps/admin`)
 
-| Component | Status |
-|-----------|--------|
-| ✅ Mobile App | Production-ready (5 tabs, ML, pickups, SnapBot AI) |
-| ✅ Database | All tables, RLS, geofencing, auto-jobs |
-| ✅ ML Model | Temporary Kaggle baseline (YOLOv8n TFLite) |
-| ✅ Edge Functions | SnapBot, proof URLs, notifications |
-| ⏸️ ML Automation | Manual workflow (Phase 11 pending) |
-| ⏸️ Model Delivery | Not implemented (Phase 12 pending) |
-| ❌ Admin Dashboard | Not built (Phase 13 pending) |
-
-## What's Next?
-
-1. **Collect local dataset** (see DATASET_COLLECTION_GUIDE.md)
-2. **Build ML pipeline automation** (Phase 11: GitHub Actions + Kaggle)
-3. **Build admin dashboard** (Phase 13: Next.js app)
-4. **Implement model delivery** (Phase 12: OTA updates)
+| Component | Status | Location / Details |
+|-----------|--------|---------------------|
+| ✅ Mobile App | Complete (95%+) | `apps/mobile` (5 tabs: Home, Activity, Scan, Collect, Profile) |
+| ✅ Database & Storage | Complete | `supabase/migrations` (28 migrations, RLS, PostGIS, Realtime) |
+| ✅ ML Baseline | Complete | `waste_detector_v0.tflite` (YOLOv8n TFLite CPU) |
+| ✅ Edge Functions | Complete | SnapBot GPT-4o-mini, signed proof URLs, private details |
+| 🔄 Admin Panel | In Progress | `apps/admin` (Next.js 15: models, feedback review, disputes) |
+| ⏸️ Public Dashboard | Planned | `apps/dashboard` (Next.js 15: community stats & open views) |
+| ⏸️ ML Pipeline Automation | Planned | GitHub Actions + Kaggle automated training |
 
 ## Archive
 
-Old documentation moved to [`archive/`](./archive/) for reference:
-- Build guides for completed phases
-- UI/UX specifications
-- Prerequisite setup (merged into DEVELOPMENT_GUIDE)
-- Phase-by-phase checklists
+Historical planning documentation and phase-specific checklists are preserved in [`archive/`](./archive/):
+- `archive/phases/`: Checklists for Phase 1 through Phase 10
+- `archive/SNAPPICK_PLAN.md`: Original 15-phase master plan
+- `archive/SNAPPICK_BUILD_GUIDE.md`: Detailed build instructions
+- `archive/SNAPPICK_PREREQUISITE.md`: Initial environment setup
+- `archive/UI_UX_SPECIFICATION.md`: Original interface designs
 
 ---
 
-**Last Updated:** 2026-10-30
+**Last Updated:** 2026-11-04

@@ -2,43 +2,47 @@
 
 SnapPick is an on-device AI recycling assistant and community pickup platform for Perak, Malaysia. Residents photograph household waste, receive instant Community Recycling Guidelines sorting and preparation guidance, request pickup for accepted recyclable materials within supported service boundaries, consult SnapBot AI for recycling questions, and track privacy-safe impact statistics.
 
-## What's Built (Mobile App Production-Ready ✅)
+## Project Status
 
-The mobile app is fully functional with end-to-end features:
+- ✅ **Mobile App (apps/mobile):** Complete (95%+ feature and UI/UX polish). 5 tabs (`Home`, `Activity`, `Scan`, `Collect`, `Profile`), on-device TFLite inference, MapLibre geofenced pickup scheduling, real-time collector marketplace, driving navigation, streamlined proof submission, dispute handling, mutual user ratings, and OTA model update manager.
+- ✅ **Database & Backend (supabase):** 28 migrations applied. Complete PostGIS boundary geofencing, RLS policies, atomic RPCs (`submit_collection`, `rate_user`, `delete_my_account`, etc.), Realtime broadcast channels, and pg_cron maintenance jobs.
+- 🔄 **Admin Panel (apps/admin):** Next focus. Next.js 15 application scaffolded with Supabase auth context, admin role verification, and initial management pages (detector versions, feedback queue, disputes).
+- ⏸️ **Public Dashboard (apps/dashboard):** Community-facing Next.js dashboard backed by public database views (`dashboard_*`).
+- ⏸️ **ML Automation Pipeline (ml):** Baseline YOLOv8n TFLite model bundled; automated retraining triggers and golden evaluation gate defined.
 
-- ✅ **Authentication:** Email + Google OAuth sign-in
-- ✅ **Waste Detection:** On-device YOLOv8n TFLite model (~1-2s inference)
-- ✅ **Guidance:** Recycling preparation guides + SnapBot AI assistant (OpenAI GPT-4o-mini)
-- ✅ **Pickup Requests:** Create requests with map pin, geofencing (13 Perak districts), privacy masking
-- ✅ **Marketplace:** Browse/claim pickups, navigate, complete with proof photo
-- ✅ **Activity Tracking:** My requests, claimed pickups, statistics
-- ✅ **Privacy & Feedback:** Consent management, training opt-in, offline upload queue
+## Key Features
 
-**What's Not Built:**
-- ⏸️ ML pipeline automation (manual workflow only)
-- ⏸️ Model delivery system (manual bundle updates)
-- ❌ Admin dashboard (empty folder)
-
-**Up Next:** Build ML automation (GitHub Actions + Kaggle) & admin dashboard (Next.js).
+- **On-Device Waste Detection:** Real-time YOLOv8n TFLite model running locally on CPU (~1-2s inference) with 7 material classes: `metal`, `trash`, `glass`, `paper`, `cardboard`, `plastic`, `biological`.
+- **Intelligent Guidance:** Contextual preparation tips, animated recycling guides, and SnapBot AI assistant (OpenAI GPT-4o-mini proxy with cached responses).
+- **Geofenced Pickups:** Reverse geocoded to 13 Perak DOSM districts; privacy masking to 0.01° grid cells (~1km) for public views.
+- **Collector Marketplace:** Real-time MapLibre marketplace with broadcast push updates, driving route preview with native navigation (Google Maps / Waze) handoff.
+- **Streamlined Proof & Verification:** 1-tap photo proof capture (EXIF-stripped client-side), non-collection issue reporting, 48-hour requester confirmation window with dispute support.
+- **Mutual Reputation:** Requesters rate collectors and collectors rate requesters (1–5 stars with attribute tags).
+- **Privacy by Design:** Strict separation between public metadata and private details (`pickup_request_private_details`), opt-in consent for image storage and training data.
+- **OTA Model Lifecycle:** Staged rollouts with hash-based bucket assignment; mobile update checker and local activation in Profile screen.
 
 ## Repository Layout
 
 ```text
 snappick/
   AGENTS.md                  # Development rules & project invariants
-  README.md                  # This file (project overview)
+  BRAND_IDENTITY.md          # Design system, color tokens, typography & microcopy
+  PRODUCT.md                 # Product specifications & principles
+  README.md                  # Project overview & quick start
   docs/
-    ARCHITECTURE.md          # System architecture & database schema
-    DEVELOPMENT_GUIDE.md     # Setup, testing, troubleshooting
+    ARCHITECTURE.md          # System architecture, schemas, and flows
+    DEVELOPMENT_GUIDE.md     # Setup, testing, and troubleshooting guide
+    ENVIRONMENT.md           # Machine setup & toolchain versions
     DATASET_COLLECTION_GUIDE.md
     MODEL_IMPROVEMENT_GUIDE.md
-    ENVIRONMENT.md           # Machine setup & installed versions
+    SPIKE_RESULTS.md         # Historical Phase 0 spike results
   apps/
-    mobile/                  # React Native / Expo SDK 57 app ✅
-    dashboard/               # Admin dashboard (not built yet)
+    mobile/                  # React Native / Expo SDK 57 mobile app ✅
+    admin/                   # Next.js 15 Admin Panel (Current focus) 🔄
+    dashboard/               # Next.js 15 Public Community Dashboard ⏸️
   ml/                        # Python ML scripts & model validation
-  scripts/                   # Boundary import & concurrency tests
-  supabase/                  # Database, Edge Functions, integration tests
+  scripts/                   # DB seed/clean scripts & district importers
+  supabase/                  # Database migrations, Edge Functions, tests
 ```
 
 ## Quick Start: Mobile App
@@ -51,29 +55,39 @@ Requirements: Node.js 24+, OpenJDK 21, Android SDK (API 35–37), connected Andr
    cp apps/mobile/.env.example apps/mobile/.env
    ```
 
-2. **Install and run:**
+2. **Install dependencies:**
    ```bash
    cd apps/mobile
    npm install
-   npm run typecheck
-   npm test
-   npx expo start
    ```
 
-3. **Android native development build:**
+3. **Run checks and tests:**
+   ```bash
+   npm run typecheck
+   npm test
+   ```
+
+4. **Start development build:**
    ```bash
    npx expo run:android
    ```
 
+## Database Utilities
+
+From `apps/mobile` or root:
+- Clean transactional database: `npm --prefix apps/mobile run db:clean`
+- Seed comprehensive test data: `npm --prefix apps/mobile run db:seed`
+- Full database reset: `npm --prefix apps/mobile run db:reset`
+
 ## Running Automated Tests
 
-- **Mobile unit tests (63 tests):**
+- **Mobile unit tests (75 tests across 13 test files):**
   ```bash
   cd apps/mobile
   npm test
   ```
 
-- **ML contracts & scripts tests (10 tests):**
+- **ML contracts & scripts tests:**
   ```bash
   & C:\Users\adyha\miniconda3\envs\snappick\python.exe -m unittest discover -s ml/tests
   & C:\Users\adyha\miniconda3\envs\snappick\python.exe -m unittest discover -s scripts
@@ -83,7 +97,6 @@ Requirements: Node.js 24+, OpenJDK 21, Android SDK (API 35–37), connected Andr
   ```bash
   cd supabase/tests
   npm install
-  # Run RLS, pickup, marketplace, expiry, completion, or feedback suites:
   npm run test:rls
   npm run test:pickup
   npm run test:marketplace

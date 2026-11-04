@@ -1,6 +1,6 @@
 # SnapPick Development Guide
 
-**Last Updated:** 2026-10-30
+**Last Updated:** 2026-11-04
 
 Complete guide for setting up, running, testing, and contributing to SnapPick.
 
@@ -11,11 +11,12 @@ Complete guide for setting up, running, testing, and contributing to SnapPick.
 1. [Prerequisites](#prerequisites)
 2. [Initial Setup](#initial-setup)
 3. [Running the Mobile App](#running-the-mobile-app)
-4. [Running Tests](#running-tests)
-5. [Working with the Database](#working-with-the-database)
-6. [ML Model Development](#ml-model-development)
-7. [Common Tasks](#common-tasks)
-8. [Troubleshooting](#troubleshooting)
+4. [Running the Admin Panel](#running-the-admin-panel)
+5. [Running Tests](#running-tests)
+6. [Working with the Database](#working-with-the-database)
+7. [ML Model Development](#ml-model-development)
+8. [Common Tasks](#common-tasks)
+9. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -161,9 +162,40 @@ Press `a` to reload on Android device. Code changes hot-reload automatically.
 
 ---
 
+## Running the Admin Panel
+
+The Admin Panel (`apps/admin`) is built with Next.js 15 and communicates directly with Supabase, enforcing the `is_admin()` database role.
+
+### 1. Configure Environment
+
+Copy `apps/admin/.env.example` to `apps/admin/.env.local`:
+```bash
+cd apps/admin
+cp .env.example .env.local
+```
+
+Edit `apps/admin/.env.local`:
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+### 2. Run the Development Server
+
+```bash
+cd apps/admin
+npm install
+npm run dev
+# Server starts at http://localhost:3001
+```
+
+Sign in with a user whose profile has been marked as admin via `is_admin()`.
+
+---
+
 ## Running Tests
 
-### Mobile App Unit Tests (63 tests)
+### Mobile App Unit Tests (75 tests across 13 test files)
 
 ```bash
 cd apps/mobile
@@ -176,13 +208,17 @@ npm test -- --watch
 npm test -- --coverage
 ```
 
-**Test coverage includes:**
-- Detector preprocessing (centre crop, letterbox)
-- NMS postprocessing
-- Recycling rules engine
-- Pickup form validation
-- Grid snapping (privacy)
-- Prompt templates (SnapBot)
+**Test suites cover:**
+- Detector preprocessing (384x384 centre crop, RGB normalization, NCHW)
+- Bounding box decode & NMS postprocessing
+- Active learning gating & upload queue logic
+- Active model version manager & OTA remote activation
+- Recycling rules engine & condition validation
+- Pickup form validation, 0.01° grid snapping, and window calculation
+- RoutePreviewMap parsing & navigation handoff
+- Proof preparation & client-side EXIF/GPS stripping
+- SnapBot guidance templates & response caching
+- Home stats fetching & offline AsyncStorage fallback
 
 ### ML Contract Tests (10 tests)
 
@@ -279,11 +315,22 @@ supabase db shell --db-url $DATABASE_URL
 \d+ profiles
 ```
 
-### Seed Test Data
+### Seed Test Data & Clean Scripts
+
+Dedicated utility scripts are provided to manage development and testing state safely:
 
 ```bash
-# Run seed.sql (creates test users, districts, rule sets)
-supabase db execute < supabase/seed.sql
+# 1. Clean transactional database (clears scans, requests, proofs, feedback while keeping accounts & profiles)
+npm --prefix apps/mobile run db:clean
+# Alternatively: node scripts/db-clean.mjs
+
+# 2. Seed comprehensive test data (generates test users, requests across all statuses, proofs, ratings)
+npm --prefix apps/mobile run db:seed
+# Alternatively: node scripts/db-seed.mjs
+
+# 3. Clean and reseed in one operation
+npm --prefix apps/mobile run db:reset
+# Alternatively: node scripts/db-reset.mjs
 ```
 
 ---

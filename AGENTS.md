@@ -1,6 +1,6 @@
 # AGENTS.md: rules for the AI assistant working on SnapPick
 
-Read this file first in every session. Design lives in `docs/SNAPPICK_PLAN.md`. Phase instructions live in `docs/SNAPPICK_BUILD_GUIDE.md`. Machine facts live in `docs/ENVIRONMENT.md`. Spike results live in `docs/SPIKE_RESULTS.md`.
+Read this file first in every session. Architecture lives in `docs/ARCHITECTURE.md` (and historical design in `docs/archive/SNAPPICK_PLAN.md`). Development instructions live in `docs/DEVELOPMENT_GUIDE.md`. Machine facts live in `docs/ENVIRONMENT.md`. Spike results live in `docs/SPIKE_RESULTS.md`.
 
 ## Working rules
 

@@ -1,8 +1,8 @@
-﻿# ENVIRONMENT.md
+# ENVIRONMENT.md
 
 Machine and toolchain facts for SnapPick. The AI assistant reads this file in every session (see `AGENTS.md`). **Only the values marked Recorded come from commands run on this machine.** Anything marked To verify has not been checked yet; do not treat it as confirmed.
 
-Last updated: 2026-10-29 (Pre-Phase 11 codebase hygiene and documentation alignment)
+Last updated: 2026-11-04 (Post-Mobile completion documentation update and Admin Panel transition)
 
 ---
 
