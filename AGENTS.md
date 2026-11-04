@@ -15,7 +15,7 @@ Read this file first in every session. Design lives in `docs/SNAPPICK_PLAN.md`. 
 
 ## Repository layout
 
-Single Git repository, **independent package roots** (no root JavaScript workspaces): `apps/mobile` (Expo), `apps/dashboard` (Next.js, Phase 13), `ml` (Python), `supabase` (migrations, functions, seed, tests), `scripts`, `docs`. Each JavaScript app has its own `package.json` and lockfile. Layout details: guide section 5.1.
+Single Git repository, **independent package roots** (no root JavaScript workspaces): `apps/mobile` (Expo), `apps/dashboard` (Next.js public dashboard, Phase 13), `apps/admin` (Next.js admin panel, Phase 14), `ml` (Python), `supabase` (migrations, functions, seed, tests), `scripts`, `docs`. Each JavaScript app has its own `package.json` and lockfile. Layout details: guide section 5.1.
 
 ## Project facts that must not drift
 

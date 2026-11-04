@@ -11,6 +11,7 @@ coverage/
 build/
 apps/mobile/android/
 apps/mobile/ios/
+.next/
 *.jks
 *.keystore
 google-services.json

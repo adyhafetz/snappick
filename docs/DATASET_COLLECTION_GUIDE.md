@@ -1,12 +1,11 @@
-# SnapPick Dataset Collection Guide
+﻿# SnapPick Dataset Collection Guide
 
 This is the canonical guide for collecting local photos for SnapPick. Use it for owner-collected data and adapt the same privacy and split rules for consented pilot-user uploads. The aim is not merely to accumulate images; it is to create varied, correctly annotated, leakage-free evidence that can improve and fairly evaluate the seven-class detector.
 
 Related documents:
 
 - `docs/MODEL_IMPROVEMENT_GUIDE.md` — how to train, compare, promote, and roll back models.
-- `docs/SNAPPICK_PLAN.md` — research design and model gate.
-- `docs/SNAPPICK_BUILD_GUIDE.md` — phase implementation requirements.
+- `docs/ARCHITECTURE.md` — system overview and version lifecycle.
 
 ## 1. Fixed labels and meanings
 

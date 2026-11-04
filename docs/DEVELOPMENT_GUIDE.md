@@ -218,6 +218,21 @@ npm run test:feedback      # Active learning gating
 
 ---
 
+## Running the Admin Panel
+
+```bash
+cd apps/admin
+cp .env.example .env.local
+# Fill in NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
+npm install
+npm run dev
+# Opens at http://localhost:3001
+```
+
+The admin panel requires a Supabase account with `is_admin()` privilege. All admin actions are gated by Row Level Security in the database.
+
+---
+
 ## Working with the Database
 
 ### Apply Migrations
@@ -279,7 +294,7 @@ supabase db execute < supabase/seed.sql
 
 ```bash
 cd ml
-python -m src.inspect_tflite ../apps/mobile/assets/models/snappick_det_v0.tflite
+python -m src.inspect_tflite ../apps/mobile/assets/models/waste_detector_v0.tflite
 ```
 
 **Output:**
@@ -290,7 +305,7 @@ python -m src.inspect_tflite ../apps/mobile/assets/models/snappick_det_v0.tflite
 ### Validate Model Contract
 
 ```bash
-python -m src.contract --model ../apps/mobile/assets/models/snappick_det_v0.tflite \
+python -m src.contract --model ../apps/mobile/assets/models/waste_detector_v0.tflite \
                        --manifest ../apps/mobile/assets/models/model_manifest.json
 ```
 
@@ -303,7 +318,7 @@ python -m src.contract --model ../apps/mobile/assets/models/snappick_det_v0.tfli
 ### Test Model Inference
 
 ```bash
-python -m src.smoke_test --model ../apps/mobile/assets/models/snappick_det_v0.tflite \
+python -m src.smoke_test --model ../apps/mobile/assets/models/waste_detector_v0.tflite \
                          --image test_images/sample.jpg
 ```
 
@@ -402,7 +417,7 @@ npx expo start -c  # Clear cache
 ### "TFLite model not found"
 
 **Check:**
-1. Model file exists: `apps/mobile/assets/models/snappick_det_v0.tflite`
+1. Model file exists: `apps/mobile/assets/models/waste_detector_v0.tflite`
 2. `metro.config.js` includes `tflite` in `resolver.assetExts`
 3. Rebuild app: `npx expo run:android`
 

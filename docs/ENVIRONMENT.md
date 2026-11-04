@@ -1,4 +1,4 @@
-# ENVIRONMENT.md
+﻿# ENVIRONMENT.md
 
 Machine and toolchain facts for SnapPick. The AI assistant reads this file in every session (see `AGENTS.md`). **Only the values marked Recorded come from commands run on this machine.** Anything marked To verify has not been checked yet; do not treat it as confirmed.
 
@@ -148,6 +148,7 @@ Exact installed versions verified via `npm ls` / `pip list`:
 - [x] Supabase integration tests configured for RLS, pickup, marketplace, expiry, completion, feedback
 - [x] Legacy stub code and default Expo template assets purged
 - [x] ESLint react-hooks pure function errors resolved
+- [ ] apps/admin Next.js scaffold created at apps/admin/
 
 ---
 
