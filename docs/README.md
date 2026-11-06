@@ -19,4 +19,4 @@ See also [../PRODUCT.md](../PRODUCT.md) (product purpose and principles) and [..
 | Database, storage, edge functions (`supabase/`) | Done |
 | Admin dashboard (`apps/admin`) | Done |
 | Retraining (`ml/`) | Done |
-| Public dashboard (`apps/dashboard`) | **Not built yet** |
+| Public website and community dashboard | Planned (not started) |

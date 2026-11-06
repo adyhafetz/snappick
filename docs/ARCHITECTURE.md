@@ -8,7 +8,7 @@ SnapPick is a community recycling app for Perak, Malaysia (Android only). Reside
 | Database, storage, edge functions | `supabase/` | Done |
 | Admin dashboard (Next.js) | `apps/admin` | Done |
 | Model retraining (Kaggle notebook) | `ml/` | Done |
-| **Public dashboard** (Next.js) | `apps/dashboard` | **Not built yet** (placeholder folder only) |
+| Public website and community dashboard | (not started) | Planned |
 
 ```
  Phone (Expo app) ───────────────┐
@@ -65,11 +65,9 @@ All schema changes are files in `supabase/migrations/` (applied to the linked re
 - A submitted proof must exist in storage (at least 1 KB), be a JPEG and have been captured within the last 12 hours.
 - A requester can only confirm by rating (`rate_and_confirm_pickup`). Ratings are readable only by the two people involved and admins.
 - An admin who **upholds** a dispute sets the request to `not_collected` and records a 1-star rating for the collector. The requester can relist the pickup. Every dispute resolution is written to `audit_log`.
-- `pg_cron` jobs: unstarted claims return to `pending` after 24 hours, unconfirmed pickups complete automatically 48 hours after submission (unless disputed), and a daily job computes model statistics.
+- `pg_cron` jobs: unstarted claims return to `pending` after 24 hours, unconfirmed pickups complete automatically 48 hours after submission (unless disputed).
 
-**Main tables:** `profiles`, `scans`, `detections`, `label_feedback`, `feedback_samples`, `scan_upload_queue`, `pickup_requests_public`, `pickup_request_private_details`, `pickup_waste_items`, `pickup_proofs`, `pickup_ratings`, `disputes`, `perak_districts`, `pbt_rule_sets`, `model_versions`, `push_tokens`, `audit_log`, `llm_usage`, `instruction_cache`, `reports`, `drift_daily`.
-
-> `training_runs` and `dataset_versions` still exist in the database from an older retraining design. Nothing reads them. They can be dropped in a new migration.
+**Main tables:** `profiles`, `scans`, `detections`, `label_feedback`, `feedback_samples`, `scan_upload_queue`, `pickup_requests_public`, `pickup_request_private_details`, `pickup_waste_items`, `pickup_proofs`, `pickup_ratings`, `disputes`, `perak_districts`, `pbt_rule_sets`, `model_versions`, `push_tokens`, `audit_log`, `llm_usage`, `instruction_cache`, `reports`.
 
 **Edge functions** (`supabase/functions/`): `snapbot-chat` (recycling chat assistant, signed-in users only), `notify` (push notifications on status changes via Firebase), `get-pickup-private-details` and `get-pickup-proof` (return the address or a signed proof link to the people allowed to see them).
 
@@ -87,10 +85,6 @@ Next.js 15 (App Router) on port 3001. Sign-in requires an account with `profiles
 ## Retraining (`ml/`)
 
 See [MODEL_LIFECYCLE.md](./MODEL_LIFECYCLE.md) for the full flow and [KAGGLE_SETUP.md](./KAGGLE_SETUP.md) for the one-time Kaggle setup. In short: Retrain pushes `ml/notebooks/kaggle_waste_detector_retraining.ipynb` to one fixed Kaggle notebook, which trains YOLOv8n on the public base dataset plus your verified community images, exports TFLite, uploads it and registers it as a candidate. The admin decides whether to use it.
-
-## Public dashboard (`apps/dashboard`) - not built
-
-The privacy-masked views it will read already exist (`dashboard_overview_kpis`, `dashboard_pickup_trends`, `dashboard_material_breakdown`, `dashboard_district_aggregates`, `dashboard_model_transparency`, with small counts suppressed). The Next.js app itself has not been started.
 
 ## Testing
 
