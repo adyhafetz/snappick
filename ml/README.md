@@ -1,25 +1,25 @@
 # SnapPick ML
 
-The current detector contract is the verified temporary smoke model: YOLOv8n float32 TFLite, 384 x 384 centre-crop preprocessing, and these labels in fixed order: `metal`, `trash`, `glass`, `paper`, `cardboard`, `plastic`, `biological`. Do not remap or silently rename them.
+Detector training for SnapPick. The only training code is the Kaggle notebook [`notebooks/kaggle_waste_detector_retraining.ipynb`](notebooks/kaggle_waste_detector_retraining.ipynb). The admin dashboard's **Retrain** button pushes it to Kaggle and starts a GPU run.
 
-Use [`docs/DATASET_COLLECTION_GUIDE.md`](../docs/DATASET_COLLECTION_GUIDE.md) for local photo collection and split/leakage rules. Use [`docs/MODEL_IMPROVEMENT_GUIDE.md`](../docs/MODEL_IMPROVEMENT_GUIDE.md) for candidate training, golden-set evaluation, promotion gates, and fallback behavior. The exact bundled M0 model remains immutable; a candidate never overwrites it.
+- How the whole flow works: [../docs/MODEL_LIFECYCLE.md](../docs/MODEL_LIFECYCLE.md)
+- One-time Kaggle setup (credentials and secrets): [../docs/KAGGLE_SETUP.md](../docs/KAGGLE_SETUP.md)
 
-Phase 4 freezes the source artifact audit in [`model_manifest.json`](model_manifest.json) and
-[`reports/m0/`](reports/m0/). The exact binary, labels file, and source notebook are preserved
-locally under `ml/artifacts/m0/` (ignored by Git because the binary is large and its licence has
-not been verified). Copy them from `C:\Projects\waste-app` before rerunning the audit.
+## Folder layout
 
-From the repository root, run the audit and tests with:
-
-```powershell
-conda run -n snappick python -m unittest discover -s ml/tests -p "test_*.py"
-conda run -n snappick python -m ml.src.inspect_tflite ml/artifacts/m0/snappick_det_v0.tflite --json ml/artifacts/m0/tensor_inspection.json
-conda run -n snappick python -m ml.src.smoke_test ml/artifacts/m0/snappick_det_v0.tflite ml/model_manifest.json --labels ml/artifacts/m0/labels.json
+```text
+ml/
+  README.md
+  notebooks/
+    kaggle_waste_detector_retraining.ipynb   tracked in Git; the admin app reads this exact path
+  baseline-v0/                               local only, ignored by Git
+  data/                                      local only, ignored by Git (your own datasets and photos)
 ```
 
-The smoke command verifies the manifest, SHA-256, tensor shapes/dtypes, and label contract. It
-does not claim runtime inference, PyTorch/TFLite parity, or metrics unless a TFLite interpreter,
-checkpoint, reference images, and held-out datasets are supplied.
+`baseline-v0/` holds the original source files of the bundled baseline model (the first, verified "milestone 0" model, version `v0`): its `.tflite` file, `labels.json`, `tensor_inspection.json` (the recorded tensor shapes) and the notebook it was trained with. The `.tflite` file is byte-identical to `apps/mobile/assets/models/waste_detector_v0.tflite`, which is the copy the app actually uses and which is never overwritten. The folder is ignored by Git because the training notebook is large and its licence has not been verified.
 
-Local datasets and photos belong under `ml/data/`, which is ignored by Git. Keep dataset manifests
-privacy-safe: no user IDs, addresses, exact coordinates, pickup notes, or other identifying metadata.
+Keep anything under `data/` free of user IDs, addresses and exact coordinates.
+
+## Model contract
+
+YOLOv8n exported to float32 TFLite, 384 × 384 centre-crop input (`[1, 3, 384, 384]`), raw output `[1, 11, 3024]`. Labels in fixed order: `metal, trash, glass, paper, cardboard, plastic, biological`. The phone reads all of this from `apps/mobile/assets/models/model_manifest.json` and checks it against the loaded model, so a new model must keep the same contract.

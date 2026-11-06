@@ -3,7 +3,7 @@ node_modules/
 .env.*
 !.env.example
 ml/data/
-ml/artifacts/
+ml/baseline-v0/
 .expo/
 dist/
 web-build/
@@ -17,3 +17,4 @@ apps/mobile/ios/
 google-services.json
 __pycache__/
 .venv/
+*.tsbuildinfo
