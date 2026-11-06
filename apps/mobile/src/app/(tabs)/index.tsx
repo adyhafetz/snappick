@@ -165,7 +165,7 @@ export default function HomeScreen() {
               <View style={{ width: 58, height: 58, flexShrink: 0 }} className="items-center justify-center">
                 <ExpoImage
                   source={require('../../../assets/images/camera-icon.svg')}
-                  style={{ width: 56, height: 56 }}
+                  style={{ width: 52, height: 52 }}
                   contentFit="contain"
                   accessibilityLabel="Scan Waste"
                 />
