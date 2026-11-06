@@ -32,6 +32,8 @@ import { CollectionChecklist } from '@/components/pickup/CollectionChecklist';
 import { RoutePreviewMap } from '@/components/pickup/RoutePreviewMap';
 import { ProofPhotoModal } from '@/components/pickup/ProofPhotoModal';
 import { PickupRatingModal } from '@/components/pickup/PickupRatingModal';
+import { formatRating } from '@/lib/pickup/rating';
+import { isProofFresh, proofCapturedAt , stripJpegMetadata } from '@/lib/pickup/proof-metadata';
 import { PickupDisputeModal } from '@/components/pickup/PickupDisputeModal';
 import { PickupStatusPill } from '@/components/pickup/PickupStatusPill';
 import { prepareProofImage } from '@/lib/pickup/proof';
@@ -40,7 +42,6 @@ import {
   type ChecklistReason,
   type ChecklistRow,
 } from '@/lib/pickup/checklist';
-import { stripJpegMetadata } from '@/lib/pickup/proof-metadata';
 
 type PrivateDetails = {
   longitude: number;
@@ -92,7 +93,7 @@ export default function PickupDetailsScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [rows, setRows] = useState<ChecklistRow[]>([]);
-  const [proof, setProof] = useState<{ uri: string; width: number; height: number } | null>(null);
+  const [proof, setProof] = useState<{ uri: string; width: number; height: number; capturedAt: string } | null>(null);
   const [submittedProofUrl, setSubmittedProofUrl] = useState<string | null>(null);
   const [loadingProof, setLoadingProof] = useState(false);
   const [proofModalUrl, setProofModalUrl] = useState<string | null>(null);
@@ -257,6 +258,17 @@ export default function PickupDetailsScreen() {
     await load();
   };
 
+  const relist = async () => {
+    if (!id) return;
+    setBusy(true);
+    const { error: relistError } = await supabase.rpc('relist_pickup', { request_id: id });
+    setBusy(false);
+    if (relistError) {
+      Alert.alert('Could not relist pickup', 'This request can no longer be relisted. Refresh and try again.');
+    }
+    await load();
+  };
+
   const navigate = async () => {
     if (!details) return;
     try {
@@ -284,19 +296,30 @@ export default function PickupDetailsScreen() {
         uri: result.assets[0].uri,
         width: result.assets[0].width,
         height: result.assets[0].height,
+        capturedAt: new Date().toISOString(),
       });
     }
   };
 
   const chooseProofFromGallery = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
-    if (!result.canceled && result.assets[0]) {
-      setProof({
-        uri: result.assets[0].uri,
-        width: result.assets[0].width,
-        height: result.assets[0].height,
-      });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1, exif: true });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    const capturedAt = proofCapturedAt('gallery', asset.exif as Record<string, unknown> | null | undefined);
+    if (!capturedAt) {
+      Alert.alert('Cannot verify photo', 'This photo has no capture time. Take a new photo with the camera.');
+      return;
     }
+    if (!isProofFresh(capturedAt)) {
+      Alert.alert('Photo is too old', 'Proof photos must be taken within the last 12 hours.');
+      return;
+    }
+    setProof({
+      uri: asset.uri,
+      width: asset.width,
+      height: asset.height,
+      capturedAt: capturedAt.toISOString(),
+    });
   };
 
   const submitCollection = async (reason?: ChecklistReason) => {
@@ -322,7 +345,7 @@ export default function PickupDetailsScreen() {
         p_items: null,
         p_non_collection_reason: reason ?? null,
         p_proof_path: path,
-        p_captured_at: new Date().toISOString(),
+        p_captured_at: proof.capturedAt,
       });
       if (submitError) throw submitError;
       Alert.alert(
@@ -332,8 +355,16 @@ export default function PickupDetailsScreen() {
           : 'Collection submitted for resident confirmation.'
       );
       router.replace({ pathname: '/(tabs)/activity', params: { tab: 'claimed' } });
-    } catch {
-      Alert.alert('Error', 'Could not submit collection. Try again.');
+    } catch (cause) {
+      const detail = ((cause as { message?: string } | null)?.message ?? '').toLowerCase();
+      Alert.alert(
+        'Error',
+        detail.includes('proof_time_invalid')
+          ? 'Proof photos must be taken within the last 12 hours. Take a new photo.'
+          : detail.includes('proof_file_invalid')
+            ? 'The proof photo did not upload correctly. Take a new photo and try again.'
+            : 'Could not submit collection. Try again.'
+      );
     } finally {
       setBusy(false);
     }
@@ -418,19 +449,27 @@ export default function PickupDetailsScreen() {
                     </Text>
                   </View>
                 </View>
-                {partner.rating != null && (
-                  <View className="flex-row items-center gap-1.5 bg-secondary/60 px-3 py-1.5 rounded-2xl border border-border/60">
-                    <Star size={13} color="#f59e0b" fill="#f59e0b" />
-                    <Text className="text-xs font-bold text-foreground">
-                      {partner.rating.toFixed(1)}
-                    </Text>
-                    {partner.ratingCount != null && (
-                      <Text className="text-[10px] text-muted-foreground font-medium">
-                        ({partner.ratingCount})
-                      </Text>
-                    )}
-                  </View>
-                )}
+                {(() => {
+                  // Only collectors are rated; requesters never show a rating.
+                  // ratingCount is null when no collector is assigned (e.g. cancelled before a claim).
+                  if (partner.roleLabel !== 'Collector' || partner.ratingCount == null) return null;
+                  const shown = formatRating(partner.rating, partner.ratingCount);
+                  return (
+                    <View className="flex-row items-center gap-1.5 bg-secondary/60 px-3 py-1.5 rounded-2xl border border-border/60">
+                      {shown.rated ? (
+                        <>
+                          <Star size={13} color="#f59e0b" fill="#f59e0b" />
+                          <Text className="text-xs font-bold text-foreground">{shown.average}</Text>
+                          <Text className="text-[10px] text-muted-foreground font-medium">
+                            ({shown.count})
+                          </Text>
+                        </>
+                      ) : (
+                        <Text className="text-xs font-bold text-muted-foreground">New</Text>
+                      )}
+                    </View>
+                  );
+                })()}
               </View>
             )}
 
@@ -607,9 +646,24 @@ export default function PickupDetailsScreen() {
                     </View>
                     <Text className="text-sm font-bold text-foreground">Collection Proof</Text>
                   </View>
-                  <Badge variant="success" className="px-2.5 py-0.5 rounded-full flex-row items-center gap-1">
-                    <Check size={11} color="#16a34a" />
-                    <Text className="text-[10px] font-bold text-emerald-800">Verified</Text>
+                  <Badge
+                    variant={pickup.status === 'completed' ? 'success' : 'secondary'}
+                    className="px-2.5 py-0.5 rounded-full flex-row items-center gap-1"
+                  >
+                    {pickup.status === 'completed' && <Check size={11} color="#16a34a" />}
+                    <Text
+                      className={
+                        pickup.status === 'completed'
+                          ? 'text-[10px] font-bold text-emerald-800'
+                          : 'text-[10px] font-bold text-muted-foreground'
+                      }
+                    >
+                      {pickup.status === 'completed'
+                        ? 'Confirmed'
+                        : pickup.status === 'disputed'
+                          ? 'Disputed'
+                          : 'Awaiting confirmation'}
+                    </Text>
                   </Badge>
                 </View>
 
@@ -721,6 +775,22 @@ export default function PickupDetailsScreen() {
                 >
                   <ShieldAlert size={15} color="#b42318" />
                   <Text className="text-sm font-bold text-destructive">Report Issue</Text>
+                </Button>
+              </View>
+            )}
+
+            {/* Requester: pickup was not collected (e.g. dispute upheld) -> offer a new collector */}
+            {role === 'requester' && pickup.status === 'not_collected' && (
+              <View className="gap-2.5 mt-2 mb-4">
+                <Text className="text-xs font-semibold text-muted-foreground">
+                  This pickup was not collected.
+                </Text>
+                <Button
+                  disabled={busy}
+                  onPress={() => void relist()}
+                  className="w-full h-12 rounded-2xl bg-primary flex-row items-center justify-center gap-2 shadow-xs"
+                >
+                  <Text className="text-base font-bold text-white">Find another collector</Text>
                 </Button>
               </View>
             )}

@@ -29,6 +29,8 @@ import {
   activateRemoteModel,
 } from '@/lib/detector/manager';
 import { supabase } from '@/lib/supabase';
+import { formatRating } from '@/lib/pickup/rating';
+import { deleteOwnStoredFiles } from '@/lib/account/delete-stored-files';
 
 export default function ProfileScreen() {
   const { profile, profileLoading, session, signOut, updateProfile } = useAuth();
@@ -176,6 +178,9 @@ export default function ProfileScreen() {
     setDeletingAccount(true);
     setError(null);
     try {
+      // Delete stored photos first: the account removal below does not delete files in storage.
+      const userId = session?.user.id;
+      if (userId) await deleteOwnStoredFiles(userId);
       const { error: rpcError } = await supabase.rpc('delete_user_account');
       if (rpcError) throw rpcError;
       await signOut();
@@ -189,6 +194,7 @@ export default function ProfileScreen() {
     }
   }
 
+  const profileRating = formatRating(profile?.rating_avg, profile?.rating_count);
   const memberSince = React.useMemo(() => {
     const dateStr = profile?.created_at || session?.user?.created_at;
     if (!dateStr) return 'Active Member';
@@ -306,10 +312,19 @@ export default function ProfileScreen() {
             {/* Card Footer: Rating on left, Joined on right */}
             <View className="flex-row items-center justify-between px-0.5">
               <View className="flex-row items-center gap-1.5">
-                <Star size={13} color="#facc15" fill="#facc15" />
-                <Text className="text-xs font-bold text-white">
-                  {Number(profile.rating_avg ?? 5.0).toFixed(1)}
-                </Text>
+                {profileRating.rated ? (
+                  <>
+                    <Star size={13} color="#facc15" fill="#facc15" />
+                    <Text className="text-xs font-bold text-white">
+                      {profileRating.average}
+                    </Text>
+                    <Text className="text-[10px] font-medium text-white/75">
+                      ({profileRating.count})
+                    </Text>
+                  </>
+                ) : (
+                  <Text className="text-xs font-bold text-white/75">New collector</Text>
+                )}
               </View>
               <Text className="text-xs font-medium text-white/75">
                 {memberSince}

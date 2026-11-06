@@ -141,7 +141,7 @@ export async function checkForModelUpdate(userId?: string): Promise<CheckUpdateR
       };
     }
 
-    // Top eligible model (champion or latest approved roll-out)
+    // Best eligible model: the live model first, then the newest approved one
     const bestModel = eligibleModels[0];
 
     // If best model is newer or different from active version

@@ -376,7 +376,6 @@ async function claim(requestId: string, refresh: () => Promise<void>) {
     return;
   }
   await refresh();
-  router.replace('/(tabs)/activity');
+  router.replace({ pathname: '/(tabs)/activity', params: { tab: 'claimed' } });
 }
 
-export const PickupMarketplace = PickupCollect;

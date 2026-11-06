@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link } from 'expo-router';
-import { AlertCircle, CheckCircle2, Mail, Lock, Sparkles } from 'lucide-react-native';
+import { Image } from 'expo-image';
+import { AlertCircle, CheckCircle2, Mail, Lock } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -97,25 +98,23 @@ export function AuthForm({ mode }: AuthFormProps) {
             keyboardShouldPersistTaps="handled"
           >
             {/* Brand Header */}
-            <View className="items-center mb-8">
-              <View className="h-16 w-16 rounded-3xl bg-primary/10 border border-primary/20 items-center justify-center mb-4 shadow-sm">
-                <Sparkles size={32} color="#19806d" />
-              </View>
-              <Text className="text-3xl font-black tracking-tight text-foreground">
+            <View className="items-center mb-7">
+              <Image
+                source={require('../../assets/images/logo.png')}
+                style={{ width: 72, height: 72, marginBottom: 20 }}
+                contentFit="contain"
+                accessibilityLabel="SnapPick Logo"
+              />
+              <Text className="text-3xl font-black tracking-tight text-foreground text-center">
                 {isSignIn ? 'Welcome Back' : 'Get Started'}
-              </Text>
-              <Text className="text-sm font-medium text-muted-foreground mt-1">
-                {isSignIn
-                  ? 'Sign in to continue your recycling pickups.'
-                  : 'Create an account to scan and request pickups.'}
               </Text>
             </View>
 
             {/* Card Form */}
-            <Card className="border-border/70 bg-card shadow-sm p-5 rounded-3xl">
-              <CardContent className="p-0 space-y-4">
+            <Card className="border-border/70 bg-card shadow-sm p-6 rounded-3xl">
+              <CardContent className="p-0">
                 {error && (
-                  <View className="flex-row items-center gap-2.5 rounded-2xl bg-destructive/10 border border-destructive/20 p-3.5 mb-2">
+                  <View className="flex-row items-center gap-2.5 rounded-2xl bg-destructive/10 border border-destructive/20 p-3.5 mb-4">
                     <AlertCircle size={18} color="#b42318" />
                     <Text className="flex-1 text-xs font-semibold text-destructive leading-tight">
                       {error}
@@ -124,7 +123,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                 )}
 
                 {notice && (
-                  <View className="flex-row items-center gap-2.5 rounded-2xl bg-primary/10 border border-primary/20 p-3.5 mb-2">
+                  <View className="flex-row items-center gap-2.5 rounded-2xl bg-primary/10 border border-primary/20 p-3.5 mb-4">
                     <CheckCircle2 size={18} color="#19806d" />
                     <Text className="flex-1 text-xs font-semibold text-primary leading-tight">
                       {notice}
@@ -132,37 +131,40 @@ export function AuthForm({ mode }: AuthFormProps) {
                   </View>
                 )}
 
-                {/* Email Field */}
-                <View className="relative justify-center">
-                  <Input
-                    accessibilityLabel="Email"
-                    autoCapitalize="none"
-                    autoComplete="email"
-                    keyboardType="email-address"
-                    onChangeText={setEmail}
-                    placeholder="Email address"
-                    value={email}
-                    className="pl-11 h-12 rounded-2xl bg-secondary/40 border-border/60"
-                  />
-                  <View className="absolute left-3.5">
-                    <Mail size={18} color="#5b7072" />
+                {/* Form Fields */}
+                <View className="gap-3">
+                  {/* Email Field */}
+                  <View className="relative justify-center">
+                    <Input
+                      accessibilityLabel="Email"
+                      autoCapitalize="none"
+                      autoComplete="email"
+                      keyboardType="email-address"
+                      onChangeText={setEmail}
+                      placeholder="Email address"
+                      value={email}
+                      className="pl-11 h-12 rounded-2xl bg-secondary/40 border-border/60"
+                    />
+                    <View className="absolute left-3.5">
+                      <Mail size={18} color="#5b7072" />
+                    </View>
                   </View>
-                </View>
 
-                {/* Password Field */}
-                <View className="relative justify-center mt-3">
-                  <Input
-                    accessibilityLabel="Password"
-                    autoCapitalize="none"
-                    autoComplete={isSignIn ? 'current-password' : 'new-password'}
-                    onChangeText={setPassword}
-                    placeholder="Password (6+ chars)"
-                    secureTextEntry
-                    value={password}
-                    className="pl-11 h-12 rounded-2xl bg-secondary/40 border-border/60"
-                  />
-                  <View className="absolute left-3.5">
-                    <Lock size={18} color="#5b7072" />
+                  {/* Password Field */}
+                  <View className="relative justify-center">
+                    <Input
+                      accessibilityLabel="Password"
+                      autoCapitalize="none"
+                      autoComplete={isSignIn ? 'current-password' : 'new-password'}
+                      onChangeText={setPassword}
+                      placeholder="Password (6+ chars)"
+                      secureTextEntry
+                      value={password}
+                      className="pl-11 h-12 rounded-2xl bg-secondary/40 border-border/60"
+                    />
+                    <View className="absolute left-3.5">
+                      <Lock size={18} color="#5b7072" />
+                    </View>
                   </View>
                 </View>
 
@@ -170,7 +172,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                 <Button
                   disabled={busy}
                   onPress={() => void submit()}
-                  className="w-full h-12 rounded-2xl bg-primary shadow-sm mt-2"
+                  className="w-full h-12 rounded-2xl bg-primary shadow-sm mt-4"
                 >
                   {busy ? (
                     <ActivityIndicator color="#ffffff" />
@@ -182,7 +184,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                 </Button>
 
                 {/* Divider */}
-                <View className="my-2 flex-row items-center gap-3">
+                <View className="flex-row items-center gap-3 my-3">
                   <Separator className="flex-1" />
                   <Text className="text-[11px] font-bold text-muted-foreground uppercase">or</Text>
                   <Separator className="flex-1" />
@@ -207,7 +209,7 @@ export function AuthForm({ mode }: AuthFormProps) {
             </Card>
 
             {/* Toggle Mode Link with Accessible Touch Target */}
-            <View className="mt-8 flex-row justify-center items-center">
+            <View className="mt-6 flex-row justify-center items-center">
               <Text className="text-sm text-muted-foreground">
                 {isSignIn ? "Don't have an account? " : 'Already registered? '}
               </Text>
@@ -216,7 +218,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                   accessibilityRole="button"
                   accessibilityLabel={isSignIn ? 'Sign up' : 'Sign in'}
                   activeOpacity={0.7}
-                  className="min-h-[48px] justify-center px-2 py-2"
+                  className="min-h-[48px] justify-center px-1.5 py-2"
                 >
                   <Text className="text-sm font-bold text-primary">
                     {isSignIn ? 'Sign up' : 'Sign in'}

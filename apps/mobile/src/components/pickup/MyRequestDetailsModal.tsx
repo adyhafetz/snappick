@@ -20,6 +20,7 @@ import {
 import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
+import { formatRating } from '@/lib/pickup/rating';
 
 export type MyRequestItem = {
   id: string;
@@ -83,6 +84,7 @@ export function MyRequestDetailsModal({
 }: MyRequestDetailsModalProps) {
   const isPending = request?.status === 'pending';
   const isClaimed = mode === 'claimed';
+  const collectorRating = formatRating(request?.collector_rating, request?.collector_rating_count);
 
   const quantityByClass = useMemo(() => {
     const map: Record<string, number> = {
@@ -169,17 +171,6 @@ export function MyRequestDetailsModal({
                     </Text>
                   </View>
                 </View>
-                {request.requester_rating != null && (
-                  <View className="flex-row items-center gap-1 bg-card px-2.5 py-1 rounded-xl border border-border/60 shadow-2xs">
-                    <Star size={12} color="#f59e0b" fill="#f59e0b" />
-                    <Text className="text-xs font-bold text-foreground">
-                      {request.requester_rating.toFixed(1)}
-                    </Text>
-                    <Text className="text-[10px] text-muted-foreground font-medium">
-                      ({request.requester_rating_count ?? 0})
-                    </Text>
-                  </View>
-                )}
               </View>
             ) : (
               <View className="mb-3 p-3.5 rounded-2xl bg-secondary/40 border border-border/60 flex-row items-center justify-between">
@@ -196,15 +187,21 @@ export function MyRequestDetailsModal({
                     </Text>
                   </View>
                 </View>
-                {request.collector_rating != null && (
+                {request.collector_name != null && (
                   <View className="flex-row items-center gap-1 bg-card px-2.5 py-1 rounded-xl border border-border/60 shadow-2xs">
-                    <Star size={12} color="#f59e0b" fill="#f59e0b" />
-                    <Text className="text-xs font-bold text-foreground">
-                      {request.collector_rating.toFixed(1)}
-                    </Text>
-                    <Text className="text-[10px] text-muted-foreground font-medium">
-                      ({request.collector_rating_count ?? 0})
-                    </Text>
+                    {collectorRating.rated ? (
+                      <>
+                        <Star size={12} color="#f59e0b" fill="#f59e0b" />
+                        <Text className="text-xs font-bold text-foreground">
+                          {collectorRating.average}
+                        </Text>
+                        <Text className="text-[10px] text-muted-foreground font-medium">
+                          ({collectorRating.count})
+                        </Text>
+                      </>
+                    ) : (
+                      <Text className="text-xs font-bold text-muted-foreground">New</Text>
+                    )}
                   </View>
                 )}
               </View>

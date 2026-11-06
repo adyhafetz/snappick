@@ -7,7 +7,6 @@ import { Image as ExpoImage } from 'expo-image';
 import {
   Camera,
   ArrowRight,
-  Sparkles,
   Bot,
   CheckCircle2,
   PackageCheck,
@@ -24,7 +23,8 @@ import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { SnapBotModal } from '@/components/guidance/SnapBotModal';
 import { fetchHomeStats, type HomeStats, DEFAULT_HOME_STATS } from '@/lib/home/stats';
-import { flushOfflineUploadQueue } from '@/lib/detector/upload-queue';
+import { syncOfflineScans } from '@/lib/detector/pending-sessions';
+import { maybePromptForModelUpdate } from '@/lib/detector/model-update-prompt';
 import { PERAK_ECO_NEWS } from '@/lib/news/perakNews';
 
 function formatRecentDate(isoString: string): string {
@@ -59,7 +59,7 @@ export default function HomeScreen() {
     const { stats: loadedStats, fromCache } = await fetchHomeStats();
     setStats(loadedStats);
     setIsOfflineCache(fromCache);
-    void flushOfflineUploadQueue();
+    void syncOfflineScans();
   }, []);
 
   useEffect(() => {
@@ -71,7 +71,8 @@ export default function HomeScreen() {
           setIsOfflineCache(fromCache);
         }
       });
-      void flushOfflineUploadQueue();
+      void syncOfflineScans();
+      void maybePromptForModelUpdate();
     }
     return () => {
       active = false;
@@ -104,21 +105,18 @@ export default function HomeScreen() {
         }
       >
         {/* Brand Bar */}
-        <View className="flex-row items-center justify-between mb-5">
-          <View>
-            <Text className="text-2xl font-black tracking-tight text-ink">SnapPick</Text>
-            <View className="h-1 w-7 rounded-full bg-primary mt-1" />
-          </View>
-          <View className="flex-row items-center gap-2">
-            {isOfflineCache && (
-              <View className="px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
-                <Text className="text-[11px] font-bold text-amber-700">Offline</Text>
-              </View>
-            )}
-            <View className="h-10 w-10 rounded-2xl bg-primary/10 items-center justify-center">
-              <Sparkles size={20} color="#19806d" />
+        <View className="items-center justify-center mb-6 relative">
+          <ExpoImage
+            source={require('../../../assets/images/logo-full.png')}
+            style={{ width: 154, height: 32 }}
+            contentFit="contain"
+            accessibilityLabel="SnapPick"
+          />
+          {isOfflineCache && (
+            <View className="absolute right-0 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
+              <Text className="text-[11px] font-bold text-amber-700">Offline</Text>
             </View>
-          </View>
+          )}
         </View>
 
 

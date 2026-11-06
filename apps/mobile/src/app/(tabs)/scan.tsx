@@ -63,9 +63,11 @@ import { getRecyclingGuide } from '@/lib/guidance/recyclingGuides';
 import { useAuth } from '@/providers/AuthProvider';
 import {
   persistScanSession,
+  type PersistScanParams,
   type DetectionRecord,
   type UserCorrection,
 } from '@/lib/detector/persistence';
+import { queuePendingScanSession } from '@/lib/detector/pending-sessions';
 import { enqueueScanUpload, flushOfflineUploadQueue } from '@/lib/detector/upload-queue';
 
 function generateUUID(): string {
@@ -324,7 +326,7 @@ export default function ScanScreen() {
               feedbackType: 'confirm',
             });
           }
-          if (item.condition !== 'unknown') {
+          if (!item.removed && item.condition !== 'unknown') {
             corrections.push({
               originalModelLabel: item.detection.label,
               originalCondition: 'unknown',
@@ -335,8 +337,7 @@ export default function ScanScreen() {
         }
       });
 
-      try {
-        const res = await persistScanSession({
+      const sessionParams: PersistScanParams = {
           scanId: activeScanId,
           userId: activeUser.id,
           modelVersion: (await getActiveModelVersion()) || modelManifest.version,
@@ -350,7 +351,10 @@ export default function ScanScreen() {
           inferenceMs: Math.round(targetResult.timings.inferenceMs),
           detections,
           corrections,
-        });
+      };
+
+      try {
+        const res = await persistScanSession(sessionParams);
 
         if (res.gating.shouldUpload) {
           await enqueueScanUpload({
@@ -364,6 +368,12 @@ export default function ScanScreen() {
         }
       } catch (persistError) {
         console.warn('Scan persistence error:', persistError);
+        // Offline or a temporary failure: keep the scan and save it when the app is back online.
+        await queuePendingScanSession(
+          sessionParams,
+          targetPhoto.uri,
+          persistError instanceof Error ? persistError.message : String(persistError)
+        );
       }
     },
     [session, profile, activeRuleSet]
@@ -769,6 +779,11 @@ export default function ScanScreen() {
                           >
                             {presentation.label}
                           </Text>
+                          {item.detection?.confidence === 'uncertain' && !item.confirmed && !item.removed && (
+                            <Text className="text-[11px] font-medium text-amber-700">
+                              Low confidence · {Math.round(item.detection.score * 100)}% sure
+                            </Text>
+                          )}
                         </View>
                       </Pressable>
 

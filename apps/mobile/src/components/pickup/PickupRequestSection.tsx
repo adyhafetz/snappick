@@ -539,6 +539,7 @@ function safeCreateError(message: string): string {
   if (lower.includes('no_eligible_items')) return 'At least one reviewed item must be eligible for pickup.';
   if (lower.includes('invalid_coordinates')) return 'The selected map point is invalid. Move the pin and try again.';
   if (lower.includes('invalid_pickup_window')) return 'Choose a valid future pickup window.';
+  if (lower.includes('open_request_limit')) return 'You already have 5 open pickups. Cancel one or wait until one is collected.';
   if (lower.includes('invalid_private_details')) return 'Check the required address fields and try again.';
   if (lower.includes('unsupported_pickup_item') || lower.includes('invalid_pickup_item')) return 'The reviewed item list changed. Return to Scan and review it again.';
   return 'Pickup could not be submitted. Check your connection and try again.';

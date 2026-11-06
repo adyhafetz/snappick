@@ -36,14 +36,14 @@ export function PickupRatingModal({
   onClose,
   onSuccess,
 }: PickupRatingModalProps) {
-  const [rating, setRating] = useState<number>(5);
+  const [rating, setRating] = useState<number>(0);
   const [note, setNote] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
 
   if (!visible || !requestId) return null;
 
   async function handleSubmit() {
-    if (!requestId) return;
+    if (!requestId || rating < 1) return;
     setSubmitting(true);
     try {
       const { error } = await supabase.rpc('rate_and_confirm_pickup', {
@@ -57,6 +57,8 @@ export function PickupRatingModal({
         return;
       }
 
+      setRating(0);
+      setNote('');
       onSuccess();
       onClose();
     } catch (err) {
@@ -127,7 +129,7 @@ export function PickupRatingModal({
               })}
             </View>
             <Text className="text-xs font-semibold text-primary mt-1">
-              {RATING_LABELS[rating]}
+              {rating > 0 ? RATING_LABELS[rating] : 'Tap a star to rate'}
             </Text>
           </View>
 
@@ -149,7 +151,7 @@ export function PickupRatingModal({
 
           {/* Confirm Button */}
           <Button
-            disabled={submitting}
+            disabled={submitting || rating < 1}
             onPress={() => void handleSubmit()}
             className="w-full h-12 rounded-2xl bg-primary flex-row items-center justify-center gap-2"
           >
