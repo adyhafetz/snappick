@@ -1,32 +1,32 @@
 # AGENTS.md: rules for the AI assistant working on SnapPick
 
-Read this file first in every session. Architecture lives in `docs/ARCHITECTURE.md` (and historical design in `docs/archive/SNAPPICK_PLAN.md`). Development instructions live in `docs/DEVELOPMENT_GUIDE.md`. Machine facts live in `docs/ENVIRONMENT.md`. Spike results live in `docs/SPIKE_RESULTS.md`.
+Read this file first in every session. Architecture is in `docs/ARCHITECTURE.md`, the development workflow in `docs/DEVELOPMENT_GUIDE.md`, the model flow in `docs/MODEL_LIFECYCLE.md`, and machine facts in `docs/ENVIRONMENT.md`.
 
 ## Working rules
 
-1. **One phase at a time.** Implement only the phase named in the prompt. Do not start later phases or refactor earlier ones unless a fix requires it, and say so if it does.
-2. **Diagnose before changing code** when something fails. Ask for the exact error and the checklist item number first.
-3. **Pinned versions.** Record installed versions in `docs/ENVIRONMENT.md`. Use `npx expo install` for Expo packages. Never guess a library API: read the current official docs (or the installed package's types) first. If you cannot verify an API, say so and ask.
+1. **Do what was asked.** Keep changes focused. Do not refactor unrelated code; if a fix requires touching something else, say so.
+2. **Diagnose before changing code** when something fails. Read the exact error, find the cause, then fix it.
+3. **Pinned versions.** Use `npx expo install` for Expo packages. Never guess a library API: read the installed package's types or the official docs first. If you cannot verify an API, say so.
 4. **Migrations only.** The database schema changes only through files in `supabase/migrations/`. Never edit the schema in the dashboard and never rewrite an applied migration; add a new one.
-5. **No secrets in code.** Public values only in `EXPO_PUBLIC_*` and `NEXT_PUBLIC_*`. The service-role key, OpenAI key, and Kaggle credentials never enter the mobile app, the dashboard, or git. Keep `.env.example` files up to date and `.env` files ignored.
-6. **Privacy by design.** Exact coordinates exist only in `pickup_request_private_details`. Never put user IDs, images, notes, addresses, or exact coordinates in LLM prompts, cache keys, logs, or dataset manifests.
-7. **Every phase ends with** `docs/phases/PHASE-N-CHECKLIST.md` (format in guide section 3), the list of automated tests and how to run them, and a list of every assumption made.
-8. **Be honest about limits.** Mark anything unverified, simulated, or simplified. Never claim a test passed that was not run.
+5. **No secrets in code.** Only public values go in `EXPO_PUBLIC_*` and `NEXT_PUBLIC_*`. The service-role key, OpenAI key and Kaggle credentials never enter the mobile app, the admin app or git. Keep `.env.example` files current and `.env` files ignored.
+6. **Privacy by design.** Exact coordinates exist only in `pickup_request_private_details`. Never put user IDs, images, notes, addresses or exact coordinates in LLM prompts, cache keys or logs.
+7. **Test against the remote project.** Development and testing use the linked remote Supabase project. Before running anything destructive on it (deleting data, dropping tables, `db:clean`), confirm with the user. Prefer a transaction that rolls back when you only need to check behaviour.
+8. **Be honest about limits.** Mark anything unverified, simulated or simplified. Never claim a test passed that was not run. End a piece of work by listing the checks that were run and what was not tested.
+9. **Keep docs current.** When behaviour changes, update the matching file in `docs/` in the same change.
 
 ## Repository layout
 
-Single Git repository, **independent package roots** (no root JavaScript workspaces): `apps/mobile` (Expo), `apps/dashboard` (Next.js public dashboard, Phase 13), `apps/admin` (Next.js admin panel, Phase 14), `ml` (Python), `supabase` (migrations, functions, seed, tests), `scripts`, `docs`. Each JavaScript app has its own `package.json` and lockfile. Layout details: guide section 5.1.
+Single Git repository with **independent package roots** (no root JavaScript workspace): `apps/mobile` (Expo), `apps/admin` (Next.js admin dashboard), `apps/dashboard` (public dashboard, **not built yet**), `ml` (Kaggle retraining notebook), `supabase` (migrations, functions, seed, remote test script), `scripts`, `docs`. Each JavaScript app has its own `package.json` and lockfile.
 
 ## Project facts that must not drift
 
-- **Android only.** No iOS code, CoreML, or APNs.
-- **Detector:** YOLO (Ultralytics) exported to TFLite, run on device with `react-native-fast-tflite`. The detector labels, in fixed order, are `metal`, `trash`, `glass`, `paper`, `cardboard`, `plastic`, `biological`. Do not remap them. Batteries, bulbs, e-waste, and other hazards remain manual safety declarations. Class names are **plain text, never database enums**.
-- **Everything about the model comes from `model_manifest.json`** (labels, input size and layout, output format, NMS, thresholds) and is checked against the loaded model's tensor shapes. Never hard-code them.
-- **Temporary baseline first.** The verified `waste-app` YOLOv8n model and temporary Kaggle dataset prove the app and learning flow. The immutable bundled fallback uses 384 x 384 centre-crop preprocessing. Later models use the owner's local dataset, but the frozen local golden evaluation set is never trained on.
-- **Safe model lifecycle.** The bundled fallback is never overwritten. A candidate replaces the current champion only after the frozen-set gate, export-contract checks, and approval; any model-level load, validation, or repeated inference failure falls back to the bundled model.
-- **Statuses, RPCs, Edge Functions, tables, buckets, env var names:** guide section 5. Keep them identical across phases.
+- **Android only.** No iOS code, CoreML or APNs.
+- **Detector:** YOLO (Ultralytics) exported to TFLite, run on device with `react-native-fast-tflite`. The labels, in fixed order, are `metal`, `trash`, `glass`, `paper`, `cardboard`, `plastic`, `biological`. Do not remap them. Batteries, bulbs, e-waste and other hazards remain manual safety declarations. Class names are plain text, never database enums.
+- **Everything about the model comes from `apps/mobile/assets/models/model_manifest.json`** (labels, input size and layout, output format, NMS, thresholds) and is checked against the loaded model's tensor shapes. Never hard-code them.
+- **Model flow:** gather verified images, retrain on Kaggle from the admin Dataset page, and the admin decides on the Models page whether the new model goes live. The bundled `v0` model is never overwritten, and any model load or inference failure falls back to it. See `docs/MODEL_LIFECYCLE.md`.
+- **Statuses, RPCs, edge functions, tables, buckets, environment variable names** are defined by the migrations and `docs/ARCHITECTURE.md`. Keep them identical across the app, admin and database.
 
-## Known gotchas (from the spike)
+## Known gotchas
 
 - Keep model files outside `src/app` (Expo Router treats that folder as routes).
 - Metro needs `tflite` in `resolver.assetExts`. After Metro config changes run `npx expo start -c`.
@@ -34,8 +34,8 @@ Single Git repository, **independent package roots** (no root JavaScript workspa
 - MapLibre: coordinates are `[longitude, latitude]`; new architecture only; development build, not Expo Go. `Marker` has no clustering.
 - A native library change needs a native rebuild (`npx expo run:android`), not a reload.
 - Keep the repository path short on Windows (path-length limits in Android native builds).
-- The working smoke path includes centre crop, resize, JPEG decode, tensor creation, inference, decode, and NMS. Measure every stage separately in SnapPick; do not copy timings from an unrelated model/spike.
+- Measure every pipeline stage (centre crop, resize, JPEG decode, tensor creation, inference, decode, NMS) separately; do not copy timings from another model.
 
 ## Style
 
-TypeScript strict. Small pure modules with unit tests for anything with logic (centre-crop/letterbox transforms, decode, NMS, rules, gate). Clear error messages shown to users. Commit messages: `feat: phase N ...`, `fix: ...`, `docs: ...`.
+TypeScript strict. Small pure modules with unit tests for anything with logic (transforms, decode, NMS, rules, queues). Clear error messages shown to users. Commit messages: `feat: ...`, `fix: ...`, `docs: ...`.

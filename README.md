@@ -1,106 +1,66 @@
 # SnapPick
 
-SnapPick is an on-device AI recycling assistant and community pickup platform for Perak, Malaysia. Residents photograph household waste, receive instant Community Recycling Guidelines sorting and preparation guidance, request pickup for accepted recyclable materials within supported service boundaries, consult SnapBot AI for recycling questions, and track privacy-safe impact statistics.
+A community recycling app for Perak, Malaysia (Android only). Residents photograph household waste and an on-device model identifies the material. They can request a pickup, a community collector claims it, and verified scans help train a better detector over time.
 
-## Project Status
+## Status
 
-- ✅ **Mobile App (apps/mobile):** Complete (95%+ feature and UI/UX polish). 5 tabs (`Home`, `Activity`, `Scan`, `Collect`, `Profile`), on-device TFLite inference, MapLibre geofenced pickup scheduling, real-time collector marketplace, driving navigation, streamlined proof submission, dispute handling, mutual user ratings, and OTA model update manager.
-- ✅ **Database & Backend (supabase):** 28 migrations applied. Complete PostGIS boundary geofencing, RLS policies, atomic RPCs (`submit_collection`, `rate_user`, `delete_my_account`, etc.), Realtime broadcast channels, and pg_cron maintenance jobs.
-- 🔄 **Admin Panel (apps/admin):** Next focus. Next.js 15 application scaffolded with Supabase auth context, admin role verification, and initial management pages (detector versions, feedback queue, disputes).
-- ⏸️ **Public Dashboard (apps/dashboard):** Community-facing Next.js dashboard backed by public database views (`dashboard_*`).
-- ⏸️ **ML Automation Pipeline (ml):** Baseline YOLOv8n TFLite model bundled; automated retraining triggers and golden evaluation gate defined.
+| Part | Location | Status |
+|---|---|---|
+| Mobile app | `apps/mobile` | Done |
+| Database, storage, edge functions | `supabase/` | Done |
+| Admin dashboard | `apps/admin` | Done |
+| Model retraining (Kaggle) | `ml/` | Done |
+| **Public dashboard** | `apps/dashboard` | **Not built yet** (placeholder folder only) |
 
-## Key Features
+## What it does
 
-- **On-Device Waste Detection:** Real-time YOLOv8n TFLite model running locally on CPU (~1-2s inference) with 7 material classes: `metal`, `trash`, `glass`, `paper`, `cardboard`, `plastic`, `biological`.
-- **Intelligent Guidance:** Contextual preparation tips, animated recycling guides, and SnapBot AI assistant (OpenAI GPT-4o-mini proxy with cached responses).
-- **Geofenced Pickups:** Reverse geocoded to 13 Perak DOSM districts; privacy masking to 0.01° grid cells (~1km) for public views.
-- **Collector Marketplace:** Real-time MapLibre marketplace with broadcast push updates, driving route preview with native navigation (Google Maps / Waze) handoff.
-- **Streamlined Proof & Verification:** 1-tap photo proof capture (EXIF-stripped client-side), non-collection issue reporting, 48-hour requester confirmation window with dispute support.
-- **Mutual Reputation:** Requesters rate collectors and collectors rate requesters (1–5 stars with attribute tags).
-- **Privacy by Design:** Strict separation between public metadata and private details (`pickup_request_private_details`), opt-in consent for image storage and training data.
-- **OTA Model Lifecycle:** Staged rollouts with hash-based bucket assignment; mobile update checker and local activation in Profile screen.
+- **Scan:** on-device YOLOv8n TFLite detection of 7 materials (`metal, trash, glass, paper, cardboard, plastic, biological`), works offline, with preparation guides and a safety declaration.
+- **Pickups:** request a pickup inside the 13 Perak districts. Exact addresses stay private; collectors see a grid-snapped pin until they claim.
+- **Collect:** collectors claim jobs on a live map, collect with a proof photo, and the requester confirms and rates (or disputes).
+- **SnapBot:** a recycling chat assistant.
+- **Admin:** review user label edits, press Retrain, compare models and decide which one is live, resolve disputes.
 
-## Repository Layout
+## Repository layout
+
+Single Git repository with independent package roots (no root JavaScript workspace):
 
 ```text
-snappick/
-  AGENTS.md                  # Development rules & project invariants
-  BRAND_IDENTITY.md          # Design system, color tokens, typography & microcopy
-  PRODUCT.md                 # Product specifications & principles
-  README.md                  # Project overview & quick start
-  docs/
-    ARCHITECTURE.md          # System architecture, schemas, and flows
-    DEVELOPMENT_GUIDE.md     # Setup, testing, and troubleshooting guide
-    ENVIRONMENT.md           # Machine setup & toolchain versions
-    DATASET_COLLECTION_GUIDE.md
-    MODEL_IMPROVEMENT_GUIDE.md
-    SPIKE_RESULTS.md         # Historical Phase 0 spike results
-  apps/
-    mobile/                  # React Native / Expo SDK 57 mobile app ✅
-    admin/                   # Next.js 15 Admin Panel (Current focus) 🔄
-    dashboard/               # Next.js 15 Public Community Dashboard ⏸️
-  ml/                        # Python ML scripts & model validation
-  scripts/                   # DB seed/clean scripts & district importers
-  supabase/                  # Database migrations, Edge Functions, tests
+apps/mobile      Expo (React Native) Android app
+apps/admin       Next.js admin dashboard (port 3001)
+apps/dashboard   Public dashboard - not built yet
+ml/              Kaggle retraining notebook (ml/notebooks/)
+supabase/        migrations, edge functions, seed data, remote test script
+scripts/         database helpers and the Perak district importer
+docs/            documentation
 ```
 
-## Quick Start: Mobile App
+## Quick start
 
-Requirements: Node.js 24+, OpenJDK 21, Android SDK (API 35–37), connected Android device with USB debugging enabled.
+```powershell
+cd apps\mobile
+copy .env.example .env      # fill in the Supabase URL and anon key
+npm install
+npx expo run:android        # development build on a connected phone
+```
 
-1. **Environment configuration:**
-   Copy `apps/mobile/.env.example` to `apps/mobile/.env` and supply your Supabase URL and anon key:
-   ```bash
-   cp apps/mobile/.env.example apps/mobile/.env
-   ```
+```powershell
+cd apps\admin
+copy .env.example .env.local
+npm install
+npm run dev                 # http://localhost:3001
+```
 
-2. **Install dependencies:**
-   ```bash
-   cd apps/mobile
-   npm install
-   ```
+Everything is developed and tested against the linked remote Supabase project. See [docs/DEVELOPMENT_GUIDE.md](docs/DEVELOPMENT_GUIDE.md).
 
-3. **Run checks and tests:**
-   ```bash
-   npm run typecheck
-   npm test
-   ```
+## Documentation
 
-4. **Start development build:**
-   ```bash
-   npx expo run:android
-   ```
-
-## Database Utilities
-
-From `apps/mobile` or root:
-- Clean transactional database: `npm --prefix apps/mobile run db:clean`
-- Seed comprehensive test data: `npm --prefix apps/mobile run db:seed`
-- Full database reset: `npm --prefix apps/mobile run db:reset`
-
-## Running Automated Tests
-
-- **Mobile unit tests (75 tests across 13 test files):**
-  ```bash
-  cd apps/mobile
-  npm test
-  ```
-
-- **ML contracts & scripts tests:**
-  ```bash
-  & C:\Users\adyha\miniconda3\envs\snappick\python.exe -m unittest discover -s ml/tests
-  & C:\Users\adyha\miniconda3\envs\snappick\python.exe -m unittest discover -s scripts
-  ```
-
-- **Supabase backend integration tests:**
-  ```bash
-  cd supabase/tests
-  npm install
-  npm run test:rls
-  npm run test:pickup
-  npm run test:marketplace
-  npm run test:expiry
-  npm run test:completion
-  npm run test:feedback
-  ```
+| Document | What it covers |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the system fits together |
+| [docs/DEVELOPMENT_GUIDE.md](docs/DEVELOPMENT_GUIDE.md) | Setup, running, tests, database workflow, common problems |
+| [docs/MODEL_LIFECYCLE.md](docs/MODEL_LIFECYCLE.md) | Gather → review → retrain → decide → phones update |
+| [docs/KAGGLE_SETUP.md](docs/KAGGLE_SETUP.md) | One-time Kaggle setup for Retrain |
+| [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) | Machine, toolchain and library versions |
+| [docs/BRAND_IDENTITY.md](docs/BRAND_IDENTITY.md) | Colours, type, components, tone of voice |
+| [PRODUCT.md](PRODUCT.md) | Product purpose, users and principles |
+| [AGENTS.md](AGENTS.md) | Rules for the AI assistant working on this repository |

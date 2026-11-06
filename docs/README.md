@@ -1,51 +1,22 @@
-# SnapPick Documentation
+# SnapPick documentation
 
-Welcome to SnapPick! This directory contains the technical documentation, architecture specifications, development guides, and machine reference.
+| Document | What it covers |
+|---|---|
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | How the mobile app, Supabase, admin dashboard and retraining fit together, and the rules the database enforces |
+| [DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md) | Setup, running the apps, tests, the database workflow and common problems |
+| [MODEL_LIFECYCLE.md](./MODEL_LIFECYCLE.md) | Gather images → review → retrain → the admin decides → phones update |
+| [KAGGLE_SETUP.md](./KAGGLE_SETUP.md) | One-time Kaggle setup so the Retrain button works |
+| [ENVIRONMENT.md](./ENVIRONMENT.md) | Machine, toolchain and library versions |
+| [BRAND_IDENTITY.md](./BRAND_IDENTITY.md) | Colours, typography, components and tone of voice |
 
-## Quick Start
+See also [../PRODUCT.md](../PRODUCT.md) (product purpose and principles) and [../AGENTS.md](../AGENTS.md) (rules for the AI assistant).
 
-- **New to the project?** Read [ARCHITECTURE.md](./ARCHITECTURE.md) first
-- **Setting up locally?** Follow [DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md)
-- **Toolchain & versions?** Check [ENVIRONMENT.md](./ENVIRONMENT.md)
-- **Want to contribute?** Check [../AGENTS.md](../AGENTS.md) for development rules
+## Status
 
-## Documentation Index
-
-### Core Documentation
-
-| Document | Description |
-|----------|-------------|
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture, database schema, app structure, user flows |
-| [BRAND_IDENTITY.md](./BRAND_IDENTITY.md) | Brand philosophy, color tokens, typography scale, UI patterns, and tone of voice |
-| [DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md) | Setup, running tests, database utilities, common tasks, troubleshooting |
-| [ENVIRONMENT.md](./ENVIRONMENT.md) | Machine setup, installed package versions, toolchain reference |
-| [DATASET_COLLECTION_GUIDE.md](./DATASET_COLLECTION_GUIDE.md) | How to collect local Perak-specific training dataset |
-| [MODEL_IMPROVEMENT_GUIDE.md](./MODEL_IMPROVEMENT_GUIDE.md) | ML model retraining and continuous learning workflow |
-| [SPIKE_RESULTS.md](./SPIKE_RESULTS.md) | Historical: Phase 0 spike findings (archived reference) |
-
-## Project Status
-
-**Current Status:** Mobile App 95%+ Complete & Production-Ready | Focus Shifting to Admin Panel (`apps/admin`)
-
-| Component | Status | Location / Details |
-|-----------|--------|---------------------|
-| ✅ Mobile App | Complete (95%+) | `apps/mobile` (5 tabs: Home, Activity, Scan, Collect, Profile) |
-| ✅ Database & Storage | Complete | `supabase/migrations` (28 migrations, RLS, PostGIS, Realtime) |
-| ✅ ML Baseline | Complete | `waste_detector_v0.tflite` (YOLOv8n TFLite CPU) |
-| ✅ Edge Functions | Complete | SnapBot GPT-4o-mini, signed proof URLs, private details |
-| 🔄 Admin Panel | In Progress | `apps/admin` (Next.js 15: models, feedback review, disputes) |
-| ⏸️ Public Dashboard | Planned | `apps/dashboard` (Next.js 15: community stats & open views) |
-| ⏸️ ML Pipeline Automation | Planned | GitHub Actions + Kaggle automated training |
-
-## Archive
-
-Historical planning documentation and phase-specific checklists are preserved in [`archive/`](./archive/):
-- `archive/phases/`: Checklists for Phase 1 through Phase 10
-- `archive/SNAPPICK_PLAN.md`: Original 15-phase master plan
-- `archive/SNAPPICK_BUILD_GUIDE.md`: Detailed build instructions
-- `archive/SNAPPICK_PREREQUISITE.md`: Initial environment setup
-- `archive/UI_UX_SPECIFICATION.md`: Original interface designs
-
----
-
-**Last Updated:** 2026-11-04
+| Part | Status |
+|---|---|
+| Mobile app (`apps/mobile`) | Done |
+| Database, storage, edge functions (`supabase/`) | Done |
+| Admin dashboard (`apps/admin`) | Done |
+| Retraining (`ml/`) | Done |
+| Public dashboard (`apps/dashboard`) | **Not built yet** |
