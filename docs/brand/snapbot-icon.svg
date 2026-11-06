@@ -1,0 +1,15 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SnapBot">
+  <title>SnapBot icon</title>
+  <!-- Round head only: for the chat header, message avatar, favicon and small spaces (minimum 24px) -->
+  <circle cx="64" cy="64" r="64" fill="#19806D"/>
+  <path d="M20 46C28 24 46 14 64 14" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="5" stroke-linecap="round"/>
+  <rect x="22" y="46" width="84" height="52" rx="26" fill="#F5F7F2"/>
+  <ellipse cx="46" cy="70" rx="7.4" ry="8.4" fill="#183E48"/>
+  <ellipse cx="82" cy="70" rx="7.4" ry="8.4" fill="#183E48"/>
+  <circle cx="48.6" cy="66.8" r="2.2" fill="#FFFFFF"/>
+  <circle cx="84.6" cy="66.8" r="2.2" fill="#FFFFFF"/>
+  <path d="M54 83C58 89 70 89 74 83" stroke="#183E48" stroke-width="3.6" stroke-linecap="round"/>
+  <circle cx="34" cy="84" r="4.6" fill="#E7B73E" fill-opacity="0.5"/>
+  <circle cx="94" cy="84" r="4.6" fill="#E7B73E" fill-opacity="0.5"/>
+  <path d="M64 18C63 8 71 2 84 3C84 14 77 21 64 18Z" fill="#F5F7F2"/>
+</svg>

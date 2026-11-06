@@ -92,6 +92,8 @@ Test data helpers (run from `apps/mobile`):
 |---|---|
 | `npm run db:clean` | Deletes scans, pickups, proofs, ratings and disputes. **Keeps users and profiles.** |
 | `npm run db:seed` | Adds sample data for the two test accounts. |
+| `npm run db:seed-pilot` | Adds about six months of anonymous sample activity (136 fake accounts at `@pilot.snappick.test`) for the public dashboard. Re-running replaces it. |
+| `npm run db:clean-pilot` | Removes only that sample data. |
 | `npm run db:reset` | Clean, then seed. |
 
 These act on the **linked remote project**, so only use them while it holds test data.

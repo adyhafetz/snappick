@@ -7,7 +7,8 @@
 | [MODEL_LIFECYCLE.md](./MODEL_LIFECYCLE.md) | Gather images → review → retrain → the admin decides → phones update |
 | [KAGGLE_SETUP.md](./KAGGLE_SETUP.md) | One-time Kaggle setup so the Retrain button works |
 | [ENVIRONMENT.md](./ENVIRONMENT.md) | Machine, toolchain and library versions |
-| [BRAND_IDENTITY.md](./BRAND_IDENTITY.md) | Colours, typography, components and tone of voice |
+| [BRAND_IDENTITY.md](./BRAND_IDENTITY.md) | Colours, typography, components and tone of voice (SnapBot avatar files are in `brand/`) |
+| [PUBLIC_WEBSITE_AND_DASHBOARD.md](./PUBLIC_WEBSITE_AND_DASHBOARD.md) | Specification for the marketing website, public dashboard, SnapBot guide and formal report |
 
 See also [../PRODUCT.md](../PRODUCT.md) (product purpose and principles) and [../AGENTS.md](../AGENTS.md) (rules for the AI assistant).
 
@@ -19,4 +20,4 @@ See also [../PRODUCT.md](../PRODUCT.md) (product purpose and principles) and [..
 | Database, storage, edge functions (`supabase/`) | Done |
 | Admin dashboard (`apps/admin`) | Done |
 | Retraining (`ml/`) | Done |
-| Public website and community dashboard | Planned (not started) |
+| Public website and community dashboard | Specified, not built (see PUBLIC_WEBSITE_AND_DASHBOARD.md) |

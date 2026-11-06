@@ -1,0 +1,56 @@
+<svg width="320" height="320" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SnapBot, the SnapPick guide">
+  <title>SnapBot</title>
+  <style>
+    /* Idle motion. Respects reduced-motion settings. The app can also drive these groups itself (see ids). */
+    #wing-l { transform-origin: 62px 84px; animation: flap-l 0.9s ease-in-out infinite; }
+    #wing-r { transform-origin: 98px 84px; animation: flap-r 0.9s ease-in-out infinite; }
+    #eyes   { transform-origin: 80px 88px; animation: blink 4.5s ease-in-out infinite; }
+    @keyframes flap-l { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-14deg); } }
+    @keyframes flap-r { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(14deg); } }
+    @keyframes blink  { 0%,92%,100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+    @media (prefers-reduced-motion: reduce) { #wing-l, #wing-r, #eyes { animation: none; } }
+  </style>
+
+  <!-- Soft puff under the body (shown while flying) -->
+  <g id="trail" opacity="0.9">
+    <ellipse cx="80" cy="146" rx="20" ry="4" fill="#E8EFE9"/>
+    <ellipse cx="80" cy="152" rx="11" ry="2.5" fill="#E8EFE9" opacity="0.7"/>
+  </g>
+
+  <!-- Leaf wings: the emblem's leaf shape -->
+  <g id="wing-l">
+    <path d="M62 90C44 92 28 82 22 62C42 58 58 68 62 90Z" fill="#E8EFE9" stroke="#19806D" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M60 88C48 80 38 72 30 66" stroke="#19806D" stroke-width="2.4" stroke-linecap="round"/>
+  </g>
+  <g id="wing-r">
+    <path d="M98 90C116 92 132 82 138 62C118 58 102 68 98 90Z" fill="#E8EFE9" stroke="#19806D" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M100 88C112 80 122 72 130 66" stroke="#19806D" stroke-width="2.4" stroke-linecap="round"/>
+  </g>
+
+  <!-- Sprout antenna: leaf on a stem -->
+  <g id="antenna">
+    <path d="M80 44V28" stroke="#126253" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M80 28C79 16 89 8 104 9C104 22 95 31 80 28Z" fill="#19806D"/>
+    <path d="M82 27C88 22 94 17 99 13" stroke="#F5F7F2" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="80" cy="45" r="3.2" fill="#E7B73E"/>
+  </g>
+
+  <!-- Body: the emblem circle -->
+  <g id="body">
+    <circle cx="80" cy="88" r="46" fill="#19806D"/>
+    <path d="M42 70C48 52 64 42 80 42" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="4" stroke-linecap="round"/>
+    <!-- Face plate -->
+    <rect x="48" y="68" width="64" height="40" rx="19" fill="#F5F7F2"/>
+  </g>
+
+  <!-- Face -->
+  <g id="eyes">
+    <ellipse cx="67" cy="87" rx="5.6" ry="6.4" fill="#183E48"/>
+    <ellipse cx="93" cy="87" rx="5.6" ry="6.4" fill="#183E48"/>
+    <circle cx="69" cy="84.6" r="1.7" fill="#FFFFFF"/>
+    <circle cx="95" cy="84.6" r="1.7" fill="#FFFFFF"/>
+  </g>
+  <circle cx="57" cy="97" r="4" fill="#E7B73E" fill-opacity="0.5"/>
+  <circle cx="103" cy="97" r="4" fill="#E7B73E" fill-opacity="0.5"/>
+  <path id="mouth" d="M72 98C75 103 85 103 88 98" stroke="#183E48" stroke-width="3" stroke-linecap="round"/>
+</svg>
