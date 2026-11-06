@@ -162,17 +162,13 @@ export default function HomeScreen() {
             />
 
             <View className="p-4 flex-row items-center gap-3.5">
-              <View style={{ flexShrink: 0 }}>
-                <View
-                  style={{
-                    width: 58,
-                    height: 58,
-                    backgroundColor: '#359d8a',
-                  }}
-                  className="rounded-2xl items-center justify-center border border-white/20 shadow-sm"
-                >
-                  <Camera size={26} color="#ffffff" />
-                </View>
+              <View style={{ width: 58, height: 58, flexShrink: 0 }} className="items-center justify-center">
+                <ExpoImage
+                  source={require('../../../assets/images/camera-icon.svg')}
+                  style={{ width: 56, height: 56 }}
+                  contentFit="contain"
+                  accessibilityLabel="Scan Waste"
+                />
               </View>
 
               <View className="flex-1 justify-center">
@@ -241,22 +237,13 @@ export default function HomeScreen() {
             />
 
             <View className="p-4 flex-row items-center gap-3.5">
-              <View style={{ flexShrink: 0 }}>
-                <View
-                  style={{
-                    width: 58,
-                    height: 58,
-                    backgroundColor: '#ffffff',
-                  }}
-                  className="rounded-2xl items-center justify-center border border-primary/20 shadow-xs overflow-hidden"
-                >
-                  <ExpoImage
-                    source={require('../../../assets/images/snapbot-icon.svg')}
-                    style={{ width: 40, height: 40 }}
-                    contentFit="contain"
-                    accessibilityLabel="SnapBot"
-                  />
-                </View>
+              <View style={{ width: 58, height: 58, flexShrink: 0 }} className="items-center justify-center">
+                <ExpoImage
+                  source={require('../../../assets/images/snapbot-icon.svg')}
+                  style={{ width: 52, height: 52 }}
+                  contentFit="contain"
+                  accessibilityLabel="SnapBot"
+                />
               </View>
 
               <View className="flex-1 justify-center">

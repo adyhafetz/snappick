@@ -101,10 +101,10 @@ function SnapBotModalContent({
         {/* Header */}
         <View className="px-5 py-3.5 border-b border-border flex-row items-center justify-between bg-card">
           <View className="flex-row items-center gap-3">
-            <View className="h-10 w-10 rounded-2xl bg-white items-center justify-center border border-primary/20 shadow-xs overflow-hidden">
+            <View className="h-10 w-10 items-center justify-center">
               <Image
                 source={require('../../../assets/images/snapbot-icon.svg')}
-                style={{ width: 28, height: 28 }}
+                style={{ width: 36, height: 36 }}
                 contentFit="contain"
                 accessibilityLabel="SnapBot"
               />
@@ -164,10 +164,10 @@ function SnapBotModalContent({
               className={`flex-row ${item.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {item.role === 'assistant' && (
-                <View className="h-7 w-7 rounded-xl bg-white items-center justify-center mr-2 mt-0.5 border border-primary/20 shadow-2xs overflow-hidden">
+                <View className="h-7 w-7 items-center justify-center mr-2 mt-0.5">
                   <Image
                     source={require('../../../assets/images/snapbot-icon.svg')}
-                    style={{ width: 20, height: 20 }}
+                    style={{ width: 26, height: 26 }}
                     contentFit="contain"
                     accessibilityLabel="SnapBot"
                   />
