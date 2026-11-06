@@ -43,11 +43,7 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <View
-              className={`h-8 w-12 items-center justify-center rounded-full ${
-                focused ? 'bg-primary/10' : 'bg-transparent'
-              }`}
-            >
+            <View className="h-8 w-12 items-center justify-center">
               <Home size={20} color={color} strokeWidth={focused ? 2.4 : 1.8} />
             </View>
           ),
@@ -58,11 +54,7 @@ export default function TabsLayout() {
         options={{
           title: 'Activity',
           tabBarIcon: ({ color, focused }) => (
-            <View
-              className={`h-8 w-12 items-center justify-center rounded-full ${
-                focused ? 'bg-primary/10' : 'bg-transparent'
-              }`}
-            >
+            <View className="h-8 w-12 items-center justify-center">
               <History size={20} color={color} strokeWidth={focused ? 2.4 : 1.8} />
             </View>
           ),
@@ -73,11 +65,7 @@ export default function TabsLayout() {
         options={{
           title: 'Scan',
           tabBarIcon: ({ color, focused }) => (
-            <View
-              className={`h-8 w-12 items-center justify-center rounded-full ${
-                focused ? 'bg-primary/10' : 'bg-transparent'
-              }`}
-            >
+            <View className="h-8 w-12 items-center justify-center">
               <ScanLine size={20} color={color} strokeWidth={focused ? 2.4 : 1.8} />
             </View>
           ),
@@ -88,11 +76,7 @@ export default function TabsLayout() {
         options={{
           title: 'Collect',
           tabBarIcon: ({ color, focused }) => (
-            <View
-              className={`h-8 w-12 items-center justify-center rounded-full ${
-                focused ? 'bg-primary/10' : 'bg-transparent'
-              }`}
-            >
+            <View className="h-8 w-12 items-center justify-center">
               <MapPin size={20} color={color} strokeWidth={focused ? 2.4 : 1.8} />
             </View>
           ),
@@ -103,11 +87,7 @@ export default function TabsLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
-            <View
-              className={`h-8 w-12 items-center justify-center rounded-full ${
-                focused ? 'bg-primary/10' : 'bg-transparent'
-              }`}
-            >
+            <View className="h-8 w-12 items-center justify-center">
               <User size={20} color={color} strokeWidth={focused ? 2.4 : 1.8} />
             </View>
           ),
