@@ -5,6 +5,9 @@ const config: Config = {
   content: ['./src/**/*.{js,ts,jsx,tsx,mdx}'],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Roboto', 'sans-serif'],
+      },
       colors: {
         background: '#f5f7f2',
         foreground: '#183e48',
@@ -41,6 +44,8 @@ const config: Config = {
         input: '#d9e2dc',
         ring: '#19806d',
         ink: '#183e48',
+        brandAmber: '#e7b73e',
+        brandEmerald: '#16a34a',
       },
       borderRadius: {
         lg: '1rem',

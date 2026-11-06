@@ -5,76 +5,77 @@ import Link from 'next/link';
 import { AdminShell } from '@/components/AdminShell';
 import { supabase } from '@/lib/supabase';
 import {
-  Camera,
-  MessageSquareDiff,
   AlertTriangle,
+  Camera,
+  ChevronRight,
+  Clock,
   Cpu,
-  ArrowRight,
+  Layers,
   RefreshCw,
-  Sparkles,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 
-interface CorrectionRow {
+interface RecentScan {
   id: string;
-  scan_id: string;
-  feedback_type: string;
-  original_model_label: string;
-  corrected_app_class: string | null;
   created_at: string;
+  image_path: string | null;
 }
+
+const DATASET_TARGET = 50;
 
 export default function AdminHomePage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
-    totalScans: 0,
-    totalCorrections: 0,
-    openDisputes: 0,
     activeModel: 'v0',
+    readyImages: 0,
+    pendingEdits: 0,
+    openDisputes: 0,
   });
-  const [recentCorrections, setRecentCorrections] = useState<CorrectionRow[]>([]);
+  const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const { count: scansCount } = await supabase
-        .from('scans')
-        .select('*', { count: 'exact', head: true });
+      const { data: models } = await supabase
+        .from('model_versions')
+        .select('version, role')
+        .order('created_at', { ascending: false });
 
-      const { count: correctionsCount } = await supabase
+      const { data: scans } = await supabase
+        .from('scans')
+        .select('id, image_path, created_at')
+        .eq('image_storage_consent', true)
+        .eq('training_opt_in', true)
+        .not('image_path', 'is', null)
+        .order('created_at', { ascending: false });
+
+      const { data: feedback } = await supabase
         .from('label_feedback')
-        .select('*', { count: 'exact', head: true });
+        .select('id, scan_id, feedback_type, collector_verified_at');
+
+      const unverified = (feedback || []).filter(
+        (f) =>
+          (f.feedback_type === 'change_label' || f.feedback_type === 'remove') &&
+          !f.collector_verified_at
+      );
+      const unverifiedScanIds = new Set(unverified.map((u) => u.scan_id));
+      const readyScans = (scans || []).filter((s) => !unverifiedScanIds.has(s.id));
 
       const { count: disputesCount } = await supabase
         .from('disputes')
         .select('*', { count: 'exact', head: true })
         .is('outcome', null);
 
-      const { data: models } = await supabase
-        .from('model_versions')
-        .select('version')
-        .eq('role', 'champion')
-        .limit(1);
-
       setStats({
-        totalScans: scansCount || 0,
-        totalCorrections: correctionsCount || 0,
+        activeModel: models?.find((m) => m.role === 'champion')?.version || 'v0',
+        readyImages: readyScans.length,
+        pendingEdits: unverified.length,
         openDisputes: disputesCount || 0,
-        activeModel: models?.[0]?.version || 'v0',
       });
-
-      const { data: corrections } = await supabase
-        .from('label_feedback')
-        .select('id, scan_id, feedback_type, original_model_label, corrected_app_class, created_at')
-        .order('created_at', { ascending: false })
-        .limit(6);
-
-      setRecentCorrections((corrections as CorrectionRow[]) || []);
+      setRecentScans(readyScans.slice(0, 4));
     } catch (err) {
-      console.warn('Dashboard fetch error:', err);
+      console.warn('Overview fetch error:', err);
     } finally {
       setLoading(false);
     }
@@ -84,155 +85,138 @@ export default function AdminHomePage() {
     void loadData();
   }, [loadData]);
 
-  const RETRAIN_THRESHOLD = 100;
-  const progressPercent = Math.min(
-    100,
-    Math.round((stats.totalCorrections / RETRAIN_THRESHOLD) * 100)
-  );
+  const progress = Math.min(100, Math.round((stats.readyImages / DATASET_TARGET) * 100));
+
+  const tiles = [
+    {
+      href: '/models',
+      label: 'Live Model',
+      value: stats.activeModel.toUpperCase(),
+      icon: Cpu,
+      color: '#19806d',
+      tint: 'bg-primary/10 border-primary/20',
+      ring: 'border-primary/20',
+    },
+    {
+      href: '/feedback',
+      label: 'Review',
+      value: stats.pendingEdits,
+      icon: Clock,
+      color: '#b45309',
+      tint: 'bg-amber-500/10 border-amber-500/25',
+      ring: 'border-amber-500/25',
+    },
+    {
+      href: '/disputes',
+      label: 'Disputes',
+      value: stats.openDisputes,
+      icon: AlertTriangle,
+      color: '#b42318',
+      tint: 'bg-rose-500/10 border-rose-500/25',
+      ring: 'border-rose-500/25',
+    },
+  ];
 
   return (
     <AdminShell>
-      {/* Top Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-black text-foreground">Overview</h1>
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <h1 className="text-3xl font-black text-[#183e48] tracking-tight">Overview</h1>
         <Button
           variant="outline"
           size="sm"
           onClick={() => void loadData()}
           disabled={loading}
-          className="gap-1.5"
+          aria-label="Refresh"
+          className="h-9 w-9 p-0 rounded-xl bg-white border-border/80"
         >
-          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-          Refresh
+          <RefreshCw size={14} className={loading ? 'animate-spin text-primary' : 'text-primary'} />
         </Button>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-6">
-        <Card className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-muted-foreground">Scans</span>
-            <Camera size={16} className="text-primary" />
-          </div>
-          <div className="text-2xl font-black text-foreground">{stats.totalScans}</div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-muted-foreground">Corrections</span>
-            <MessageSquareDiff size={16} className="text-amber-600" />
-          </div>
-          <div className="text-2xl font-black text-foreground">{stats.totalCorrections}</div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-muted-foreground">Active Model</span>
-            <Cpu size={16} className="text-primary" />
-          </div>
-          <div className="text-2xl font-black text-foreground uppercase">{stats.activeModel}</div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-muted-foreground">Disputes</span>
-            <AlertTriangle size={16} className="text-rose-600" />
-          </div>
-          <div className="text-2xl font-black text-foreground">{stats.openDisputes}</div>
-        </Card>
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        {tiles.map(({ href, label, value, icon: Icon, color, tint, ring }) => (
+          <Link key={label} href={href} className="block">
+            <Card
+              className={`p-4 rounded-3xl bg-white border ${ring} shadow-xs hover:shadow-md transition-shadow`}
+            >
+              <div
+                className={`h-9 w-9 rounded-2xl border flex items-center justify-center mb-3 ${tint}`}
+              >
+                <Icon size={17} color={color} />
+              </div>
+              <div className="text-2xl font-black text-[#183e48] tracking-tight">{value}</div>
+              <div className="text-[11px] font-bold text-muted-foreground mt-0.5">{label}</div>
+            </Card>
+          </Link>
+        ))}
       </div>
 
-      {/* Retraining Readiness Banner */}
-      <Card className="p-4 mb-6 border-primary/20 bg-primary/5">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-              <Sparkles size={16} />
-            </div>
+      {/* Dataset */}
+      <Link href="/feedback" className="block mt-3.5">
+        <Card className="p-5 rounded-3xl bg-white border border-border/80 shadow-xs hover:shadow-md transition-shadow">
+          <div className="flex items-end justify-between mb-3">
             <div>
-              <div className="text-xs font-bold text-foreground">Next Retraining Readiness</div>
-              <div className="text-[11px] text-muted-foreground">
-                {stats.totalCorrections} of {RETRAIN_THRESHOLD} new annotated samples accumulated
+              <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Dataset
+              </div>
+              <div className="text-2xl font-black text-[#183e48] tracking-tight mt-1">
+                {stats.readyImages}
+                <span className="text-muted-foreground font-bold text-base"> / {DATASET_TARGET}</span>
               </div>
             </div>
+            <ChevronRight size={16} className="text-[#8a9ea0] mb-1" />
           </div>
-          <Link href="/feedback">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs font-bold border-primary/30 text-primary bg-background"
-            >
-              Export for Kaggle
-            </Button>
-          </Link>
-        </div>
-        <div className="w-full bg-primary/10 rounded-full h-2 overflow-hidden mt-1">
-          <div
-            className="bg-primary h-2 rounded-full transition-all duration-500"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-      </Card>
+          <div className="w-full h-2.5 rounded-full bg-[#e8efe9] overflow-hidden">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-700"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </Card>
+      </Link>
 
-      {/* Recent User Corrections */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between py-4 px-5">
-          <CardTitle className="text-sm font-bold">Recent Corrections</CardTitle>
-          <Link href="/feedback">
-            <Button variant="ghost" size="sm" className="gap-1 text-xs text-primary font-bold">
-              View all <ArrowRight size={13} />
-            </Button>
-          </Link>
-        </CardHeader>
+      {/* Recent */}
+      <div className="mt-8 mb-3 flex items-center justify-between">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          Recent Scans
+        </h2>
+        <Link href="/feedback" className="text-xs font-bold text-primary hover:underline">
+          View all
+        </Link>
+      </div>
 
-        <CardContent className="p-0">
-          {recentCorrections.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Predicted</TableHead>
-                  <TableHead>Corrected</TableHead>
-                  <TableHead>Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentCorrections.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <Badge variant="secondary" className="capitalize text-[10px]">
-                        {item.feedback_type.replace(/_/g, ' ')}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-xs text-muted-foreground line-through capitalize">
-                        {item.original_model_label}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {item.corrected_app_class ? (
-                        <span className="text-xs font-bold text-primary capitalize bg-primary/10 px-2 py-0.5 rounded-md">
-                          {item.corrected_app_class}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground italic">Removed</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {new Date(item.created_at).toLocaleDateString([], {
+      {recentScans.length > 0 ? (
+        <div className="space-y-2.5">
+          {recentScans.map((scan) => (
+            <Link key={scan.id} href="/feedback" className="block">
+              <Card className="p-3.5 rounded-3xl bg-white border border-border/80 shadow-xs flex-row flex items-center justify-between">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="h-11 w-11 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                    <Camera size={19} color="#19806d" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-black text-[#183e48] tracking-tight truncate">
+                      {scan.image_path?.split('/').pop() || scan.id.slice(0, 8)}
+                    </div>
+                    <div className="text-xs font-medium text-muted-foreground mt-0.5">
+                      {new Date(scan.created_at).toLocaleDateString([], {
                         month: 'short',
                         day: 'numeric',
                       })}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="py-8 text-center text-xs text-muted-foreground">No corrections yet.</div>
-          )}
-        </CardContent>
-      </Card>
+                    </div>
+                  </div>
+                </div>
+                <ChevronRight size={15} className="text-[#8a9ea0] shrink-0" />
+              </Card>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <Card className="p-4 rounded-3xl border border-dashed border-border/80 bg-white/60 flex items-center justify-center">
+          <span className="text-xs font-medium text-muted-foreground">No scans yet</span>
+        </Card>
+      )}
     </AdminShell>
   );
 }

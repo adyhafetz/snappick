@@ -1,34 +1,27 @@
 # SnapPick Admin
 
-Admin panel for the SnapPick project. Requires authenticated Supabase session with `is_admin()` privilege.
+Admin dashboard for SnapPick (Next.js 15, App Router). Sign-in requires an account whose profile has `is_admin = true`; the middleware protects every page and API route, and the API routes run with the signed-in admin's session so Row Level Security applies.
 
-## Purpose
+## Pages
 
-- **Detector versions** — view, approve, and roll back model versions (referenced by version number: v0, v1, v2…)
-- **Training runs** — monitor the continuous learning pipeline, check trigger stats
-- **Feedback queue** — review user corrections and manage the annotation queue
-- **Disputes** — resolve pickup disputes
-- **Drift monitor** — daily model performance metrics
-- **Audit log** — all admin actions
+| Page | Purpose |
+|---|---|
+| Overview | Live model, items waiting for review, open disputes, dataset progress |
+| Dataset (`/feedback`) | Review users' label edits, see new images since the last model, export a manifest, press **Retrain** |
+| Models | Compare model versions, make one live (**Use**), delete a rejected one, reset to the built-in model, upload a `.tflite` file |
+| Disputes | View the proof photo and uphold, reject or close a dispute |
 
-## Setup
+API routes (admin only): `POST /api/retrain/trigger` (starts the Kaggle run), `GET /api/retrain/status` (run state), `GET /api/retrain/export` (training manifest).
 
-```bash
-cd apps/admin
-cp .env.example .env.local
-# Fill in NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY from your Supabase project
+## Run
+
+```powershell
+cd apps\admin
+copy .env.example .env.local   # Supabase URL and anon key, plus the Kaggle values for Retrain
 npm install
-npm run dev   # runs on http://localhost:3001
+npm run dev                    # http://localhost:3001
 ```
 
-## Authentication
+Retrain needs a one-time Kaggle setup: [../../docs/KAGGLE_SETUP.md](../../docs/KAGGLE_SETUP.md). The flow itself: [../../docs/MODEL_LIFECYCLE.md](../../docs/MODEL_LIFECYCLE.md).
 
-This app uses Supabase Auth. All admin RPCs and tables enforce `is_admin()` via Row Level Security. You must be signed in as an admin user; regular users will receive authorization errors from the database.
-
-## Stack
-
-- Next.js 15 (App Router)
-- Tailwind CSS
-- @supabase/supabase-js + @supabase/ssr
-- Recharts (for drift/metrics charts)
-- lucide-react (icons)
+No service-role key is used in this app. The service-role key lives only in the Kaggle notebook's secrets.

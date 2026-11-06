@@ -3,9 +3,16 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { AdminShell } from '@/components/AdminShell';
 import { supabase } from '@/lib/supabase';
-import { RefreshCw, CheckCircle2, Image as ImageIcon, AlertTriangle, X } from 'lucide-react';
+import {
+  RefreshCw,
+  CheckCircle2,
+  ChevronRight,
+  Image as ImageIcon,
+  Inbox,
+  AlertTriangle,
+  X,
+} from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -26,14 +33,18 @@ interface DisputeItem {
     status: string;
     material_summary: MaterialSummaryItem[];
   } | null;
+  proof_path?: string | null;
   proof_url?: string | null;
 }
 
 export default function DisputesPage() {
   const [disputes, setDisputes] = useState<DisputeItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [counts, setCounts] = useState({ open: 0, resolved: 0 });
   const [filter, setFilter] = useState<'open' | 'resolved'>('open');
   const [selectedDispute, setSelectedDispute] = useState<DisputeItem | null>(null);
+  const [loadingModalProof, setLoadingModalProof] = useState(false);
+  const [modalProofUrl, setModalProofUrl] = useState<string | null>(null);
   const [resolutionNote, setResolutionNote] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -57,7 +68,7 @@ export default function DisputesPage() {
 
       const rawItems = (data as unknown as DisputeItem[]) || [];
 
-      // Fetch proof photos for these requests
+      // Query proof storage paths in a single batch query without generating signed URLs yet (saves N requests)
       const requestIds = rawItems.map((d) => d.request_id);
       let proofMap: Record<string, string> = {};
 
@@ -68,28 +79,25 @@ export default function DisputesPage() {
           .in('request_id', requestIds)
           .eq('is_non_collection_evidence', false);
 
-        if (proofs && proofs.length > 0) {
-          for (const p of proofs) {
-            try {
-              const { data: signed } = await supabase.storage
-                .from('proofs')
-                .createSignedUrl(p.storage_path, 3600);
-              if (signed?.signedUrl) {
-                proofMap[p.request_id] = signed.signedUrl;
-              }
-            } catch {
-              // Ignore signed URL error
-            }
-          }
+        if (proofs) {
+          proofs.forEach((p) => {
+            proofMap[p.request_id] = p.storage_path;
+          });
         }
       }
 
       const enriched = rawItems.map((item) => ({
         ...item,
-        proof_url: proofMap[item.request_id] || null,
+        proof_path: proofMap[item.request_id] || null,
       }));
 
       setDisputes(enriched);
+
+      const [openRes, resolvedRes] = await Promise.all([
+        supabase.from('disputes').select('*', { count: 'exact', head: true }).is('outcome', null),
+        supabase.from('disputes').select('*', { count: 'exact', head: true }).not('outcome', 'is', null),
+      ]);
+      setCounts({ open: openRes.count ?? 0, resolved: resolvedRes.count ?? 0 });
     } catch (err) {
       console.warn('Failed to load disputes:', err);
     } finally {
@@ -101,13 +109,43 @@ export default function DisputesPage() {
     void loadDisputes();
   }, [loadDisputes]);
 
-  async function handleResolve(outcome: 'upheld' | 'rejected') {
+  // Load signed proof URL on-demand when opening modal
+  const openAdjudicationModal = useCallback(async (dispute: DisputeItem) => {
+    setSelectedDispute(dispute);
+    setResolutionNote('');
+    setModalProofUrl(null);
+
+    if (dispute.proof_path) {
+      setLoadingModalProof(true);
+      try {
+        const { data: signed } = await supabase.storage
+          .from('proofs')
+          .createSignedUrl(dispute.proof_path, 3600);
+        if (signed?.signedUrl) {
+          setModalProofUrl(signed.signedUrl);
+        }
+      } catch (err) {
+        console.warn('Failed to generate proof signed URL:', err);
+      } finally {
+        setLoadingModalProof(false);
+      }
+    }
+  }, []);
+
+  async function handleResolve(outcome: 'upheld' | 'rejected' | 'inconclusive') {
     if (!selectedDispute) return;
     setActionBusy(true);
     setNotice(null);
 
     try {
-      const note = resolutionNote.trim() || `Dispute ${outcome} by admin.`;
+      const defaultNote =
+        outcome === 'upheld'
+          ? 'Dispute upheld by administrator. Request marked as not collected.'
+          : outcome === 'rejected'
+          ? 'Dispute rejected by administrator. Collector proof verified as valid.'
+          : 'Dispute closed as inconclusive.';
+
+      const note = resolutionNote.trim() || defaultNote;
       const { error } = await supabase.rpc('resolve_dispute', {
         request_id: selectedDispute.request_id,
         outcome,
@@ -117,7 +155,13 @@ export default function DisputesPage() {
       if (error) throw error;
 
       setNotice(
-        `Dispute ${outcome === 'upheld' ? 'upheld (request marked not collected)' : 'rejected (request marked completed)'}.`
+        `Dispute marked as ${outcome.toUpperCase()} (${
+          outcome === 'upheld'
+            ? 'Request set to not_collected'
+            : outcome === 'rejected'
+            ? 'Request set to completed'
+            : 'Inconclusive decision recorded'
+        }).`
       );
       setSelectedDispute(null);
       setResolutionNote('');
@@ -136,243 +180,236 @@ export default function DisputesPage() {
       .join(', ');
   }
 
+  const outcomeStyle: Record<string, { label: string; cls: string; icon: string; tint: string }> = {
+    open: {
+      label: 'Review',
+      cls: 'bg-amber-500/10 border-amber-500/25 text-amber-700',
+      icon: '#b45309',
+      tint: 'bg-amber-500/10 border-amber-500/25',
+    },
+    upheld: {
+      label: 'Upheld',
+      cls: 'bg-rose-500/10 border-rose-500/25 text-rose-700',
+      icon: '#b42318',
+      tint: 'bg-rose-500/10 border-rose-500/25',
+    },
+    rejected: {
+      label: 'Rejected',
+      cls: 'bg-emerald-500/10 border-emerald-500/25 text-emerald-700',
+      icon: '#16a34a',
+      tint: 'bg-emerald-500/10 border-emerald-500/25',
+    },
+    inconclusive: {
+      label: 'Closed',
+      cls: 'bg-secondary border-border/60 text-muted-foreground',
+      icon: '#5b7072',
+      tint: 'bg-secondary border-border/60',
+    },
+  };
+
+  const tabs = [
+    { id: 'open' as const, label: 'Open', icon: Inbox },
+    { id: 'resolved' as const, label: 'Resolved', icon: CheckCircle2 },
+  ];
+
   return (
     <AdminShell>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-black text-foreground">Disputes</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Adjudicate missed pickups and false completion proof disputes.
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <h1 className="text-3xl font-black text-[#183e48] tracking-tight">Disputes</h1>
         <Button
           variant="outline"
           size="sm"
           onClick={() => void loadDisputes()}
           disabled={loading}
-          className="gap-1.5"
+          aria-label="Refresh"
+          className="h-9 w-9 p-0 rounded-xl bg-white border-border/80"
         >
-          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-          Refresh
+          <RefreshCw size={14} className={loading ? 'animate-spin text-primary' : 'text-primary'} />
         </Button>
       </div>
 
       {notice && (
-        <Card className="mb-4 p-3 border-emerald-200 bg-emerald-50 text-emerald-800 text-xs font-bold flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <CheckCircle2 size={15} className="text-emerald-600" />
-            {notice}
-          </span>
-          <button onClick={() => setNotice(null)} className="underline text-emerald-700">
-            Dismiss
-          </button>
-        </Card>
+        <button
+          onClick={() => setNotice(null)}
+          className="w-full text-left mb-4 px-4 py-3 rounded-2xl border border-primary/20 bg-primary/10 text-primary text-xs font-bold flex items-center gap-2"
+        >
+          <CheckCircle2 size={15} />
+          {notice}
+        </button>
       )}
 
-      {/* Filter Tabs */}
-      <div className="flex gap-1.5 mb-4">
-        <Button
-          variant={filter === 'open' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilter('open')}
-          className="h-8 text-xs font-bold"
-        >
-          Open
-        </Button>
-        <Button
-          variant={filter === 'resolved' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilter('resolved')}
-          className="h-8 text-xs font-bold"
-        >
-          Resolved
-        </Button>
+      {/* Tabs */}
+      <div className="flex p-1.5 rounded-2xl bg-secondary/50 border border-border/80 mb-5 gap-1">
+        {tabs.map((tab) => {
+          const active = filter === tab.id;
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              role="tab"
+              aria-selected={active}
+              onClick={() => setFilter(tab.id)}
+              className={`flex-1 py-2.5 flex items-center justify-center gap-2 rounded-xl border text-xs transition-colors ${
+                active
+                  ? 'bg-card shadow-xs border-border/60 font-bold text-foreground'
+                  : 'border-transparent font-semibold text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Icon size={16} color={active ? '#19806d' : '#5b7072'} strokeWidth={active ? 2.4 : 1.8} />
+              {tab.label}
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                  active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                {counts[tab.id]}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Disputes Cards */}
+      {/* List */}
       {disputes.length > 0 ? (
-        <div className="space-y-3">
-          {disputes.map((dispute) => (
-            <Card key={dispute.id} className="p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1.5 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {dispute.outcome === 'upheld' ? (
-                      <Badge variant="destructive" className="text-[10px]">
-                        Upheld (Not Collected)
-                      </Badge>
-                    ) : dispute.outcome === 'rejected' ? (
-                      <Badge variant="success" className="text-[10px]">
-                        Rejected (Completed)
-                      </Badge>
-                    ) : (
-                      <Badge variant="warning" className="text-[10px]">
-                        Open Review
-                      </Badge>
-                    )}
-                    <span className="font-mono text-xs text-muted-foreground">
-                      #{dispute.request_id.slice(0, 8)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">•</span>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(dispute.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-
-                  <p className="text-sm font-bold text-foreground">{dispute.reason}</p>
-
-                  <div className="text-xs text-primary font-semibold">
-                    Materials: {formatMaterials(dispute.pickup_requests_public?.material_summary)}
-                  </div>
-
-                  {dispute.supporting_context && (
-                    <p className="text-xs text-muted-foreground">{dispute.supporting_context}</p>
-                  )}
-
-                  {dispute.resolution_note && (
-                    <p className="text-xs text-muted-foreground pt-1">
-                      <strong>Admin Note:</strong> {dispute.resolution_note}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  {dispute.proof_url && (
-                    <a
-                      href={dispute.proof_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs font-bold text-primary bg-primary/10 px-2.5 py-1.5 rounded-xl hover:bg-primary/20 transition-all"
+        <div className="space-y-2.5">
+          {disputes.map((dispute) => {
+            const style = outcomeStyle[dispute.outcome ?? 'open'];
+            return (
+              <button
+                key={dispute.id}
+                onClick={() => void openAdjudicationModal(dispute)}
+                className="block w-full text-left"
+              >
+                <Card className="p-3.5 rounded-3xl bg-white border border-border/80 shadow-xs hover:shadow-md transition-shadow flex items-center justify-between">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div
+                      className={`h-11 w-11 rounded-2xl border flex items-center justify-center shrink-0 ${style.tint}`}
                     >
-                      <ImageIcon size={14} />
-                      Proof Photo
-                    </a>
-                  )}
-
-                  {dispute.outcome === null && (
-                    <Button
-                      size="sm"
-                      onClick={() => setSelectedDispute(dispute)}
-                      className="self-start sm:self-auto shrink-0"
+                      <AlertTriangle size={19} color={style.icon} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-black text-[#183e48] tracking-tight truncate">
+                        {dispute.reason}
+                      </div>
+                      <div className="text-xs font-medium text-muted-foreground mt-0.5 truncate">
+                        {formatMaterials(dispute.pickup_requests_public?.material_summary)} ·{' '}
+                        {new Date(dispute.created_at).toLocaleDateString([], {
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                    <span
+                      className={`px-3 py-1 rounded-full border text-xs font-black ${style.cls}`}
                     >
-                      Resolve
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </Card>
-          ))}
+                      {style.label}
+                    </span>
+                    <ChevronRight size={15} className="text-[#8a9ea0]" />
+                  </div>
+                </Card>
+              </button>
+            );
+          })}
         </div>
       ) : (
-        <Card className="p-10 text-center">
-          <p className="text-xs text-muted-foreground">No {filter} disputes.</p>
+        <Card className="p-4 rounded-3xl border border-dashed border-border/80 bg-white/60 flex items-center justify-center">
+          <span className="text-xs font-medium text-muted-foreground">No disputes</span>
         </Card>
       )}
 
-      {/* Visual Resolve Modal */}
+      {/* Detail */}
       {selectedDispute && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <Card className="max-w-lg w-full p-6 bg-white shadow-2xl rounded-3xl overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between pb-3 border-b border-border/70">
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center">
-                  <AlertTriangle size={16} />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-foreground">Adjudicate Dispute</h3>
-                  <span className="font-mono text-xs text-muted-foreground">
-                    #{selectedDispute.request_id.slice(0, 8)}
-                  </span>
-                </div>
+          <Card className="max-w-md w-full p-6 bg-white shadow-2xl rounded-3xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div className="min-w-0">
+                <h3 className="text-xl font-black text-[#183e48] tracking-tight">
+                  {selectedDispute.reason}
+                </h3>
+                <p className="text-xs font-medium text-muted-foreground mt-1">
+                  {formatMaterials(selectedDispute.pickup_requests_public?.material_summary)}
+                </p>
               </div>
               <button
                 onClick={() => setSelectedDispute(null)}
-                className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground"
+                aria-label="Close"
+                className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground shrink-0"
               >
                 <X size={16} />
               </button>
             </div>
 
-            <div className="space-y-4 py-4 overflow-y-auto flex-1">
-              {/* Reason card */}
-              <div className="bg-destructive/5 border border-destructive/20 rounded-2xl p-3">
-                <span className="text-[11px] font-bold text-destructive uppercase">
-                  Requester Dispute Reason
-                </span>
-                <p className="text-sm font-semibold text-foreground mt-0.5">
-                  {selectedDispute.reason}
-                </p>
-                {selectedDispute.supporting_context && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {selectedDispute.supporting_context}
-                  </p>
-                )}
-              </div>
+            <div className="space-y-4 overflow-y-auto flex-1">
+              {selectedDispute.supporting_context && (
+                <p className="text-sm text-foreground">{selectedDispute.supporting_context}</p>
+              )}
 
-              {/* Materials */}
-              <div className="bg-secondary/30 rounded-2xl p-3">
-                <span className="text-[11px] font-bold text-muted-foreground uppercase">
-                  Expected Materials
-                </span>
-                <p className="text-xs font-bold text-primary mt-0.5">
-                  {formatMaterials(selectedDispute.pickup_requests_public?.material_summary)}
-                </p>
-              </div>
+              {loadingModalProof ? (
+                <div className="rounded-2xl border border-border p-8 flex items-center justify-center bg-muted/20">
+                  <RefreshCw size={16} className="animate-spin text-primary" />
+                </div>
+              ) : modalProofUrl ? (
+                <div className="rounded-2xl overflow-hidden border border-border bg-slate-900 flex items-center justify-center min-h-[200px]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={modalProofUrl}
+                    alt="Proof"
+                    className="max-h-[260px] w-auto object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-border p-6 flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground bg-muted/20">
+                  <ImageIcon size={15} />
+                  No proof photo
+                </div>
+              )}
 
-              {/* Collector Proof Photo Viewport */}
-              <div>
-                <span className="block text-xs font-bold text-foreground mb-1.5">
-                  Collector Proof Photo
-                </span>
-                {selectedDispute.proof_url ? (
-                  <div className="relative rounded-2xl overflow-hidden border border-border bg-slate-900 flex items-center justify-center min-h-[200px]">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={selectedDispute.proof_url}
-                      alt="Collector completion proof"
-                      className="max-h-[260px] w-auto object-contain"
-                    />
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground bg-muted/30">
-                    No proof photo was submitted for this request.
-                  </div>
-                )}
-              </div>
-
-              {/* Resolution Note */}
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1">
-                  Resolution Explanation (Recorded in Audit Log)
-                </label>
+              {selectedDispute.outcome === null ? (
                 <Input
-                  placeholder="e.g. Photo clearly shows empty doorstep / Photo is invalid"
+                  placeholder="Note"
                   value={resolutionNote}
                   onChange={(e) => setResolutionNote(e.target.value)}
+                  className="rounded-xl"
                 />
-              </div>
+              ) : (
+                selectedDispute.resolution_note && (
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {selectedDispute.resolution_note}
+                  </p>
+                )
+              )}
             </div>
 
-            {/* Actions */}
-            <div className="pt-3 border-t border-border/70 flex gap-2">
-              <Button
-                variant="destructive"
-                disabled={actionBusy}
-                onClick={() => void handleResolve('upheld')}
-                className="flex-1"
-              >
-                Uphold (Refund Requester)
-              </Button>
-              <Button
-                variant="default"
-                disabled={actionBusy}
-                onClick={() => void handleResolve('rejected')}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                Reject (Mark Completed)
-              </Button>
-            </div>
+            {selectedDispute.outcome === null && (
+              <div className="pt-4 flex gap-2">
+                <Button
+                  variant="destructive"
+                  disabled={actionBusy}
+                  onClick={() => void handleResolve('upheld')}
+                  className="flex-1 h-10 text-xs font-bold rounded-xl"
+                >
+                  Uphold
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={actionBusy}
+                  onClick={() => void handleResolve('inconclusive')}
+                  className="flex-1 h-10 text-xs font-bold rounded-xl"
+                >
+                  Close
+                </Button>
+                <Button
+                  disabled={actionBusy}
+                  onClick={() => void handleResolve('rejected')}
+                  className="flex-1 h-10 text-xs font-bold rounded-xl bg-primary hover:bg-primary-dark text-white"
+                >
+                  Reject
+                </Button>
+              </div>
+            )}
           </Card>
         </div>
       )}

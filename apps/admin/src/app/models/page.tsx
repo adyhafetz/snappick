@@ -3,36 +3,62 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { AdminShell } from '@/components/AdminShell';
 import { supabase } from '@/lib/supabase';
-import { Plus, RefreshCw, CheckCircle2, RotateCcw, Upload, FileCode } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { computeFileSha256 } from '@/lib/crypto';
+import {
+  RefreshCw,
+  CheckCircle2,
+  RotateCcw,
+  Upload,
+  FileCode,
+  Cpu,
+  Trash2,
+} from 'lucide-react';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 
 interface ModelVersion {
   id: string;
   version: string;
   role: string;
   status: string;
+  sha256: string;
   size_bytes: number;
   storage_path: string;
   rollout_percent: number;
   created_at: string;
+  manifest?: {
+    accuracy_map50?: number;
+    latency_ms?: number;
+    community_images?: number | null;
+    base_images?: number | null;
+    trained_at?: string;
+  };
 }
 
 const LABELS = ['metal', 'trash', 'glass', 'paper', 'cardboard', 'plastic', 'biological'];
+const pct = (n: number) => (n * 100).toFixed(2);
+const ACCURACY_THRESHOLD = 0.65; // 65% mAP threshold for green recommendation
 
 export default function ModelsPage() {
   const [models, setModels] = useState<ModelVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [addModal, setAddModal] = useState(false);
+  const [useConfirmModal, setUseConfirmModal] = useState<{
+    visible: boolean;
+    model: ModelVersion | null;
+  }>({ visible: false, model: null });
+
   const [newVersion, setNewVersion] = useState('');
   const [newFileName, setNewFileName] = useState('');
   const [newSizeMb, setNewSizeMb] = useState('');
+  const [newAccuracy, setNewAccuracy] = useState('');
+  const [newSha256, setNewSha256] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<ModelVersion | null>(null);
 
   const loadModels = useCallback(async () => {
     setLoading(true);
@@ -55,58 +81,158 @@ export default function ModelsPage() {
     void loadModels();
   }, [loadModels]);
 
-  const activeChampion = models.find((m) => m.role === 'champion') || models.find((m) => m.version === 'v0');
+  const activeModel =
+    models.find((m) => m.role === 'champion') || models.find((m) => m.version === 'v0');
 
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
       setNewFileName(file.name);
       setNewSizeMb((file.size / (1024 * 1024)).toFixed(1));
+
+      try {
+        const hash = await computeFileSha256(file);
+        setNewSha256(hash);
+      } catch (err) {
+        console.warn('Hash error:', err);
+      }
     }
   }
 
-  async function handleRegisterModel(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newVersion.trim() || !newFileName.trim()) return;
+  // Set selected model as active live model
+  async function handleActivateModel() {
+    if (!useConfirmModal.model) return;
     setSaving(true);
-    setNotice(null);
+    try {
+      const { error } = await supabase.rpc('admin_approve_model_version', {
+        p_version: useConfirmModal.model.version,
+        p_rollout_percent: 100,
+      });
 
+      if (error) throw error;
+
+      setNotice(
+        `Model ${useConfirmModal.model.version.toUpperCase()} is now live. Phones are offered the update when users open the app, or when they tap Check Updates.`
+      );
+      setUseConfirmModal({ visible: false, model: null });
+      await loadModels();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Activation failed');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Rollback to bundled baseline v0
+  async function handleResetToBaseModel() {
+    if (!confirm('Revert mobile app back to the built-in Base Model (v0)?')) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.rpc('admin_rollback_model_version', {
+        p_version: activeModel?.version ?? 'v1',
+        p_reason: 'Admin reverted back to base model v0',
+      });
+
+      if (error) throw error;
+      setNotice('Active model switched back to built-in Base Model (v0).');
+      await loadModels();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Reset failed');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Delete a rejected model (never the live model or the bundled baseline; the database enforces it too)
+  async function handleDeleteModel() {
+    if (!deleteConfirm) return;
+    setSaving(true);
+    try {
+      const { data, error } = await supabase.rpc('admin_delete_model_version', {
+        p_version: deleteConfirm.version,
+      });
+      if (error) throw error;
+
+      const path = (data as { storage_path?: string } | null)?.storage_path;
+      if (path) {
+        // Best effort: the row is already gone, so a leftover file is harmless.
+        await supabase.storage.from('models').remove([path]);
+      }
+      setNotice(`Model ${deleteConfirm.version.toUpperCase()} deleted.`);
+      setDeleteConfirm(null);
+      await loadModels();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Delete failed');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleRegisterManualModel(e: React.FormEvent) {
+    e.preventDefault();
+    setFormError(null);
+    if (!newVersion.trim() || !newFileName.trim()) return;
+    const tag = newVersion.trim().toLowerCase();
+    if (!/^v\d+$/.test(tag)) {
+      setFormError('Version must look like v1, v2, v3.');
+      return;
+    }
+    if (models.some((m) => m.version.toLowerCase() === tag)) {
+      setFormError(`${tag.toUpperCase()} already exists. Choose the next version number.`);
+      return;
+    }
+    if (!selectedFile) {
+      setFormError('Choose the .tflite file to upload.');
+      return;
+    }
+    {
+      const head = new Uint8Array(await selectedFile.slice(0, 8).arrayBuffer());
+      const magic = String.fromCharCode(...head.slice(4, 8));
+      if (magic !== 'TFL3') {
+        setFormError('This file is not a TensorFlow Lite model (.tflite).');
+        return;
+      }
+    }
+    if (!newSha256) {
+      setFormError('The file checksum is still being calculated. Try again in a moment.');
+      return;
+    }
+    setSaving(true);
     try {
       const versionTag = newVersion.trim().toLowerCase();
       const fileName = newFileName.trim();
-      const storagePath = `models/${versionTag}/${fileName}`;
+      const storagePath = `${versionTag}/${fileName}`;
       const bytes = selectedFile
         ? selectedFile.size
         : Math.round(parseFloat(newSizeMb || '12.7') * 1024 * 1024);
 
-      // 1. If physical file provided, upload to Supabase Storage bucket 'models'
       if (selectedFile) {
         const { error: uploadErr } = await supabase.storage
           .from('models')
           .upload(storagePath, selectedFile, { upsert: true });
 
-        if (uploadErr) {
-          throw new Error(`Model file upload failed: ${uploadErr.message}`);
-        }
+        if (uploadErr) throw uploadErr;
       }
+      const accTyped = parseFloat(newAccuracy);
+      const accMap = Number.isFinite(accTyped) && accTyped > 0 && accTyped <= 100 ? accTyped / 100 : null;
 
-      // 2. Insert record into model_versions
       const { error: insertErr } = await supabase.from('model_versions').upsert(
         {
           version: versionTag,
           role: 'candidate',
           status: 'approved',
-          sha256: 'kaggle-exported-build',
+          sha256: newSha256 || 'manual-hash',
           size_bytes: bytes,
           storage_path: storagePath,
-          rollout_percent: 100,
+          rollout_percent: 0,
           min_app_version: '1.0.0',
           manifest: {
             version: versionTag,
             file: fileName,
             labels: LABELS,
             input: { width: 384, height: 384, resize: 'centre_crop' },
+            ...(accMap != null ? { accuracy_map50: accMap } : {}),
           },
         },
         { onConflict: 'version' }
@@ -114,17 +240,7 @@ export default function ModelsPage() {
 
       if (insertErr) throw insertErr;
 
-      // 3. Promote via RPC: demotes old champion, activates new champion, writes to audit log
-      const { error: approveErr } = await supabase.rpc('admin_approve_model_version', {
-        p_version: versionTag,
-        p_rollout_percent: 100,
-      });
-
-      if (approveErr) {
-        console.warn('RPC admin_approve_model_version notice:', approveErr.message);
-      }
-
-      setNotice(`Model ${versionTag} registered and promoted to active champion.`);
+      setNotice(`Model ${versionTag.toUpperCase()} uploaded successfully! Press Use to make it live.`);
       setAddModal(false);
       setNewVersion('');
       setNewFileName('');
@@ -132,26 +248,7 @@ export default function ModelsPage() {
       setSelectedFile(null);
       await loadModels();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Registration failed');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleRollbackToBundled() {
-    if (!confirm('Rollback to bundled baseline (v0)? Current model will be archived.')) return;
-    setSaving(true);
-    try {
-      const { error } = await supabase.rpc('admin_rollback_model_version', {
-        p_version: activeChampion?.version ?? 'v1',
-        p_reason: 'Admin dashboard manual rollback to baseline v0',
-      });
-
-      if (error) throw error;
-      setNotice('Rolled back to immutable bundled baseline (v0).');
-      await loadModels();
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Rollback failed');
+      alert(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setSaving(false);
     }
@@ -163,244 +260,351 @@ export default function ModelsPage() {
     return `${mb.toFixed(1)} MB`;
   }
 
+  const liveVersion = activeModel?.version || 'v0';
+  const liveAcc = activeModel?.manifest?.accuracy_map50 ?? (liveVersion === 'v0' ? 0.72 : 0.78);
+
   return (
     <AdminShell>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-black text-foreground">Models</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Register Kaggle-trained TFLite weights and manage over-the-air rollout.
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <h1 className="text-3xl font-black text-[#183e48] tracking-tight">Models</h1>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => void loadModels()}
             disabled={loading}
-            className="gap-1.5"
+            aria-label="Refresh"
+            className="h-9 w-9 p-0 rounded-xl bg-white border-border/80"
           >
-            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-            Refresh
+            <RefreshCw size={14} className={loading ? 'animate-spin text-primary' : 'text-primary'} />
           </Button>
-
           <Button
-            variant="default"
             size="sm"
-            onClick={() => setAddModal(true)}
-            className="gap-1.5"
+            onClick={() => { setFormError(null); setAddModal(true); }}
+            className="h-9 px-4 rounded-xl font-bold text-xs gap-2 bg-primary hover:bg-primary-dark text-white"
           >
-            <Plus size={15} />
-            Register Model
+            <Upload size={13} />
+            Upload
           </Button>
         </div>
       </div>
 
       {notice && (
-        <Card className="mb-4 p-3 border-emerald-200 bg-emerald-50 text-emerald-800 text-xs font-bold flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <CheckCircle2 size={15} className="text-emerald-600" />
-            {notice}
-          </span>
-          <button onClick={() => setNotice(null)} className="underline text-emerald-700">
-            Dismiss
-          </button>
-        </Card>
+        <button
+          onClick={() => setNotice(null)}
+          className="w-full text-left mb-4 px-4 py-3 rounded-2xl border border-primary/20 bg-primary/10 text-primary text-xs font-bold flex items-center gap-2"
+        >
+          <CheckCircle2 size={15} />
+          {notice}
+        </button>
       )}
 
-      {/* Active Model Summary */}
-      <Card className="p-5 mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary font-black text-base flex items-center justify-center uppercase">
-              {activeChampion?.version || 'v0'}
+      {/* Live model */}
+      <div className="rounded-3xl overflow-hidden bg-primary shadow-md shadow-primary/25 relative mb-7">
+        <div
+          style={{
+            position: 'absolute',
+            right: -25,
+            top: -25,
+            width: 130,
+            height: 130,
+            borderRadius: 65,
+            backgroundColor: 'rgba(255,255,255,0.08)',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            right: 45,
+            bottom: -35,
+            width: 110,
+            height: 110,
+            borderRadius: 55,
+            backgroundColor: 'rgba(255,255,255,0.05)',
+          }}
+        />
+        <div className="relative p-5 flex items-center gap-4">
+          <div
+            style={{ backgroundColor: '#359d8a' }}
+            className="h-14 w-14 rounded-2xl flex items-center justify-center border border-white/20 shrink-0"
+          >
+            <Cpu size={26} color="#ffffff" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-bold uppercase tracking-wider text-white/80">Live</div>
+            <div className="text-2xl font-black text-white tracking-tight uppercase leading-tight">
+              {liveVersion}
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-foreground">
-                  Active Model ({activeChampion?.version || 'v0'})
-                </span>
-                <Badge variant={activeChampion?.version === 'v0' ? 'secondary' : 'success'}>
-                  {activeChampion?.version === 'v0' ? 'Bundled Baseline' : 'Active Champion (OTA)'}
-                </Badge>
-              </div>
-              <p className="font-mono text-xs text-muted-foreground mt-0.5">
-                {activeChampion?.storage_path || 'models/v0/waste_detector_v0.tflite'}
-              </p>
+            <div className="text-xs font-medium text-white/80 mt-0.5">
+              {activeModel?.manifest?.accuracy_map50 != null ? `${pct(liveAcc)}% mAP` : 'Accuracy not recorded'} · {formatBytes(activeModel?.size_bytes || 0)}
             </div>
           </div>
+          {liveVersion !== 'v0' && (
+            <button
+              onClick={() => void handleResetToBaseModel()}
+              disabled={saving}
+              aria-label="Reset to base model"
+              title="Reset to base model"
+              style={{ backgroundColor: '#359d8a' }}
+              className="h-10 w-10 rounded-full flex items-center justify-center border border-white/20 shrink-0 disabled:opacity-50"
+            >
+              <RotateCcw size={16} color="#ffffff" />
+            </button>
+          )}
+        </div>
+      </div>
 
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-bold text-muted-foreground">
-              384 × 384 px • {formatBytes(activeChampion?.size_bytes ?? 12705251)}
-            </span>
+      {/* Versions */}
+      <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
+        Versions
+      </h2>
 
-            {activeChampion && activeChampion.version !== 'v0' && (
+      <div className="space-y-2.5">
+        {models.map((model) => {
+          const isBase = model.version === 'v0';
+          const isLive =
+            model.role === 'champion' || (isBase && activeModel?.version === 'v0');
+          const acc = model.manifest?.accuracy_map50 ?? (isBase ? 0.72 : 0.78);
+          const good = acc >= ACCURACY_THRESHOLD;
+
+          return (
+            <Card
+              key={model.id}
+              className="p-3.5 rounded-3xl bg-white border border-border/80 shadow-xs flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div
+                  className={`h-11 w-11 rounded-2xl border flex items-center justify-center shrink-0 ${
+                    good
+                      ? 'bg-primary/10 border-primary/20'
+                      : 'bg-amber-500/10 border-amber-500/25'
+                  }`}
+                >
+                  <Cpu size={19} color={good ? '#19806d' : '#b45309'} />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-black text-[#183e48] tracking-tight uppercase">
+                    {model.version}
+                    {isBase && (
+                      <span className="ml-2 text-[10px] font-bold normal-case text-muted-foreground">
+                        Base
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs font-medium text-muted-foreground mt-0.5 truncate">
+                    {model.manifest?.accuracy_map50 != null ? `${pct(acc)}% mAP` : 'Accuracy not recorded'} · {formatBytes(model.size_bytes)} ·{' '}
+                    {new Date(model.created_at).toLocaleDateString([], {
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </div>
+                  {!isLive && !isBase && model.manifest?.accuracy_map50 != null && (
+                    <div className="text-[11px] font-medium text-muted-foreground mt-0.5 truncate">
+                      <span
+                        className={
+                          acc - liveAcc > 0.00005
+                            ? 'text-emerald-700 font-bold'
+                            : acc - liveAcc < -0.00005
+                              ? 'text-rose-700 font-bold'
+                              : ''
+                        }
+                      >
+                        {acc - liveAcc >= 0 ? '+' : ''}
+                        {((acc - liveAcc) * 100).toFixed(2)} pts vs live
+                      </span>
+                      {model.manifest?.community_images != null && (
+                        <> · {model.manifest.community_images} community images</>
+                      )}
+                    </div>
+                  )}
+                  {isLive && model.manifest?.community_images != null && (
+                    <div className="text-[11px] font-medium text-muted-foreground mt-0.5 truncate">
+                      {model.manifest.community_images} community images
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {isLive ? (
+                <span className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-black text-primary shrink-0 ml-3">
+                  Live
+                </span>
+              ) : (
+                <div className="flex items-center gap-2 shrink-0 ml-3">
+                  {!isBase && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeleteConfirm(model)}
+                      aria-label={`Delete ${model.version}`}
+                      className="h-9 w-9 p-0 rounded-xl text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 size={15} />
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={() => setUseConfirmModal({ visible: true, model })}
+                    className={`h-9 px-4 rounded-xl font-bold text-xs text-white ${
+                      good
+                        ? 'bg-primary hover:bg-primary-dark'
+                        : 'bg-amber-600 hover:bg-amber-700'
+                    }`}
+                  >
+                    Use
+                  </Button>
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Delete model */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <Card className="max-w-sm w-full p-6 bg-white shadow-2xl rounded-3xl text-center">
+            <div className="h-12 w-12 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-700 flex items-center justify-center mx-auto mb-4">
+              <Trash2 size={22} />
+            </div>
+            <h3 className="text-xl font-black text-[#183e48] tracking-tight mb-5">
+              Delete {deleteConfirm.version.toUpperCase()}?
+            </h3>
+            <div className="flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => void handleRollbackToBundled()}
+                onClick={() => setDeleteConfirm(null)}
                 disabled={saving}
-                className="gap-1.5 text-xs text-destructive border-destructive/20 bg-destructive/5 hover:bg-destructive/10"
+                className="flex-1 h-10 rounded-xl text-xs font-bold"
               >
-                <RotateCcw size={13} />
-                Rollback to v0
+                Cancel
               </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => void handleDeleteModel()}
+                disabled={saving}
+                className="flex-1 h-10 rounded-xl font-bold text-xs"
+              >
+                {saving ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Switch model */}
+      {useConfirmModal.visible && useConfirmModal.model && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <Card className="max-w-sm w-full p-6 bg-white shadow-2xl rounded-3xl text-center">
+            <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center mx-auto mb-4">
+              <Cpu size={22} />
+            </div>
+            <h3 className="text-xl font-black text-[#183e48] tracking-tight mb-5">
+              Go live with {useConfirmModal.model.version.toUpperCase()}?
+            </h3>
+            {(useConfirmModal.model.manifest?.accuracy_map50 ?? 0.78) < ACCURACY_THRESHOLD && (
+              <p className="text-xs font-bold text-amber-700 -mt-3 mb-5">
+                Below the {Math.round(ACCURACY_THRESHOLD * 100)}% quality gate
+              </p>
             )}
-          </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setUseConfirmModal({ visible: false, model: null })}
+                disabled={saving}
+                className="flex-1 h-10 rounded-xl text-xs font-bold"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => void handleActivateModel()}
+                disabled={saving}
+                className="flex-1 h-10 rounded-xl font-bold text-xs bg-primary hover:bg-primary-dark text-white"
+              >
+                {saving
+                  ? 'Switching...'
+                  : (useConfirmModal.model.manifest?.accuracy_map50 ?? 0.78) < ACCURACY_THRESHOLD
+                    ? 'Go live anyway'
+                    : 'Confirm'}
+              </Button>
+            </div>
+          </Card>
         </div>
+      )}
 
-        <div className="flex flex-wrap gap-1.5 pt-3 border-t border-border">
-          {LABELS.map((label) => (
-            <Badge key={label} variant="secondary" className="capitalize text-xs font-semibold">
-              {label}
-            </Badge>
-          ))}
-        </div>
-      </Card>
-
-      {/* Models Table */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Version</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Rollout</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead>Storage Path</TableHead>
-                <TableHead>Date</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {models.map((model) => (
-                <TableRow key={model.id}>
-                  <TableCell className="font-black text-foreground uppercase">
-                    {model.version}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={model.role === 'champion' ? 'default' : 'secondary'}
-                      className="capitalize text-[10px]"
-                    >
-                      {model.role.replace(/_/g, ' ')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={model.status === 'stable' ? 'success' : 'secondary'}
-                      className="capitalize text-[10px]"
-                    >
-                      {model.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs font-bold">{model.rollout_percent}%</TableCell>
-                  <TableCell className="text-xs font-bold">
-                    {formatBytes(model.size_bytes)}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {model.storage_path}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {new Date(model.created_at).toLocaleDateString()}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Register Model Modal */}
+      {/* Upload */}
       {addModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <Card className="max-w-md w-full p-6 bg-white shadow-2xl rounded-3xl">
-            <div className="flex items-center justify-between pb-3 border-b border-border/70 mb-4">
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                  <Upload size={16} />
-                </div>
-                <h3 className="text-base font-bold text-foreground">Register Model</h3>
-              </div>
-            </div>
+          <Card className="max-w-sm w-full p-6 bg-white shadow-2xl rounded-3xl">
+            <h3 className="text-xl font-black text-[#183e48] tracking-tight mb-4">Upload</h3>
 
-            <form onSubmit={handleRegisterModel} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1">
-                  Upload .tflite File (optional)
-                </label>
-                <div className="border border-dashed border-border rounded-2xl p-4 text-center bg-secondary/20 hover:bg-secondary/30 transition-all cursor-pointer relative">
-                  <input
-                    type="file"
-                    accept=".tflite"
-                    onChange={handleFileSelect}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                  />
-                  <div className="flex flex-col items-center gap-1.5">
-                    <FileCode size={20} className="text-primary" />
-                    <span className="text-xs font-bold text-foreground">
-                      {selectedFile ? selectedFile.name : 'Click to select .tflite file'}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {selectedFile
-                        ? `${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB`
-                        : 'Uploads directly to Supabase storage'}
-                    </span>
-                  </div>
+            <form onSubmit={handleRegisterManualModel} className="space-y-3">
+              {formError && (
+                <p className="text-xs font-bold text-destructive" role="alert">
+                  {formError}
+                </p>
+              )}
+              <div className="border border-dashed border-border rounded-2xl p-4 text-center bg-secondary/30 hover:bg-secondary/40 transition-colors cursor-pointer relative">
+                <input
+                  type="file"
+                  accept=".tflite"
+                  onChange={handleFileSelect}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                />
+                <div className="flex flex-col items-center gap-1.5">
+                  <FileCode size={20} className="text-primary" />
+                  <span className="text-xs font-bold text-[#183e48]">
+                    {selectedFile ? selectedFile.name : '.tflite file'}
+                  </span>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1">
-                  Version Tag (e.g. v1, v2)
-                </label>
+              <div className="grid grid-cols-2 gap-2.5">
                 <Input
                   required
-                  placeholder="v1"
+                  placeholder="Version (v1)"
                   value={newVersion}
                   onChange={(e) => setNewVersion(e.target.value)}
+                  className="rounded-xl"
                 />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1">
-                  File Name
-                </label>
-                <Input
-                  required
-                  placeholder="waste_detector_v1.tflite"
-                  value={newFileName}
-                  onChange={(e) => setNewFileName(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1">
-                  Model Size (MB)
-                </label>
                 <Input
                   type="number"
-                  step="0.1"
-                  placeholder="12.7"
-                  value={newSizeMb}
-                  onChange={(e) => setNewSizeMb(e.target.value)}
+                  placeholder="mAP % (optional)"
+                  value={newAccuracy}
+                  onChange={(e) => setNewAccuracy(e.target.value)}
+                  className="rounded-xl"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-border/70">
+              <Input
+                required
+                placeholder="File name"
+                value={newFileName}
+                onChange={(e) => setNewFileName(e.target.value)}
+                className="rounded-xl"
+              />
+
+              <div className="flex gap-2 pt-2">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setAddModal(false)}
                   disabled={saving}
+                  className="flex-1 h-10 rounded-xl text-xs font-bold"
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={saving}>
-                  {saving ? 'Registering & Promoting...' : 'Register & Set as Champion'}
+                <Button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 h-10 rounded-xl font-bold text-xs bg-primary hover:bg-primary-dark text-white"
+                >
+                  {saving ? 'Uploading...' : 'Save'}
                 </Button>
               </div>
             </form>
