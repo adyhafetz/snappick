@@ -7,7 +7,6 @@ import { Image as ExpoImage } from 'expo-image';
 import {
   Camera,
   ArrowRight,
-  Bot,
   CheckCircle2,
   PackageCheck,
   Layers,
@@ -249,9 +248,14 @@ export default function HomeScreen() {
                     height: 58,
                     backgroundColor: '#ffffff',
                   }}
-                  className="rounded-2xl items-center justify-center border border-primary/20 shadow-xs"
+                  className="rounded-2xl items-center justify-center border border-primary/20 shadow-xs overflow-hidden"
                 >
-                  <Bot size={26} color="#19806d" />
+                  <ExpoImage
+                    source={require('../../../assets/images/snapbot-icon.svg')}
+                    style={{ width: 40, height: 40 }}
+                    contentFit="contain"
+                    accessibilityLabel="SnapBot"
+                  />
                 </View>
               </View>
 

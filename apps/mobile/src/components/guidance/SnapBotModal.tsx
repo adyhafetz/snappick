@@ -10,7 +10,8 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { Bot, Send, X, Sparkles, ShieldCheck } from 'lucide-react-native';
+import { Send, X, Sparkles } from 'lucide-react-native';
+import { Image } from 'expo-image';
 import { askSnapBot, type SnapBotMessage } from '@/lib/guidance/snapbot';
 import { Button } from '@/components/ui/button';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -44,8 +45,8 @@ function createMsg(role: 'user' | 'assistant', content: string): SnapBotMessage 
 
 function createInitialGreeting(itemClass: string): SnapBotMessage {
   const content = itemClass
-    ? `Hi! I'm SnapBot 🤖, your AI recycling assistant. I see you have questions about ${itemClass}. Ask me anything about sorting, cleaning, or recycling rules!`
-    : `Hi! I'm SnapBot 🤖, your AI recycling assistant. Ask me anything about waste sorting, recyclable materials, preparation tips, or community pickups!`;
+    ? `Hi! I'm SnapBot, your AI recycling assistant. I see you have questions about ${itemClass}. Ask me anything about sorting, cleaning, or recycling rules!`
+    : `Hi! I'm SnapBot, your AI recycling assistant. Ask me anything about waste sorting, recyclable materials, preparation tips, or community pickups!`;
   return createMsg('assistant', content);
 }
 
@@ -100,14 +101,16 @@ function SnapBotModalContent({
         {/* Header */}
         <View className="px-5 py-3.5 border-b border-border flex-row items-center justify-between bg-card">
           <View className="flex-row items-center gap-3">
-            <View className="h-10 w-10 rounded-2xl bg-primary/10 items-center justify-center border border-primary/20">
-              <Bot size={22} className="text-primary" />
+            <View className="h-10 w-10 rounded-2xl bg-white items-center justify-center border border-primary/20 shadow-xs overflow-hidden">
+              <Image
+                source={require('../../../assets/images/snapbot-icon.svg')}
+                style={{ width: 28, height: 28 }}
+                contentFit="contain"
+                accessibilityLabel="SnapBot"
+              />
             </View>
             <View>
-              <View className="flex-row items-center">
-                <Text className="text-base font-bold text-foreground">SnapBot</Text>
-              </View>
-              <Text className="text-xs text-muted-foreground">Recycling & Sorting Assistant</Text>
+              <Text className="text-base font-bold text-foreground">SnapBot</Text>
             </View>
           </View>
 
@@ -115,7 +118,7 @@ function SnapBotModalContent({
             onPress={onClose}
             className="h-10 w-10 rounded-2xl items-center justify-center bg-muted/60 active:bg-muted"
           >
-            <X size={20} className="text-muted-foreground" />
+            <X size={20} color="#5b7072" />
           </TouchableOpacity>
         </View>
 
@@ -135,7 +138,7 @@ function SnapBotModalContent({
           {messages.length <= 1 && (
             <View className="mb-2 p-3 bg-muted/40 rounded-2xl border border-border/60">
               <View className="flex-row items-center gap-1.5 mb-2">
-                <Sparkles size={13} className="text-primary" />
+                <Sparkles size={13} color="#19806d" />
                 <Text className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                   Frequently Asked Questions
                 </Text>
@@ -161,8 +164,13 @@ function SnapBotModalContent({
               className={`flex-row ${item.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {item.role === 'assistant' && (
-                <View className="h-7 w-7 rounded-xl bg-primary/10 items-center justify-center mr-2 mt-0.5 border border-primary/20">
-                  <Bot size={15} className="text-primary" />
+                <View className="h-7 w-7 rounded-xl bg-white items-center justify-center mr-2 mt-0.5 border border-primary/20 shadow-2xs overflow-hidden">
+                  <Image
+                    source={require('../../../assets/images/snapbot-icon.svg')}
+                    style={{ width: 20, height: 20 }}
+                    contentFit="contain"
+                    accessibilityLabel="SnapBot"
+                  />
                 </View>
               )}
 
@@ -193,19 +201,11 @@ function SnapBotModalContent({
 
           {loading && (
             <View className="flex-row items-center gap-2 bg-card border border-border rounded-2xl px-3.5 py-2.5 self-start">
-              <ActivityIndicator size="small" color="#16a34a" />
+              <ActivityIndicator size="small" color="#19806d" />
               <Text className="text-xs text-muted-foreground font-medium">SnapBot is thinking…</Text>
             </View>
           )}
         </ScrollView>
-
-        {/* Privacy Disclaimer Footer */}
-        <View className="px-4 py-1.5 bg-muted/20 border-t border-border/40 flex-row items-center justify-center gap-1.5">
-          <ShieldCheck size={12} className="text-muted-foreground/70" />
-          <Text className="text-[11px] text-muted-foreground/70 text-center">
-            Powered by OpenAI with cached guidance. No personal data is stored.
-          </Text>
-        </View>
 
         {/* Input Bar */}
         <View
@@ -226,9 +226,10 @@ function SnapBotModalContent({
             size="icon"
             disabled={loading || input.trim().length === 0}
             onPress={() => void handleSend()}
-            className="h-10 w-10 rounded-2xl bg-primary"
+            className="h-11 w-11 rounded-2xl bg-primary items-center justify-center shadow-xs"
+            style={{ backgroundColor: '#19806d' }}
           >
-            <Send size={18} className="text-primary-foreground" />
+            <Send size={18} color="#ffffff" />
           </Button>
         </View>
       </KeyboardAvoidingView>
