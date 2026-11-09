@@ -386,6 +386,9 @@ deno_version = 2
 [functions.snapbot-chat]
 verify_jwt = true
 
+[functions.dashboard-ai]
+verify_jwt = false
+
 [functions.get-pickup-proof]
 verify_jwt = true
 

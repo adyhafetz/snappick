@@ -110,8 +110,8 @@ select s.id, c.name, c.name, round((0.35 + 0.64 * power(rnd.sc, 0.45))::numeric,
        1, s.created_at
 from pilot_scans s
 cross join generate_series(1, 3) as slot
-cross join lateral (select random() + 0 * slot as pr, random() * 100 + 0 * slot as rc, random() + 0 * slot as sc, random() + 0 * slot as cs,
-                           random() * 0.5 + 0 * slot as x, random() * 0.5 + 0 * slot as y, random() + 0 * slot as w) rnd
+cross join lateral (select random() + 0 * (slot + extract(epoch from s.created_at)) as pr, random() * 100 + 0 * (slot + extract(epoch from s.created_at)) as rc, random() + 0 * (slot + extract(epoch from s.created_at)) as sc, random() + 0 * (slot + extract(epoch from s.created_at)) as cs,
+                           random() * 0.5 + 0 * (slot + extract(epoch from s.created_at)) as x, random() * 0.5 + 0 * (slot + extract(epoch from s.created_at)) as y, random() + 0 * (slot + extract(epoch from s.created_at)) as w) rnd
 join cw c on (case when slot = 1 then rnd.rc * 0.92 else rnd.rc end) >= c.lo
          and (case when slot = 1 then rnd.rc * 0.92 else rnd.rc end) < c.hi
 where slot = 1 or rnd.pr < (case slot when 2 then 0.5 else 0.2 end);
@@ -157,7 +157,7 @@ select distinct on (r.id, c.name) r.id as request_id, c.name as app_class, slot,
        (case when slot = 1 or rnd.rs < 0.70 then 'clean_dry' when rnd.rs < 0.90 then 'contaminated_wet' when rnd.rs < 0.95 then 'broken_unsafe' else 'unknown' end)::public.condition_state as prep
 from pilot_req r
 cross join generate_series(1, 3) as slot
-cross join lateral (select random() + 0 * slot as pr, random() * 100 + 0 * slot as rc, random() + 0 * slot as rq, random() + 0 * slot as rs) rnd
+cross join lateral (select random() + 0 * (slot + extract(epoch from r.created_at)) as pr, random() * 100 + 0 * (slot + extract(epoch from r.created_at)) as rc, random() + 0 * (slot + extract(epoch from r.created_at)) as rq, random() + 0 * (slot + extract(epoch from r.created_at)) as rs) rnd
 join cw c on (case when slot = 1 then rnd.rc * 0.92 else rnd.rc end) >= c.lo
          and (case when slot = 1 then rnd.rc * 0.92 else rnd.rc end) < c.hi
 where slot = 1 or rnd.pr < (case slot when 2 then 0.55 else 0.2 end)
