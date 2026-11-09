@@ -17,7 +17,7 @@ SnapPick is a community recycling app for Perak, Malaysia (Android only). Reside
                                  ▼
                      Supabase (Postgres + PostGIS)
               Auth · RLS · RPCs · Realtime · Storage · pg_cron
-              Edge functions: snapbot-chat, notify,
+              Edge functions: snapbot-chat, dashboard-ai, notify,
               get-pickup-private-details, get-pickup-proof
                                  ▲                     ▲
  Admin dashboard (Next.js) ──────┘                     │ service-role secret
@@ -70,7 +70,9 @@ All schema changes are files in `supabase/migrations/` (applied to the linked re
 
 **Main tables:** `profiles`, `scans`, `detections`, `label_feedback`, `feedback_samples`, `scan_upload_queue`, `pickup_requests_public`, `pickup_request_private_details`, `pickup_waste_items`, `pickup_proofs`, `pickup_ratings`, `disputes`, `perak_districts`, `pbt_rule_sets`, `model_versions`, `push_tokens`, `audit_log`, `llm_usage`, `instruction_cache`, `reports`.
 
-**Edge functions** (`supabase/functions/`): `snapbot-chat` (recycling chat assistant, signed-in users only), `notify` (push notifications on status changes via Firebase), `get-pickup-private-details` and `get-pickup-proof` (return the address or a signed proof link to the people allowed to see them).
+**Public statistics** (read by `apps/web` with the anon key only): `public_meta`, `public_stats_period`, `public_stats_monthly`, `public_stats_materials`, `public_stats_hotspots`, rebuilt hourly by `refresh_public_stats()`; `get_public_districts()` (map outlines) and `get_public_range_stats(from, to)` (figures for a chosen date range). Any figure based on fewer than 5 households is returned as null. See [PUBLIC_WEBSITE_AND_DASHBOARD.md](./PUBLIC_WEBSITE_AND_DASHBOARD.md).
+
+**Edge functions** (`supabase/functions/`): `snapbot-chat` (recycling chat assistant, signed-in users only), `dashboard-ai` (language-model gateway for the public website, same `OPENAI_API_KEY` secret, accepts only the shared secret `DASHBOARD_AI_SECRET`), `notify` (push notifications on status changes via Firebase), `get-pickup-private-details` and `get-pickup-proof` (return the address or a signed proof link to the people allowed to see them).
 
 ## Admin dashboard (`apps/admin`)
 

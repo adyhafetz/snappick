@@ -97,6 +97,7 @@ Test data helpers (run from `apps/mobile`):
 | `npm run db:clean-pilot` | Removes only that sample data. |
 | `scripts/seed_demo_account.sql` then `supabase/tests/seed-demo.mjs` | Makes the Google demo account (adyhafetz@gmail.com) look lived-in for recordings: scans, completed and pending pickups, 8 open pins on the Collect map from the test accounts, and one pickup awaiting confirmation with a proof photo. Clean with `scripts/clean_demo_account.sql` and `seed-demo.mjs clean`. |
 | `npm run db:reset` | Clean, then seed. |
+| `npx supabase db query --linked -f scripts/clean_all_data.sql` | Resets the remote project to **accounts only**: keeps the four real accounts (`adyhafetz@gmail.com`, `test_a`, `test_b`, `test_admin`), the districts, rule sets and model v0; deletes every sample user and all activity, the AI caches and the dashboard figures. Does not delete files in storage. A single transaction that stops if one of the four accounts is missing. |
 
 These act on the **linked remote project**, so only use them while it holds test data.
 
