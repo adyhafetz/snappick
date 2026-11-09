@@ -2,6 +2,7 @@
 
 Detector training for SnapPick. The only training code is the Kaggle notebook [`notebooks/kaggle_waste_detector_retraining.ipynb`](notebooks/kaggle_waste_detector_retraining.ipynb). The admin dashboard's **Retrain** button pushes it to Kaggle and starts a GPU run.
 
+- Collecting and labelling your own photos: [../docs/DATASET_COLLECTION.md](../docs/DATASET_COLLECTION.md)
 - How the whole flow works: [../docs/MODEL_LIFECYCLE.md](../docs/MODEL_LIFECYCLE.md)
 - One-time Kaggle setup (credentials and secrets): [../docs/KAGGLE_SETUP.md](../docs/KAGGLE_SETUP.md)
 
