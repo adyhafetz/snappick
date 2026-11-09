@@ -10,7 +10,6 @@ import {
   Sparkles,
   AlertTriangle,
   LogOut,
-  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -45,9 +44,8 @@ export function AdminShell({
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="max-w-sm w-full bg-white border border-border/80 rounded-3xl p-8 text-center shadow-xs">
-          <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mx-auto mb-4 border border-primary/20">
-            <ShieldCheck size={24} />
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="SnapPick" width={56} height={56} className="mx-auto mb-4" />
           <h2 className="text-xl font-black text-ink mb-1">Admin Access Only</h2>
           <p className="text-xs text-muted-foreground mb-6">
             {user

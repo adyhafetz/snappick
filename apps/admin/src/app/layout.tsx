@@ -3,8 +3,9 @@ import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
 
 export const metadata: Metadata = {
-  title: 'SnapPick Admin',
-  description: 'SnapPick administration panel — model management, feedback review, dispute resolution',
+  title: { default: 'SnapPick Admin | Overview', template: 'SnapPick Admin | %s' },
+  description: 'SnapPick administration panel: model management, dataset review and dispute resolution.',
+  icons: { icon: '/logo.svg' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
