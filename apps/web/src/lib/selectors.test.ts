@@ -8,7 +8,7 @@ const row = (district_key: string, o: Partial<PeriodRow> = {}): PeriodRow => ({
 });
 
 const snap: Snapshot = {
-  meta: { refreshed_at: '2026-11-06T00:00:00Z', has_pilot_data: true, snapshot_hash: 'x' },
+  meta: { refreshed_at: '2026-11-06T00:00:00Z', snapshot_hash: 'x' },
   period: [
     row('state', { requested: 40, completed: 30, unclaimed: 10, households: 20, items_recycled: 200 }),
     row('kinta'),

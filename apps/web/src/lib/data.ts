@@ -21,7 +21,7 @@ export async function fetchRangeStats(range: DateRange): Promise<{ period: Perio
 export async function fetchSnapshot(range?: DateRange | null): Promise<Snapshot> {
   const db = client();
   const [meta, period, monthly, materials, hotspots, districts] = await Promise.all([
-    db.from('public_meta').select('refreshed_at, has_pilot_data, snapshot_hash').maybeSingle(),
+    db.from('public_meta').select('refreshed_at, snapshot_hash').maybeSingle(),
     db.from('public_stats_period').select('*'),
     db.from('public_stats_monthly').select('*'),
     db.from('public_stats_materials').select('*'),

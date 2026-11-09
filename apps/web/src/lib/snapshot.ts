@@ -37,7 +37,7 @@ export interface HotspotRow {
   unclaimed: number;
 }
 export interface DistrictShape { district_key: string; name: string; geojson: GeoJSON.Geometry }
-export interface Meta { refreshed_at: string; has_pilot_data: boolean; snapshot_hash: string }
+export interface Meta { refreshed_at: string; snapshot_hash: string }
 
 /** A chosen date range, as YYYY-MM-DD (Malaysia time). */
 export interface DateRange { from: string; to: string }
