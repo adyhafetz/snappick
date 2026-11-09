@@ -92,14 +92,21 @@ Test data helpers (run from `apps/mobile`):
 | Command | Effect |
 |---|---|
 | `npm run db:clean` | Deletes scans, pickups, proofs, ratings and disputes. **Keeps users and profiles.** |
-| `npm run db:seed` | Adds sample data for the two test accounts. |
-| `npm run db:seed-pilot` | Adds about six months of anonymous sample activity (136 fake accounts at `@pilot.snappick.test`) for the public dashboard. Re-running replaces it. |
-| `npm run db:clean-pilot` | Removes only that sample data. |
-| `scripts/seed_demo_account.sql` then `supabase/tests/seed-demo.mjs` | Makes the Google demo account (adyhafetz@gmail.com) look lived-in for recordings: scans, completed and pending pickups, 8 open pins on the Collect map from the test accounts, and one pickup awaiting confirmation with a proof photo. Clean with `scripts/clean_demo_account.sql` and `seed-demo.mjs clean`. |
+| `npm run db:seed` | Runs `scripts/seed/accounts.sql`: states for every mobile screen for the two test accounts. |
 | `npm run db:reset` | Clean, then seed. |
 | `npx supabase db query --linked -f scripts/clean_all_data.sql` | Resets the remote project to **accounts only**: keeps the four real accounts (`adyhafetz@gmail.com`, `test_a`, `test_b`, `test_admin`), the districts, rule sets and model v0; deletes every sample user and all activity, the AI caches and the dashboard figures. Does not delete files in storage. A single transaction that stops if one of the four accounts is missing. |
 
 These act on the **linked remote project**, so only use them while it holds test data.
+
+### Seeding the demo (run in this order)
+
+Each file can be run with `npx supabase db query --linked -f <file>` or pasted into the Supabase SQL editor. Every seeded user is tagged (`@demo.snappick.test`, or the test and demo accounts), dates are counted back from today, and re-running replaces the previous run.
+
+1. `scripts/seed/community.sql`: about 120 residents and 16 collectors with six months of scans, pickups, ratings and a few disputes across the 13 districts, for the public dashboard. It refreshes the dashboard figures at the end.
+2. `scripts/seed/accounts.sql`: the two test accounts in every state (pending, accepted, in progress, awaiting confirmation, completed, disputed, cancelled; open pins on the Collect map). It uses the one sample proof photo that already sits in the `proofs` bucket, so do not delete that file.
+3. `scripts/seed/demo_account.sql`, then `node supabase/tests/seed-demo.mjs` (see its header for the variables): makes the Google demo account look lived-in, with open pins from the test accounts and a pickup awaiting confirmation with a real proof upload. Remove with `scripts/seed/clean_demo_account.sql` and `seed-demo.mjs clean`.
+
+`scripts/clean_all_data.sql` resets everything back to the four accounts. Still to build: training images and label edits for the Dataset page, candidate models for the Models page, and disputes with proof photos.
 
 ## 7. Common problems
 

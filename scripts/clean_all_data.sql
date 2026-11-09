@@ -2,7 +2,7 @@
 --
 -- Keeps: the four real accounts (their auth users and profiles, with consents), the 14 districts, the PBT rule sets,
 --        model v0, push tokens, storage buckets and the whole schema.
--- Deletes: every sample (pilot) user (email ending @pilot.snappick.test) and everything linked to them, all scans,
+-- Deletes: every sample user (email ending @demo.snappick.test or the older @pilot.snappick.test) and everything linked to them, all scans,
 --        detections, pickups, items, ratings, disputes, proofs, label edits and training samples (also those of the
 --        kept accounts), the AI caches and usage log, and the dashboard figures (regenerated empty at the end).
 -- Does NOT delete files in storage (proof photos): remove them with the Storage API, see docs/DEVELOPMENT_GUIDE.md.
@@ -37,7 +37,7 @@ delete from public.scan_upload_queue;
 delete from public.reports;
 
 -- Sample users; cascades to their profiles and anything left that points at them.
-delete from auth.users where email like '%@pilot.snappick.test';
+delete from auth.users where email like '%@demo.snappick.test' or email like '%@pilot.snappick.test';
 
 delete from public.instruction_cache;
 delete from public.llm_usage;

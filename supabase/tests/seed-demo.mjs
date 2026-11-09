@@ -1,7 +1,7 @@
 // Adds demo activity through the app's own functions, signed in as the two test accounts:
 //   * open pickup requests (the pins on the Collect map), 5 from test B and 3 from test A, around Ipoh
 //   * the collector's proof photo for the demo pickup that test B is collecting (so it is awaiting confirmation)
-// Run supabase/scripts seed_demo_account.sql first (scripts/seed_demo_account.sql).
+// Run scripts/seed/demo_account.sql first (scripts/seed/demo_account.sql).
 //
 //   E2E_CONFIRM_REMOTE=yes SUPABASE_URL=... SUPABASE_ANON_KEY=... PROOF_JPEG=path/to/photo.jpg \
 //   TEST_USER_A_EMAIL=... TEST_USER_A_PASSWORD=... TEST_USER_B_EMAIL=... TEST_USER_B_PASSWORD=... \

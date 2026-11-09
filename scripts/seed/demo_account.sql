@@ -5,7 +5,7 @@
 -- Re-running replaces the earlier demo rows (they use fixed ids starting with de000000).
 -- Creates for the demo account: 6 scans with detections, 2 completed pickups with ratings,
 -- 1 pending pickup, 1 pickup claimed by test_b and in progress.
--- Remove: scripts/clean_demo_account.sql
+-- Remove: scripts/seed/clean_demo_account.sql
 
 begin;
 do $$

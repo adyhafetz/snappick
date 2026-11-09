@@ -1,4 +1,4 @@
--- Reusable Seeder: Comprehensive test data population for all SnapPick UI/UX flows.
+-- Account states: test data for every mobile screen (test_a and test_b) for all SnapPick UI/UX flows.
 -- Ensures test_a@gmail.com and test_b@gmail.com exist with password '12345678'.
 -- Populates:
 --   1. User profiles and consents

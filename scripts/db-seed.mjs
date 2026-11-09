@@ -6,7 +6,7 @@ import path from 'node:path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
-const sqlFile = path.resolve(__dirname, 'seed_comprehensive_data.sql');
+const sqlFile = path.resolve(__dirname, 'seed/accounts.sql');
 
 console.log('🌱 Seeding SnapPick database with comprehensive UI/UX test data...');
 console.log('   Users: test_a@gmail.com and test_b@gmail.com (password: 12345678)');
