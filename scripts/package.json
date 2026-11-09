@@ -1,0 +1,9 @@
+{
+  "name": "snappick-scripts",
+  "private": true,
+  "type": "module",
+  "description": "Helper scripts for the linked Supabase project (SQL runner).",
+  "dependencies": {
+    "pg": "^8.23.1"
+  }
+}

@@ -100,7 +100,7 @@ These act on the **linked remote project**, so only use them while it holds test
 
 ### Seeding the demo (run in this order)
 
-Each file can be run with `npx supabase db query --linked -f <file>` or pasted into the Supabase SQL editor. Every seeded user is tagged (`@demo.snappick.test`, or the test and demo accounts), dates are counted back from today, and re-running replaces the previous run.
+Each file can be run with `node scripts/run-sql.mjs <file> --yes` (works without the Supabase CLI; one-time setup: `cd scripts && npm install`, then copy `scripts/.env.example` to `scripts/.env.local` and set `SUPABASE_DB_URL` from Supabase, Connect, Session pooler, URL-encoding any special characters in the password), with `npx supabase db query --linked -f <file>`, or by pasting it into the Supabase SQL editor. The runner refuses to connect to any project other than this one, and `--record` also records a migration file in Supabase's history. Every seeded user is tagged (`@demo.snappick.test`, or the test and demo accounts), dates are counted back from today, and re-running replaces the previous run.
 
 1. `scripts/seed/community.sql`: about 120 residents and 16 collectors with six months of scans, pickups, ratings and a few disputes across the 13 districts, for the public dashboard. It refreshes the dashboard figures at the end.
 2. `scripts/seed/accounts.sql`: the two test accounts in every state (pending, accepted, in progress, awaiting confirmation, completed, disputed, cancelled; open pins on the Collect map). It uses the one sample proof photo that already sits in the `proofs` bucket, so do not delete that file.
