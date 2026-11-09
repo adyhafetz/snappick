@@ -44,6 +44,10 @@ if (!url) {
   console.error('SUPABASE_DB_URL is not set. Copy scripts/.env.example to scripts/.env.local and fill it in.');
   process.exit(2);
 }
+if (!/^postgres(ql)?:///.test(url)) {
+  console.error('SUPABASE_DB_URL must be a database connection string starting with postgresql:// (Supabase, Connect, Session pooler), not the https:// project address.');
+  process.exit(2);
+}
 if (!url.includes(EXPECTED_PROJECT_REF)) {
   console.error(`The connection string does not belong to project ${EXPECTED_PROJECT_REF}. Nothing was run.`);
   process.exit(2);
@@ -80,7 +84,8 @@ try {
   try {
     await client.query('rollback');
   } catch {}
-  console.error(`Failed: ${e.message}`);
+  const detail = e.message || (e.errors && e.errors.map((x) => x.message || x.code).join('; ')) || e.code || String(e);
+  console.error(`Failed: ${detail}`);
   if (e.position) console.error(`At character ${e.position} of the file.`);
   process.exitCode = 1;
 } finally {
