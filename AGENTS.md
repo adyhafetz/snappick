@@ -16,7 +16,7 @@ Read this file first in every session. Architecture is in `docs/ARCHITECTURE.md`
 
 ## Repository layout
 
-Single Git repository with **independent package roots** (no root JavaScript workspace): `apps/mobile` (Expo), `apps/admin` (Next.js admin dashboard), `ml` (Kaggle retraining notebook), `supabase` (migrations, functions, seed, remote test script), `scripts`, `docs`. Each JavaScript app has its own `package.json` and lockfile.
+Single Git repository with **independent package roots** (no root JavaScript workspace): `apps/mobile` (Expo), `apps/admin` (Next.js admin dashboard), `apps/web` (Next.js public website and dashboard), `ml` (Kaggle retraining notebook), `supabase` (migrations, functions, seed, remote test script), `scripts`, `docs`. Each JavaScript app has its own `package.json` and lockfile.
 
 ## Project facts that must not drift
 

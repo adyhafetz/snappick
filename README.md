@@ -9,6 +9,7 @@ A community recycling app for Perak, Malaysia (Android only). Residents photogra
 | Mobile app | `apps/mobile` | Done |
 | Database, storage, edge functions | `supabase/` | Done |
 | Admin dashboard | `apps/admin` | Done |
+| Public website and dashboard | `apps/web` | Built (see docs/PUBLIC_WEBSITE_AND_DASHBOARD.md) |
 | Model retraining (Kaggle) | `ml/` | Done |
 | Public website and community dashboard | (not started) | Planned |
 
@@ -27,6 +28,7 @@ Single Git repository with independent package roots (no root JavaScript workspa
 ```text
 apps/mobile      Expo (React Native) Android app
 apps/admin       Next.js admin dashboard (port 3001)
+apps/web         Next.js public website and community dashboard (port 3002)
 ml/              Kaggle retraining notebook (ml/notebooks/)
 supabase/        migrations, edge functions, seed data, remote test script
 scripts/         database helpers and the Perak district importer

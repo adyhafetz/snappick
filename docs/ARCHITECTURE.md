@@ -7,6 +7,7 @@ SnapPick is a community recycling app for Perak, Malaysia (Android only). Reside
 | Mobile app (Expo, React Native) | `apps/mobile` | Done |
 | Database, storage, edge functions | `supabase/` | Done |
 | Admin dashboard (Next.js) | `apps/admin` | Done |
+| Public website and dashboard (Next.js) | `apps/web` | Built; reads only the `public_*` snapshot tables (migration `20261107000100`) |
 | Model retraining (Kaggle notebook) | `ml/` | Done |
 | Public website and community dashboard | (not started) | Planned |
 

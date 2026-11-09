@@ -21,7 +21,8 @@ Environment files (never commit real values):
 |---|---|
 | `apps/mobile/.env` | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, optional `EXPO_PUBLIC_MAP_STYLE_URL` |
 | `apps/admin/.env.local` | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `KAGGLE_USERNAME`, `KAGGLE_KEY`, `KAGGLE_KERNEL_SLUG` |
-| Supabase function secrets | `OPENAI_API_KEY`, `LLM_ENABLED`, `LLM_DAILY_LIMIT` (set with `supabase secrets set`), plus the Firebase and notify secrets used by the `notify` function |
+| `apps/web/.env.local` | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`; optional server-only `DASHBOARD_AI_SECRET` (AI via the `dashboard-ai` function, see below), or `OPENAI_API_KEY` and `OPENAI_MODEL` for local use only; optional APK values `NEXT_PUBLIC_APK_*` |
+| Supabase function secrets | `DASHBOARD_AI_SECRET` (the same value as in `apps/web/.env.local`; lets the website call `dashboard-ai`), `OPENAI_API_KEY`, `LLM_ENABLED`, `LLM_DAILY_LIMIT` (set with `supabase secrets set`), plus the Firebase and notify secrets used by the `notify` function |
 
 Copy `.env.example` in each folder and fill it in. The service-role key and the OpenAI key never go into the mobile app, the admin app or git. The service-role key lives only in the Kaggle notebook's secrets.
 
@@ -94,6 +95,7 @@ Test data helpers (run from `apps/mobile`):
 | `npm run db:seed` | Adds sample data for the two test accounts. |
 | `npm run db:seed-pilot` | Adds about six months of anonymous sample activity (136 fake accounts at `@pilot.snappick.test`) for the public dashboard. Re-running replaces it. |
 | `npm run db:clean-pilot` | Removes only that sample data. |
+| `scripts/seed_demo_account.sql` then `supabase/tests/seed-demo.mjs` | Makes the Google demo account (adyhafetz@gmail.com) look lived-in for recordings: scans, completed and pending pickups, 8 open pins on the Collect map from the test accounts, and one pickup awaiting confirmation with a proof photo. Clean with `scripts/clean_demo_account.sql` and `seed-demo.mjs clean`. |
 | `npm run db:reset` | Clean, then seed. |
 
 These act on the **linked remote project**, so only use them while it holds test data.

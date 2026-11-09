@@ -1,15 +1,15 @@
-<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SnapBot">
-  <title>SnapBot icon</title>
-  <!-- Round head only: for the chat header, message avatar, favicon and small spaces (minimum 24px) -->
-  <circle cx="64" cy="64" r="64" fill="#19806D"/>
-  <path d="M20 46C28 24 46 14 64 14" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="5" stroke-linecap="round"/>
-  <rect x="22" y="46" width="84" height="52" rx="26" fill="#F5F7F2"/>
-  <ellipse cx="46" cy="70" rx="7.4" ry="8.4" fill="#183E48"/>
-  <ellipse cx="82" cy="70" rx="7.4" ry="8.4" fill="#183E48"/>
-  <circle cx="48.6" cy="66.8" r="2.2" fill="#FFFFFF"/>
-  <circle cx="84.6" cy="66.8" r="2.2" fill="#FFFFFF"/>
-  <path d="M54 83C58 89 70 89 74 83" stroke="#183E48" stroke-width="3.6" stroke-linecap="round"/>
-  <circle cx="34" cy="84" r="4.6" fill="#E7B73E" fill-opacity="0.5"/>
-  <circle cx="94" cy="84" r="4.6" fill="#E7B73E" fill-opacity="0.5"/>
-  <path d="M64 18C63 8 71 2 84 3C84 14 77 21 64 18Z" fill="#F5F7F2"/>
+<svg width="128" height="128" viewBox="84 70 344 344" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SnapBot">
+<title>SnapBot icon</title>
+<!-- Head of snapbot.svg, cropped square, for the chat header, favicon and small spaces (minimum 24px) -->
+<path d="M256 169V133" stroke-width="14" stroke-linecap="round" stroke="#126253"/>
+<circle cx="256" cy="117" r="21" fill="#E7B73E"/>
+<rect x="88" y="229" width="45" height="86" rx="22" fill="#126253"/>
+<rect x="379" y="229" width="45" height="86" rx="22" fill="#126253"/>
+<rect x="116" y="162" width="280" height="226" rx="73" fill="#19806D"/>
+<rect x="141" y="211" width="230" height="141" rx="49" fill="#183E48"/>
+<rect x="187" y="243" width="29" height="38" rx="14.5" fill="#F5F7F2"/>
+<rect x="296" y="243" width="29" height="38" rx="14.5" fill="#F5F7F2"/>
+<rect x="169" y="292" width="26" height="10" rx="5" fill="#E7B73E"/>
+<rect x="317" y="292" width="26" height="10" rx="5" fill="#E7B73E"/>
+<path d="M238 305C247 317 265 317 274 305" stroke-width="9" stroke-linecap="round" stroke="#F5F7F2"/>
 </svg>

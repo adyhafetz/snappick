@@ -154,9 +154,16 @@ SnapPick uses **Lucide icons** exclusively for crisp geometric alignment.
 1. **Mobile App (`apps/mobile`)**:
    - Header features the centered horizontal lockup (`logo-full.png` / `logo-full.svg`, `154×32`).
    - Auth screens feature the standalone circular emblem (`logo.png`, `72×72`) with natural vertical breathing room (`mb-7`, `marginBottom: 20`).
+   - **Launcher icon and notification icon** fill the whole icon shape: the three-vein leaf mark in Eco Canvas on a Primary Brand Green background (no circle, no wordmark, no dark variant). The splash screen shows the full circular emblem in green on Eco Canvas. Files in `apps/mobile/assets/images`: `icon.png`, `android-icon-foreground.png` (adaptive icon; its background colour `#19806D` is set in `app.json`), `android-icon-monochrome.png` (themed icons), `splash-icon.png`, and `notification-icon.png` (white leaf, tinted `#19806d`). They are generated from `logo.svg`. Changing them needs `npx expo prebuild --platform android` and a native rebuild.
 2. **Admin Panel (`apps/admin`)** follows the same minimalist style as the mobile app:
    - Eco Canvas background (`#f5f7f2`), Deep Slate Ink text (`#183e48`), white `rounded-3xl` cards with a light border.
    - Short page titles with no subtitles; small icon buttons for refresh and export; one primary action per page (for example Retrain).
    - A left navigation (Overview, Dataset, Models, Disputes) where the active item has a soft green tint; the same segmented tab control as the mobile Activity screen.
    - Status pills use the same token colours as the mobile app (amber for review, red for disputed or upheld, green for live or confirmed).
    - The sign-in page shows the standalone circular emblem.
+
+## 8. Naming and page titles
+
+- The product is always written **SnapPick** (capital S and P, one word). The Android app name is "SnapPick".
+- **Website** page titles use `SnapPick | <Page>`, for example "SnapPick | Dashboard"; the home page is just "SnapPick". The tab icon is the emblem (`/brand/logo.svg`).
+- **Admin** page titles use `SnapPick Admin | <Page>`, for example "SnapPick Admin | Models" (pages: Overview, Dataset, Models, Disputes, Sign in). The tab icon is the emblem (`apps/admin/public/logo.svg`), the sidebar shows the horizontal lockup, and the sign-in and access-denied screens show the emblem.

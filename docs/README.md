@@ -20,4 +20,4 @@ See also [../PRODUCT.md](../PRODUCT.md) (product purpose and principles) and [..
 | Database, storage, edge functions (`supabase/`) | Done |
 | Admin dashboard (`apps/admin`) | Done |
 | Retraining (`ml/`) | Done |
-| Public website and community dashboard | Specified, not built (see PUBLIC_WEBSITE_AND_DASHBOARD.md) |
+| Public website and community dashboard (`apps/web`) | Built; APK hosting, domain and legal wording still open (see PUBLIC_WEBSITE_AND_DASHBOARD.md) |
