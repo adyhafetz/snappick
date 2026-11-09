@@ -44,7 +44,7 @@ if (!url) {
   console.error('SUPABASE_DB_URL is not set. Copy scripts/.env.example to scripts/.env.local and fill it in.');
   process.exit(2);
 }
-if (!/^postgres(ql)?:///.test(url)) {
+if (!url.startsWith('postgres://') && !url.startsWith('postgresql://')) {
   console.error('SUPABASE_DB_URL must be a database connection string starting with postgresql:// (Supabase, Connect, Session pooler), not the https:// project address.');
   process.exit(2);
 }
