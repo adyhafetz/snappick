@@ -82,9 +82,9 @@ export default async function Home() {
               <h1 className="text-5xl font-bold leading-[1.05] sm:text-6xl lg:text-7xl">
                 You <span className="text-primary">Snap</span> It,
                 <br />
-                The Community
+                Your Neighbors
                 <br />
-                <span className="text-primary">Pick</span>s It
+                <span className="text-primary">Pick</span> It
               </h1>
               <p className="mt-6 max-w-lg text-lg text-ink/75">
                 Scan waste in seconds, check what&apos;s recyclable, and coordinate effortless pickups with community near you.
