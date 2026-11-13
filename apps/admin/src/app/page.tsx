@@ -14,6 +14,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { CountUp } from '@/components/CountUp';
 import { Button } from '@/components/ui/button';
 
 interface RecentScan {
@@ -90,8 +91,8 @@ export default function AdminHomePage() {
   const tiles = [
     {
       href: '/models',
-      label: 'Live Model',
-      value: stats.activeModel.toUpperCase(),
+      label: 'Detector in use',
+      value: stats.activeModel,
       icon: Cpu,
       color: '#19806d',
       tint: 'bg-primary/10 border-primary/20',
@@ -99,7 +100,7 @@ export default function AdminHomePage() {
     },
     {
       href: '/feedback',
-      label: 'Review',
+      label: 'To review',
       value: stats.pendingEdits,
       icon: Clock,
       color: '#b45309',
@@ -108,7 +109,7 @@ export default function AdminHomePage() {
     },
     {
       href: '/disputes',
-      label: 'Disputes',
+      label: 'Open disputes',
       value: stats.openDisputes,
       icon: AlertTriangle,
       color: '#b42318',
@@ -135,8 +136,8 @@ export default function AdminHomePage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-        {tiles.map(({ href, label, value, icon: Icon, color, tint, ring }) => (
-          <Link key={label} href={href} className="block">
+        {tiles.map(({ href, label, value, icon: Icon, color, tint, ring }, i) => (
+          <Link key={label} href={href} className="block animate-appear" style={{ animationDelay: `${i * 70}ms` }}>
             <Card
               className={`p-4 rounded-3xl bg-white border ${ring} shadow-xs hover:shadow-md transition-shadow`}
             >
@@ -145,7 +146,7 @@ export default function AdminHomePage() {
               >
                 <Icon size={17} color={color} />
               </div>
-              <div className="text-2xl font-black text-[#183e48] tracking-tight">{value}</div>
+              <div className="text-2xl font-black text-[#183e48] tracking-tight">{typeof value === 'number' ? <CountUp value={value} /> : value}</div>
               <div className="text-[11px] font-bold text-muted-foreground mt-0.5">{label}</div>
             </Card>
           </Link>
@@ -158,18 +159,18 @@ export default function AdminHomePage() {
           <div className="flex items-end justify-between mb-3">
             <div>
               <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Dataset
+                Photos for the next detector
               </div>
               <div className="text-2xl font-black text-[#183e48] tracking-tight mt-1">
                 {stats.readyImages}
-                <span className="text-muted-foreground font-bold text-base"> / {DATASET_TARGET}</span>
+                <span className="text-muted-foreground font-bold text-base"> of {DATASET_TARGET} suggested</span>
               </div>
             </div>
             <ChevronRight size={16} className="text-[#8a9ea0] mb-1" />
           </div>
           <div className="w-full h-2.5 rounded-full bg-[#e8efe9] overflow-hidden">
             <div
-              className="h-full rounded-full bg-primary transition-all duration-700"
+              className="h-full rounded-full bg-primary transition-[width] duration-500 ease-brand"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -188,8 +189,8 @@ export default function AdminHomePage() {
 
       {recentScans.length > 0 ? (
         <div className="space-y-2.5">
-          {recentScans.map((scan) => (
-            <Link key={scan.id} href="/feedback" className="block">
+          {recentScans.map((scan, i) => (
+            <Link key={scan.id} href="/feedback" className="block animate-appear" style={{ animationDelay: `${Math.min(i, 5) * 70}ms` }}>
               <Card className="p-3.5 rounded-3xl bg-white border border-border/80 shadow-xs flex-row flex items-center justify-between">
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div className="h-11 w-11 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
@@ -213,8 +214,9 @@ export default function AdminHomePage() {
           ))}
         </div>
       ) : (
-        <Card className="p-4 rounded-3xl border border-dashed border-border/80 bg-white/60 flex items-center justify-center">
-          <span className="text-xs font-medium text-muted-foreground">No scans yet</span>
+        <Card className="p-5 rounded-3xl border border-dashed border-border/80 bg-white/60 flex flex-col items-center justify-center text-center">
+          <span className="text-sm font-bold text-[#183e48]">No scans yet</span>
+          <span className="text-xs text-muted-foreground mt-1">Scans appear here when people with Cloud Photo Sync turned on scan waste in the app.</span>
         </Card>
       )}
     </AdminShell>

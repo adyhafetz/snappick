@@ -8,4 +8,10 @@
     color: #183e48;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
 }

@@ -6,6 +6,7 @@ import { explainCard, type HelpId } from '@/lib/cardHelp';
 import { districtName, districtSummaries, formatPct, keyNumbers, materialsFor, monthlySeries, titleCase } from '@/lib/selectors';
 import { type DateRange, type MaterialRow, PERIODS, type Period, type PeriodRow, periodText, type Snapshot, STATE } from '@/lib/snapshot';
 import { CardGuide, HelpButton } from './CardGuide';
+import { CountUp } from './CountUp';
 import { BarList, MonthlyChart } from './charts';
 import { DateRangePicker } from './DateRangePicker';
 import { DistrictMap } from './DistrictMap';
@@ -18,9 +19,9 @@ interface Help {
   onAsk: (id: HelpId) => void;
 }
 
-function Card({ id, title, action, help, children, className = '' }: { id?: string; title?: string; action?: React.ReactNode; help?: Help; children: React.ReactNode; className?: string }) {
+function Card({ id, title, action, help, children, className = '', delay = 0 }: { id?: string; title?: string; action?: React.ReactNode; help?: Help; children: React.ReactNode; className?: string; delay?: number }) {
   return (
-    <section id={id} data-help={help?.id} className={`rounded-[1.75rem] bg-card p-6 shadow-sm ring-1 ring-border ${className}`}>
+    <section id={id} data-help={help?.id} style={{ animationDelay: `${delay}ms` }} className={`animate-appear rounded-[1.75rem] bg-card p-6 shadow-sm ring-1 ring-border ${className}`}>
       {(title || action) && (
         <div className="mb-5 flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-1.5">
@@ -35,9 +36,9 @@ function Card({ id, title, action, help, children, className = '' }: { id?: stri
   );
 }
 
-function Stat({ icon: Icon, label, value, note, help }: { icon: typeof Gauge; label: string; value: string; note?: string; help: Help }) {
+function Stat({ icon: Icon, label, value, note, help, delay = 0 }: { icon: typeof Gauge; label: string; value: React.ReactNode; note?: string; help: Help; delay?: number }) {
   return (
-    <div data-help={help.id} className="rounded-[1.75rem] bg-card p-5 shadow-sm ring-1 ring-border">
+    <div data-help={help.id} style={{ animationDelay: `${delay}ms` }} className="animate-appear rounded-[1.75rem] bg-card p-5 shadow-sm ring-1 ring-border">
       <div className="flex items-start justify-between">
         <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary text-primary">
           <Icon size={20} />
@@ -130,15 +131,16 @@ export function Dashboard({ snapshot: base, aiEnabled = false }: { snapshot: Sna
       </div>
 
       <div id="numbers" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat icon={PackageCheck} label="Pickups completed" value={k.suppressed ? 'n/a' : k.completed.toLocaleString('en-GB')} note={k.suppressed ? 'Fewer than 5 households' : `of ${k.requested} requests`} help={help('completed')} />
-        <Stat icon={Home} label="Households taking part" value={k.suppressed ? 'n/a' : k.households.toLocaleString('en-GB')} help={help('households')} />
-        <Stat icon={Recycle} label="Items recycled" value={k.suppressed ? 'n/a' : k.items.toLocaleString('en-GB')} help={help('items')} />
-        <Stat icon={Gauge} label="Completion rate" value={k.suppressed ? 'n/a' : formatPct(k.rate)} note={k.medianHours !== null ? `Claimed in ${k.medianHours} h (median)` : undefined} help={help('rate')} />
+        <Stat icon={PackageCheck} label="Pickups completed" value={k.suppressed ? 'n/a' : <CountUp value={k.completed} />} note={k.suppressed ? 'Fewer than 5 households' : undefined} help={help('completed')} />
+        <Stat icon={Home} label="Households taking part" value={k.suppressed ? 'n/a' : <CountUp value={k.households} />} help={help('households')} delay={70} />
+        <Stat icon={Recycle} label="Items recycled" value={k.suppressed ? 'n/a' : <CountUp value={k.items} />} help={help('items')} delay={140} />
+        <Stat icon={Gauge} label="Requests collected" delay={210} value={k.suppressed || k.rate === null ? 'n/a' : <CountUp value={k.rate * 100} format={(v) => `${Math.round(v)}%`} />} note={k.medianHours !== null ? `Usually claimed within ${k.medianHours} h` : undefined} help={help('rate')} />
       </div>
 
       {/* Map + selected area */}
       <div id="map" className="mt-6 grid gap-6 lg:grid-cols-[1.7fr_1fr]">
         <Card
+          delay={280}
           title="Where people recycle"
           help={help('map')}
           action={
@@ -158,7 +160,7 @@ export function Dashboard({ snapshot: base, aiEnabled = false }: { snapshot: Sna
                     <th className="py-2 pr-4 font-medium">Requested</th>
                     <th className="py-2 pr-4 font-medium">Completed</th>
                     <th className="py-2 pr-4 font-medium">Not collected</th>
-                    <th className="py-2 font-medium">Hours to claim</th>
+                    <th className="py-2 font-medium">Usual hours until claimed</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -177,7 +179,7 @@ export function Dashboard({ snapshot: base, aiEnabled = false }: { snapshot: Sna
           )}
         </Card>
 
-        <Card title={district === STATE ? 'Top districts' : where} help={help('side')}>
+        <Card title={district === STATE ? 'Top districts' : where} help={help('side')} delay={320}>
           {district === STATE ? (
             <BarList
               selected={district}
@@ -210,16 +212,16 @@ export function Dashboard({ snapshot: base, aiEnabled = false }: { snapshot: Sna
       </div>
 
       <div id="charts" className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Card title="Pickups per month" help={help('monthly')}>
+        <Card title="Pickups per month" help={help('monthly')} delay={360}>
           <MonthlyChart data={series} />
         </Card>
-        <Card title="What is recycled" help={help('materials')}>
+        <Card title="What is recycled" help={help('materials')} delay={400}>
           <BarList items={materials.map((m) => ({ key: m.name, label: titleCase(m.name), value: m.items, note: formatPct(m.share) }))} />
         </Card>
-        <Card title="Pickups completed by district" help={help('districts')}>
+        <Card title="Pickups completed by district" help={help('districts')} delay={440}>
           <BarList selected={district} onSelect={setDistrict} items={summaries.map((s) => ({ key: s.key, label: s.name, value: s.suppressed ? null : s.completed }))} />
         </Card>
-        <Card title="Requests not collected" help={help('unclaimed')}>
+        <Card title="Requests not collected" help={help('unclaimed')} delay={480}>
           <BarList
             selected={district}
             onSelect={setDistrict}

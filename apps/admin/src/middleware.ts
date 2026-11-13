@@ -17,8 +17,12 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+  // Without Supabase settings nobody can be checked, so nothing is served (fail closed).
   if (!supabaseUrl || !supabaseAnonKey) {
-    return response;
+    return new NextResponse(
+      'SnapPick Admin is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in apps/admin/.env.local.',
+      { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }
+    );
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {

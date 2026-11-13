@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowRight, BookOpen, Bot, ChevronDown, ExternalLink, HandHeart, History, Lock, MapPin, ScanLine, ShieldCheck } from 'lucide-react';
 import { Phone } from '@/components/Phone';
 import { PhoneVideo } from '@/components/PhoneVideo';
+import { RevealOnScroll } from '@/components/RevealOnScroll';
 import { Logo, SiteFooter, SiteHeader } from '@/components/SiteChrome';
 import { FAQ, PERAK_ECO_NEWS } from '@/content/site';
 import { fetchSnapshot } from '@/lib/data';
@@ -22,9 +23,9 @@ const STEPS = [
   { n: '04', id: 'collect', icon: MapPin, role: 'Collector', title: 'A live map of pickups near you', video: 'collect', alt: 'Screen recording: tapping a pin on the Collect map and claiming a task',
     text: 'Open requests appear as pins that update in real time. Tap one to see what is on offer, and claim up to three jobs at a time.',
     points: ['Real-time pins', 'Up to 3 active jobs', 'Route and navigation'] },
-  { n: '05', id: 'follow', icon: History, role: 'Both', title: 'See every request and every task', video: 'activity', alt: 'Screen recording: switching between My Requests and Claimed Tasks and filtering by status',
-    text: 'My Requests shows what you have asked for, and Claimed Tasks what you are collecting. Filter by active or completed.',
-    points: ['My Requests and Claimed Tasks', 'Active and completed', 'Clear status'] },
+  { n: '05', id: 'follow', icon: History, role: 'Both', title: 'See every request and every pickup', video: 'activity', alt: 'Screen recording: switching between My Requests and Claimed Pickups and filtering by status',
+    text: 'My Requests shows what you have asked for, and Claimed Pickups what you are collecting. Filter by active or completed.',
+    points: ['My Requests and Claimed Pickups', 'Active and completed', 'Clear status'] },
   { n: '06', id: 'confirm', icon: ShieldCheck, role: 'Both', title: 'Confirm, rate, or report a problem', video: 'confirm', alt: 'Screen recording: confirming a collection and rating the collector',
     text: 'The collector finishes with a proof photo. You confirm and rate from 1 to 5 stars, or report an issue. After 48 hours it completes on its own.',
     points: ['Proof photo', '1 to 5 stars', 'Report an issue'] },
@@ -73,6 +74,7 @@ export default async function Home() {
   return (
     <>
       <SiteHeader />
+      <RevealOnScroll />
       <main>
         {/* Hero */}
         <section className="relative overflow-hidden">
@@ -90,10 +92,10 @@ export default async function Home() {
                 Scan waste in seconds, check what&apos;s recyclable, and coordinate effortless pickups with community near you.
               </p>
               <div className="mt-9 flex flex-wrap gap-3">
-                <Link href="/dashboard" className="inline-flex items-center gap-2 rounded-full bg-primary px-7 py-3.5 font-medium text-white shadow-sm hover:bg-primary-dark">
+                <Link href="/dashboard" className="press inline-flex items-center gap-2 rounded-full bg-primary px-7 py-3.5 font-medium text-white shadow-sm hover:bg-primary-dark">
                   Live dashboard <ArrowRight size={18} />
                 </Link>
-                <Link href="/download" className="rounded-full border border-ink/20 px-7 py-3.5 font-medium text-ink hover:bg-secondary">
+                <Link href="/download" className="press rounded-full border border-ink/20 px-7 py-3.5 font-medium text-ink hover:bg-secondary">
                   Download the app
                 </Link>
               </div>
@@ -112,7 +114,7 @@ export default async function Home() {
 
             <div className="mt-14 space-y-24">
               {STEPS.map((s, i) => (
-                <div id={s.id} key={s.n} className={`grid scroll-mt-24 items-center gap-10 md:grid-cols-2 ${i % 2 ? 'md:[&>*:first-child]:order-2' : ''}`}>
+                <div id={s.id} key={s.n} data-reveal="" className={`grid scroll-mt-24 items-center gap-10 md:grid-cols-2 ${i % 2 ? 'md:[&>*:first-child]:order-2' : ''}`}>
                   <div>
                     <div className="flex items-center gap-3">
                       <span className="text-6xl font-bold leading-none tabular-nums text-primary">{s.n}</span>
@@ -170,8 +172,8 @@ export default async function Home() {
           <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">Who it&apos;s for</p>
           <h2 className="mt-3 max-w-2xl text-4xl font-bold">You leave it out. Others pick it up.</h2>
           <div className="mt-12 grid gap-6 md:grid-cols-2">
-            {PERSONAS.map((p) => (
-              <article key={p.who} className="flex flex-col rounded-[2rem] bg-card p-8 ring-1 ring-border">
+            {PERSONAS.map((p, i) => (
+              <article key={p.who} data-reveal="" className="flex flex-col rounded-[2rem] bg-card p-8 ring-1 ring-border">
                 <p className="text-sm font-medium uppercase tracking-wider text-primary">{p.who}</p>
                 <blockquote className="mt-4 text-2xl font-bold leading-snug">&ldquo;{p.quote}&rdquo;</blockquote>
                 <p className="mt-4 text-ink/75">{p.text}</p>
@@ -196,7 +198,7 @@ export default async function Home() {
                 <p className="text-xs font-medium uppercase tracking-[0.2em] text-brandAmber">Community dashboard</p>
                 <h2 className="mt-3 max-w-xl text-4xl font-bold">Perak is already recycling. Here is the proof.</h2>
               </div>
-              <Link href="/dashboard" className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 font-medium text-ink hover:bg-secondary">
+              <Link href="/dashboard" className="press inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 font-medium text-ink hover:bg-secondary">
                 Open the dashboard <ArrowRight size={18} />
               </Link>
             </div>
@@ -233,8 +235,8 @@ export default async function Home() {
           <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">News</p>
           <h2 className="mt-3 text-4xl font-bold">Latest recycling news in Perak</h2>
           <div className="mt-10 grid gap-5 md:grid-cols-3">
-            {PERAK_ECO_NEWS.map((n) => (
-              <a key={n.id} href={n.url} target="_blank" rel="noopener noreferrer" className="group flex flex-col overflow-hidden rounded-3xl bg-card ring-1 ring-border transition hover:shadow-md">
+            {PERAK_ECO_NEWS.map((n, i) => (
+              <a key={n.id} data-reveal="" href={n.url} target="_blank" rel="noopener noreferrer" className="group flex flex-col overflow-hidden rounded-3xl bg-card ring-1 ring-border transition-shadow hover:shadow-md">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={n.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" className="aspect-[16/10] w-full object-cover" />
                 <div className="flex flex-1 flex-col p-6">
@@ -276,8 +278,8 @@ export default async function Home() {
             <h2 className="mt-8 text-4xl font-bold sm:text-5xl">Be part of it</h2>
             <p className="mx-auto mt-3 max-w-md text-ink/75">Download SnapPick. Keep Perak clean, one snap at a time.</p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Link href="/download" className="rounded-full bg-primary px-7 py-3.5 font-medium text-white hover:bg-primary-dark">Download the app</Link>
-              <Link href="/dashboard" className="rounded-full border border-ink/20 px-7 py-3.5 font-medium text-ink hover:bg-white">View the dashboard</Link>
+              <Link href="/download" className="press rounded-full bg-primary px-7 py-3.5 font-medium text-white hover:bg-primary-dark">Download the app</Link>
+              <Link href="/dashboard" className="press rounded-full border border-ink/20 px-7 py-3.5 font-medium text-ink hover:bg-white">View the dashboard</Link>
             </div>
           </div>
         </section>

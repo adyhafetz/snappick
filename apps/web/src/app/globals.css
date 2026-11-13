@@ -28,6 +28,14 @@
   }
 }
 
+/* Motion system, press: a slight shrink while something is pressed (150 ms). See docs/BRAND_IDENTITY.md. */
+.press {
+  transition: scale 150ms cubic-bezier(.2, .7, .2, 1), background-color 150ms, color 150ms, box-shadow 150ms;
+}
+.press:active:not(:disabled) {
+  scale: 0.97;
+}
+
 .maplibregl-popup-content {
   border-radius: 1rem;
   padding: 0.75rem 1rem;

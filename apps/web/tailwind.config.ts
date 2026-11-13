@@ -51,8 +51,10 @@ const config: Config = {
         'pulse-ring': { '0%': { boxShadow: '0 0 0 0 rgba(231,183,62,0.65)' }, '70%,100%': { boxShadow: '0 0 0 14px rgba(231,183,62,0)' } },
         'bounce-calm': { '0%,100%': { transform: 'translateY(0)', animationTimingFunction: 'cubic-bezier(.3,0,.4,1)' }, '50%': { transform: 'translateY(-7px)', animationTimingFunction: 'cubic-bezier(.6,0,.7,1)' } },
         float: { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } },
+        appear: { '0%': { opacity: '0', transform: 'translateY(8px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
       },
-      animation: { 'bounce-calm': 'bounce-calm 2.8s infinite', float: 'float 4s ease-in-out infinite', 'pulse-ring': 'pulse-ring 1.8s ease-out infinite' },
+      transitionTimingFunction: { brand: 'cubic-bezier(.2,.7,.2,1)' },
+      animation: { appear: 'appear 250ms cubic-bezier(.2,.7,.2,1) both', 'bounce-calm': 'bounce-calm 2.8s infinite', float: 'float 4s ease-in-out infinite', 'pulse-ring': 'pulse-ring 1.8s ease-out infinite' },
       borderRadius: {
         lg: '1rem',
         md: '0.75rem',

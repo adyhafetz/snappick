@@ -354,7 +354,7 @@ export default function DatasetRetrainingPage() {
       setNotice(
         isRemoval && !restoreClass
           ? 'Removal kept. The item will not be used for training.'
-          : `Label verified as '${restoreClass}'. Added to Ready Dataset!`
+          : `Label verified as '${restoreClass}'. Added to the photos ready for training.`
       );
       await loadData();
     } catch (err: unknown) {
@@ -415,7 +415,7 @@ export default function DatasetRetrainingPage() {
 
   const tabs = [
     { id: 'pending' as const, label: 'Review', count: pendingReviews.length },
-    { id: 'ready' as const, label: 'Ready', count: readyCount },
+    { id: 'ready' as const, label: 'Ready for training', count: readyCount },
   ];
 
   return (
@@ -498,17 +498,17 @@ export default function DatasetRetrainingPage() {
         <div className="flex items-end justify-between mb-3">
           <div className="text-2xl font-black text-[#183e48] tracking-tight">
             {readyCount}
-            <span className="text-muted-foreground font-bold text-base"> / {BUCKET_TARGET}</span>
+            <span className="text-muted-foreground font-bold text-base"> of {BUCKET_TARGET} photos suggested for the next detector</span>
           </div>
           {sinceLast && (
             <div className="text-xs font-bold text-muted-foreground mb-0.5">
-              {sinceLast.count} new since {sinceLast.version.toUpperCase()}
+              {sinceLast.count} new since {sinceLast.version} was trained
             </div>
           )}
         </div>
         <div className="w-full h-2.5 rounded-full bg-[#e8efe9] overflow-hidden">
           <div
-            className="h-full rounded-full bg-primary transition-all duration-700"
+            className="h-full rounded-full bg-primary transition-[width] duration-500 ease-brand"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -543,15 +543,17 @@ export default function DatasetRetrainingPage() {
       {/* Review */}
       {activeTab === 'pending' &&
         (pendingReviews.length === 0 ? (
-          <Card className="p-4 rounded-3xl border border-dashed border-border/80 bg-white/60 flex items-center justify-center">
-            <span className="text-xs font-medium text-muted-foreground">Nothing to review</span>
+          <Card className="p-5 rounded-3xl border border-dashed border-border/80 bg-white/60 flex flex-col items-center justify-center text-center">
+            <span className="text-sm font-bold text-[#183e48]">Nothing to review</span>
+            <span className="text-xs text-muted-foreground mt-1">When someone changes or removes an item the app found, it appears here for you to check.</span>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {pendingReviews.map((item) => (
+            {pendingReviews.map((item, i) => (
               <Card
                 key={item.id}
-                className="p-4 rounded-3xl bg-white border border-border/80 shadow-xs"
+                style={{ animationDelay: `${Math.min(i, 5) * 70}ms` }}
+                className="animate-appear p-4 rounded-3xl bg-white border border-border/80 shadow-xs"
               >
                 <div className="flex gap-4 mb-4">
                   <div className="h-24 w-24 rounded-2xl bg-secondary/60 border border-border/80 shrink-0 overflow-hidden flex items-center justify-center">
@@ -631,8 +633,9 @@ export default function DatasetRetrainingPage() {
       {/* Ready */}
       {activeTab === 'ready' &&
         (readySamples.length === 0 ? (
-          <Card className="p-4 rounded-3xl border border-dashed border-border/80 bg-white/60 flex items-center justify-center">
-            <span className="text-xs font-medium text-muted-foreground">No images yet</span>
+          <Card className="p-5 rounded-3xl border border-dashed border-border/80 bg-white/60 flex flex-col items-center justify-center text-center">
+            <span className="text-sm font-bold text-[#183e48]">No photos ready yet</span>
+            <span className="text-xs text-muted-foreground mt-1">Checked photos from people who turned on AI Model Training collect here and are used for the next detector.</span>
           </Card>
         ) : (
           <div className="space-y-2.5">

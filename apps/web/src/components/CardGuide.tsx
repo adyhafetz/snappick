@@ -2,6 +2,7 @@
 
 import { HelpCircle, X } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { setupGsap } from '@/lib/motion';
 
 const BOT = 72;
 const PAD = 10;
@@ -46,6 +47,7 @@ export function CardGuide({ target, text, onClose }: { target: string; text: str
   const [row, setRow] = useState({ w: 340, h: 160 });
   const rowRef = useRef<HTMLDivElement>(null);
   const reduce = useRef(false);
+  const landed = useRef(false);
 
   const measure = useCallback(() => {
     const el = document.querySelector<HTMLElement>(`[data-help="${target}"]`);
@@ -70,43 +72,34 @@ export function CardGuide({ target, text, onClose }: { target: string; text: str
     window.addEventListener('resize', on);
     const key = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', key);
-    // Let the smooth scroll mostly finish before the bot picks its landing spot.
-    const t = window.setTimeout(() => setArmed(true), reduce.current ? 0 : SCROLL_MS);
     return () => {
       window.removeEventListener('scroll', on);
       window.removeEventListener('resize', on);
       window.removeEventListener('keydown', key);
-      window.clearTimeout(t);
     };
   }, [target, measure, onClose]);
 
-  // Flight, then thinking, then typing.
+  // One GSAP timeline: wait for the scroll, fly (the landing spot is tweened below), think, then type.
   useEffect(() => {
+    const gsap = setupGsap();
+    const r = reduce.current;
+    const sec = (ms: number) => (r ? 0 : ms / 1000);
+    const typed = { n: 0 };
+    setArmed(false);
     setPhase('flying');
     setShown(0);
-    const fly = reduce.current ? 0 : SCROLL_MS + FLY_MS;
-    const t1 = window.setTimeout(() => setPhase('thinking'), fly);
-    const t2 = window.setTimeout(() => setPhase('talking'), fly + (reduce.current ? 0 : THINK_MS));
+    landed.current = false;
+    const tl = gsap
+      .timeline()
+      .call(() => setArmed(true), [], sec(SCROLL_MS))
+      .call(() => setPhase('thinking'), [], `+=${sec(FLY_MS)}`)
+      .call(() => setPhase('talking'), [], `+=${sec(THINK_MS)}`)
+      .to(typed, { n: text.length, duration: sec((text.length / 125) * 1000), ease: 'none', onUpdate: () => setShown(Math.round(typed.n)) })
+      .call(() => setShown(text.length));
     return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
+      tl.kill();
     };
   }, [target, text]);
-
-  useEffect(() => {
-    if (phase !== 'talking') return;
-    if (reduce.current) {
-      setShown(text.length);
-      return;
-    }
-    let n = 0;
-    const id = window.setInterval(() => {
-      n += 2;
-      setShown(Math.min(n, text.length));
-      if (n >= text.length) window.clearInterval(id);
-    }, 16);
-    return () => window.clearInterval(id);
-  }, [phase, text]);
 
   useLayoutEffect(() => {
     const el = rowRef.current;
@@ -126,6 +119,28 @@ export function CardGuide({ target, text, onClose }: { target: string; text: str
     else if (above >= 8) pos = { left, top: above };
     else pos = { left, top: Math.max(8, vh - row.h - 16) };
   }
+
+  // The bot flies to its landing spot once; after that it stays glued to the card while the page scrolls.
+  useLayoutEffect(() => {
+    const el = rowRef.current;
+    if (!el) return;
+    const gsap = setupGsap();
+    if (!armed || reduce.current || landed.current) {
+      gsap.killTweensOf(el);
+      gsap.set(el, { left: pos.left, top: pos.top });
+      return;
+    }
+    gsap.to(el, {
+      left: pos.left,
+      top: pos.top,
+      duration: FLY_MS / 1000,
+      ease: 'power3.inOut',
+      overwrite: true,
+      onComplete: () => {
+        landed.current = true;
+      },
+    });
+  }, [armed, pos.left, pos.top]);
 
   const bubbleVisible = phase !== 'flying';
 
@@ -150,12 +165,7 @@ export function CardGuide({ target, text, onClose }: { target: string; text: str
       <div
         ref={rowRef}
         className="absolute flex items-end gap-2"
-        style={{
-          left: pos.left,
-          top: pos.top,
-          width: `min(26rem, ${vw - 32}px)`,
-          transition: reduce.current ? 'none' : `left ${FLY_MS}ms cubic-bezier(.3,.7,.2,1), top ${FLY_MS}ms cubic-bezier(.3,.7,.2,1)`,
-        }}
+        style={{ width: `min(26rem, ${vw - 32}px)` }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/brand/snapbot-icon.svg" alt="" width={BOT} height={BOT} className={`shrink-0 ${phase === 'talking' ? '' : 'animate-float'}`} />

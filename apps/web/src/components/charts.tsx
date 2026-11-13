@@ -50,7 +50,7 @@ export function BarList({ items, unit = '', onSelect, selected }: { items: BarIt
             <span className="w-28 shrink-0 truncate text-left text-sm">{i.label}</span>
             <span className="relative h-3 flex-1 overflow-hidden rounded-full bg-muted">
               {i.value !== null && (
-                <span className={`absolute inset-y-0 left-0 rounded-full ${TONE[i.tone ?? 'primary']}`} style={{ width: `${Math.max(2, (i.value / max) * 100)}%` }} />
+                <span className={`absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 ease-brand ${TONE[i.tone ?? 'primary']}`} style={{ width: `${Math.max(2, (i.value / max) * 100)}%` }} />
               )}
             </span>
             <span className="min-w-[5.5rem] shrink-0 whitespace-nowrap text-right text-sm tabular-nums text-ink">

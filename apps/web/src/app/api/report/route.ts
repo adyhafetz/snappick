@@ -4,11 +4,18 @@ import { polishInsights } from '@/lib/ai';
 import { buildInsights } from '@/lib/insights';
 import { buildReport } from '@/lib/report';
 import { type Period, parseRange } from '@/lib/snapshot';
+import { createLimiter } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+// Each report can call the language model and builds a PDF.
+const limited = createLimiter(10, 10 * 60_000);
+
 export async function GET(req: Request) {
+  if (limited(req)) {
+    return NextResponse.json({ error: 'Too many reports. Please wait a few minutes.' }, { status: 429 });
+  }
   const url = new URL(req.url);
   const p = url.searchParams.get('period');
   const range = p === 'custom' ? parseRange(url.searchParams.get('from'), url.searchParams.get('to')) : null;

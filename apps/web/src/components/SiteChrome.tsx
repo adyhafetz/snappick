@@ -26,7 +26,7 @@ export function SiteHeader() {
               {n.label}
             </Link>
           ))}
-          <Link href="/dashboard" className="ml-2 rounded-full bg-primary px-5 py-2.5 font-medium text-white shadow-sm hover:bg-primary-dark">
+          <Link href="/dashboard" className="press ml-2 rounded-full bg-primary px-5 py-2.5 font-medium text-white shadow-sm hover:bg-primary-dark">
             Dashboard
           </Link>
         </nav>

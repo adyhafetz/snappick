@@ -261,7 +261,9 @@ export default function ModelsPage() {
   }
 
   const liveVersion = activeModel?.version || 'v0';
-  const liveAcc = activeModel?.manifest?.accuracy_map50 ?? (liveVersion === 'v0' ? 0.72 : 0.78);
+  // Only recorded accuracy is ever shown or compared; a model without a measured value has none.
+  const liveAcc: number | null = activeModel?.manifest?.accuracy_map50 ?? null;
+  const confirmAcc: number | null = useConfirmModal.model?.manifest?.accuracy_map50 ?? null;
 
   return (
     <AdminShell>
@@ -333,19 +335,19 @@ export default function ModelsPage() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-bold uppercase tracking-wider text-white/80">Live</div>
-            <div className="text-2xl font-black text-white tracking-tight uppercase leading-tight">
+            <div className="text-2xl font-black text-white tracking-tight leading-tight">
               {liveVersion}
             </div>
             <div className="text-xs font-medium text-white/80 mt-0.5">
-              {activeModel?.manifest?.accuracy_map50 != null ? `${pct(liveAcc)}% mAP` : 'Accuracy not recorded'} · {formatBytes(activeModel?.size_bytes || 0)}
+              {liveAcc != null ? `${pct(liveAcc)}% accuracy` : 'Accuracy not measured yet'} · {formatBytes(activeModel?.size_bytes || 0)}
             </div>
           </div>
           {liveVersion !== 'v0' && (
             <button
               onClick={() => void handleResetToBaseModel()}
               disabled={saving}
-              aria-label="Reset to base model"
-              title="Reset to base model"
+              aria-label="Go back to the built-in detector"
+              title="Go back to the built-in detector"
               style={{ backgroundColor: '#359d8a' }}
               className="h-10 w-10 rounded-full flex items-center justify-center border border-white/20 shrink-0 disabled:opacity-50"
             >
@@ -361,17 +363,18 @@ export default function ModelsPage() {
       </h2>
 
       <div className="space-y-2.5">
-        {models.map((model) => {
+        {models.map((model, i) => {
           const isBase = model.version === 'v0';
           const isLive =
             model.role === 'champion' || (isBase && activeModel?.version === 'v0');
-          const acc = model.manifest?.accuracy_map50 ?? (isBase ? 0.72 : 0.78);
-          const good = acc >= ACCURACY_THRESHOLD;
+          const acc: number | null = model.manifest?.accuracy_map50 ?? null;
+          const good: boolean | null = acc == null ? null : acc >= ACCURACY_THRESHOLD;
 
           return (
             <Card
               key={model.id}
-              className="p-3.5 rounded-3xl bg-white border border-border/80 shadow-xs flex items-center justify-between"
+              style={{ animationDelay: `${Math.min(i, 5) * 70}ms` }}
+              className="animate-appear p-3.5 rounded-3xl bg-white border border-border/80 shadow-xs flex items-center justify-between"
             >
               <div className="flex items-center gap-3.5 min-w-0">
                 <div
@@ -381,25 +384,25 @@ export default function ModelsPage() {
                       : 'bg-amber-500/10 border-amber-500/25'
                   }`}
                 >
-                  <Cpu size={19} color={good ? '#19806d' : '#b45309'} />
+                  <Cpu size={19} color={good === null ? '#5b7072' : good ? '#19806d' : '#b45309'} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-sm font-black text-[#183e48] tracking-tight uppercase">
+                  <div className="text-sm font-black text-[#183e48] tracking-tight">
                     {model.version}
                     {isBase && (
                       <span className="ml-2 text-[10px] font-bold normal-case text-muted-foreground">
-                        Base
+                        Built-in
                       </span>
                     )}
                   </div>
                   <div className="text-xs font-medium text-muted-foreground mt-0.5 truncate">
-                    {model.manifest?.accuracy_map50 != null ? `${pct(acc)}% mAP` : 'Accuracy not recorded'} · {formatBytes(model.size_bytes)} ·{' '}
+                    {acc != null ? `${pct(acc)}% accuracy` : 'Accuracy not measured yet'} · {formatBytes(model.size_bytes)} ·{' '}
                     {new Date(model.created_at).toLocaleDateString([], {
                       month: 'short',
                       day: 'numeric',
                     })}
                   </div>
-                  {!isLive && !isBase && model.manifest?.accuracy_map50 != null && (
+                  {!isLive && !isBase && acc != null && liveAcc != null && (
                     <div className="text-[11px] font-medium text-muted-foreground mt-0.5 truncate">
                       <span
                         className={
@@ -411,10 +414,10 @@ export default function ModelsPage() {
                         }
                       >
                         {acc - liveAcc >= 0 ? '+' : ''}
-                        {((acc - liveAcc) * 100).toFixed(2)} pts vs live
+                        {((acc - liveAcc) * 100).toFixed(2)} points compared with the one in use
                       </span>
                       {model.manifest?.community_images != null && (
-                        <> · {model.manifest.community_images} community images</>
+                        <> · trained with {model.manifest.community_images} photos from the app</>
                       )}
                     </div>
                   )}
@@ -503,11 +506,16 @@ export default function ModelsPage() {
               <Cpu size={22} />
             </div>
             <h3 className="text-xl font-black text-[#183e48] tracking-tight mb-5">
-              Go live with {useConfirmModal.model.version.toUpperCase()}?
+              Go live with {useConfirmModal.model.version}?
             </h3>
-            {(useConfirmModal.model.manifest?.accuracy_map50 ?? 0.78) < ACCURACY_THRESHOLD && (
+            {confirmAcc != null && confirmAcc < ACCURACY_THRESHOLD && (
               <p className="text-xs font-bold text-amber-700 -mt-3 mb-5">
-                Below the {Math.round(ACCURACY_THRESHOLD * 100)}% quality gate
+                Accuracy {pct(confirmAcc)}% is below the {Math.round(ACCURACY_THRESHOLD * 100)}% guide
+              </p>
+            )}
+            {confirmAcc == null && (
+              <p className="text-xs font-medium text-muted-foreground -mt-3 mb-5">
+                Accuracy was not measured for this version. Try it on real photos before everyone gets it.
               </p>
             )}
             <div className="flex gap-2">
@@ -528,7 +536,7 @@ export default function ModelsPage() {
               >
                 {saving
                   ? 'Switching...'
-                  : (useConfirmModal.model.manifest?.accuracy_map50 ?? 0.78) < ACCURACY_THRESHOLD
+                  : confirmAcc != null && confirmAcc < ACCURACY_THRESHOLD
                     ? 'Go live anyway'
                     : 'Confirm'}
               </Button>
@@ -574,7 +582,7 @@ export default function ModelsPage() {
                 />
                 <Input
                   type="number"
-                  placeholder="mAP % (optional)"
+                  placeholder="Accuracy % (mAP50, optional)"
                   value={newAccuracy}
                   onChange={(e) => setNewAccuracy(e.target.value)}
                   className="rounded-xl"

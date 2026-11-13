@@ -47,6 +47,12 @@ const config: Config = {
         brandAmber: '#e7b73e',
         brandEmerald: '#16a34a',
       },
+      // Motion system (see docs/BRAND_IDENTITY.md): appear = fade in and rise a few pixels in 250 ms.
+      keyframes: {
+        appear: { '0%': { opacity: '0', transform: 'translateY(8px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+      },
+      animation: { appear: 'appear 250ms cubic-bezier(.2,.7,.2,1) both' },
+      transitionTimingFunction: { brand: 'cubic-bezier(.2,.7,.2,1)' },
       borderRadius: {
         lg: '1rem',
         md: '0.75rem',

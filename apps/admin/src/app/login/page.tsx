@@ -90,8 +90,9 @@ function LoginForm() {
           />
         </svg>
         <h1 className="text-3xl font-black tracking-tight text-foreground text-center">
-          Welcome Back
+          SnapPick Admin
         </h1>
+        <p className="mt-1 text-sm text-muted-foreground text-center">Sign in with an admin account.</p>
       </div>
 
       {/* Card Form */}

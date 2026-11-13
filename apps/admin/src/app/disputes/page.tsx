@@ -273,13 +273,14 @@ export default function DisputesPage() {
       {/* List */}
       {disputes.length > 0 ? (
         <div className="space-y-2.5">
-          {disputes.map((dispute) => {
+          {disputes.map((dispute, i) => {
             const style = outcomeStyle[dispute.outcome ?? 'open'];
             return (
               <button
                 key={dispute.id}
                 onClick={() => void openAdjudicationModal(dispute)}
-                className="block w-full text-left"
+                style={{ animationDelay: `${Math.min(i, 5) * 70}ms` }}
+                className="animate-appear block w-full text-left"
               >
                 <Card className="p-3.5 rounded-3xl bg-white border border-border/80 shadow-xs hover:shadow-md transition-shadow flex items-center justify-between">
                   <div className="flex items-center gap-3.5 min-w-0">
