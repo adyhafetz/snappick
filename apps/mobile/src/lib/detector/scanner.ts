@@ -12,6 +12,7 @@ import {
   getActiveModelVersion,
   getActiveModelConfig,
   rollbackToBundledFallback,
+  BUNDLED_FALLBACK_VERSION,
 } from './manager';
 
 // Keep the baseline binary in assets/models, outside Expo Router's route tree.
@@ -23,7 +24,8 @@ export type ScanTimings = { preprocessMs: number; inferenceMs: number; decodeNms
 export type ScanResult = { detections: Detection[]; timings: ScanTimings; imageWidth: number; imageHeight: number; manifest: ModelManifest };
 
 let bundledModelPromise: Promise<{ model: TensorflowModel; manifest: ModelManifest }> | undefined;
-let activeModelPromise: Promise<{ model: TensorflowModel; manifest: ModelManifest }> | undefined;
+// The loaded downloaded model, remembered per version so switching versions loads the new one straight away.
+let activeModel: { version: string; promise: Promise<{ model: TensorflowModel; manifest: ModelManifest }> } | undefined;
 
 export async function loadBundledDetector(): Promise<{ model: TensorflowModel; manifest: ModelManifest }> {
   if (!bundledModelPromise) {
@@ -45,16 +47,16 @@ export async function loadBundledDetector(): Promise<{ model: TensorflowModel; m
 
 export async function loadActiveDetector(): Promise<{ model: TensorflowModel; manifest: ModelManifest }> {
   const activeVersion = await getActiveModelVersion();
-  if (activeVersion === 'v0') {
+  if (activeVersion === BUNDLED_FALLBACK_VERSION) {
     return loadBundledDetector();
   }
 
-  if (!activeModelPromise) {
-    activeModelPromise = (async () => {
+  if (!activeModel || activeModel.version !== activeVersion) {
+    const promise = (async () => {
       try {
         const config = await getActiveModelConfig();
-        if (!config || !config.url) {
-          throw new Error(`No remote model URL found for active version ${activeVersion}`);
+        if (!config || config.version !== activeVersion || !config.localUri) {
+          throw new Error(`No downloaded model file for active version ${activeVersion}`);
         }
 
         const manifest = parseManifest({
@@ -63,7 +65,7 @@ export async function loadActiveDetector(): Promise<{ model: TensorflowModel; ma
           thresholds: (config.manifest?.thresholds as typeof manifestJson.thresholds) || manifestJson.thresholds,
         });
 
-        const model = await loadTensorflowModel({ url: config.url }, []);
+        const model = await loadTensorflowModel({ url: config.localUri }, []);
         const input = model.inputs[0];
         const output = model.outputs[0];
         if (!input || !output) throw new Error('Remote model has no input or output tensor.');
@@ -75,12 +77,13 @@ export async function loadActiveDetector(): Promise<{ model: TensorflowModel; ma
         return loadBundledDetector();
       }
     })().catch(async () => {
-      activeModelPromise = undefined;
+      activeModel = undefined;
       return loadBundledDetector();
     });
+    activeModel = { version: activeVersion, promise };
   }
 
-  return activeModelPromise;
+  return activeModel.promise;
 }
 
 async function prepareJpeg(uri: string, width: number, height: number, manifest: ModelManifest): Promise<{ image: RgbaImage; encodedWidth: number; encodedHeight: number }> {
@@ -97,7 +100,25 @@ async function prepareJpeg(uri: string, width: number, height: number, manifest:
 }
 
 export async function scanPhoto(uri: string, width: number, height: number): Promise<ScanResult> {
-  const { model, manifest } = await loadActiveDetector();
+  const active = await loadActiveDetector();
+  try {
+    return await runScan(active, uri, width, height);
+  } catch (error) {
+    // A downloaded model that fails while running falls back to the built-in v0 detector, then the scan is retried.
+    if (active.manifest.version === BUNDLED_FALLBACK_VERSION) throw error;
+    console.warn(`Detector ${active.manifest.version} failed while scanning, falling back to v0:`, error);
+    await rollbackToBundledFallback();
+    activeModel = undefined;
+    return runScan(await loadBundledDetector(), uri, width, height);
+  }
+}
+
+async function runScan(
+  { model, manifest }: { model: TensorflowModel; manifest: ModelManifest },
+  uri: string,
+  width: number,
+  height: number,
+): Promise<ScanResult> {
   const preprocessStart = globalThis.performance?.now?.() ?? Date.now();
   const prepared = await prepareJpeg(uri, width, height, manifest);
   const input = createInputTensor(prepared.image, manifest);

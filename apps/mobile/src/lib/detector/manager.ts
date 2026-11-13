@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
+import { deleteDownloadedModels, downloadVerifiedModel } from './model-files';
 
 export const ACTIVE_MODEL_STORAGE_KEY = 'snappick_active_model_version';
 export const ACTIVE_MODEL_CONFIG_KEY = 'snappick_active_model_config';
@@ -21,7 +22,10 @@ export interface EligibleModel {
 
 export interface ActiveModelConfig {
   version: string;
-  url: string;
+  /** The downloaded, checksum-verified model file on this phone. */
+  localUri?: string;
+  /** Older configs stored a download link (expired after 7 days); they are no longer used to load a model. */
+  url?: string;
   sha256?: string;
   manifest?: Record<string, unknown>;
 }
@@ -67,13 +71,14 @@ export async function setActiveModelVersion(version: string): Promise<void> {
 }
 
 /**
- * Activates an OTA candidate model by resolving its signed storage URL and persisting its config.
+ * Activates a new detector: downloads it once to the phone, checks it against its registered SHA-256, then stores
+ * its config. On any failure the current detector stays active.
  */
 export async function activateRemoteModel(remoteModel: EligibleModel): Promise<boolean> {
   try {
     const { data: signed, error: signErr } = await supabase.storage
       .from('models')
-      .createSignedUrl(remoteModel.storage_path, 86400 * 7);
+      .createSignedUrl(remoteModel.storage_path, 600);
 
     const modelUrl = signed?.signedUrl;
     if (signErr || !modelUrl) {
@@ -81,9 +86,10 @@ export async function activateRemoteModel(remoteModel: EligibleModel): Promise<b
       return false;
     }
 
+    const localUri = await downloadVerifiedModel(modelUrl, remoteModel.version, remoteModel.sha256);
     const config: ActiveModelConfig = {
       version: remoteModel.version,
-      url: modelUrl,
+      localUri,
       sha256: remoteModel.sha256,
       manifest: {
         version: remoteModel.version,
@@ -93,6 +99,11 @@ export async function activateRemoteModel(remoteModel: EligibleModel): Promise<b
 
     await AsyncStorage.setItem(ACTIVE_MODEL_CONFIG_KEY, JSON.stringify(config));
     await AsyncStorage.setItem(ACTIVE_MODEL_STORAGE_KEY, remoteModel.version);
+    try {
+      deleteDownloadedModels(localUri);
+    } catch {
+      // Old files are only a space concern.
+    }
     return true;
   } catch (err) {
     console.warn('activateRemoteModel failed:', err);
@@ -106,6 +117,11 @@ export async function activateRemoteModel(remoteModel: EligibleModel): Promise<b
 export async function rollbackToBundledFallback(): Promise<void> {
   await AsyncStorage.removeItem(ACTIVE_MODEL_CONFIG_KEY);
   await AsyncStorage.setItem(ACTIVE_MODEL_STORAGE_KEY, BUNDLED_FALLBACK_VERSION);
+  try {
+    deleteDownloadedModels();
+  } catch {
+    // Nothing to clean up.
+  }
 }
 
 /**
@@ -137,7 +153,7 @@ export async function checkForModelUpdate(userId?: string): Promise<CheckUpdateR
         hasUpdate: false,
         currentVersion,
         remoteModel: null,
-        message: 'Your model is up to date.',
+        message: 'Your detector is up to date.',
       };
     }
 

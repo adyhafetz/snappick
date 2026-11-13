@@ -22,7 +22,7 @@ export function materialPresentation(label: string, uncertain: boolean, confirme
 
 export function pickupDecision(label: string, condition: Condition, uncertain: boolean, confirmed: boolean, ruleSet: RuleSet = BUNDLED_RULE_SET): RuleDecision {
   if (uncertain && !confirmed) {
-    return { eligibility: 'needs_confirmation', reason: 'Confirm the detected label before pickup eligibility can be checked.' };
+    return { eligibility: 'needs_confirmation', reason: 'Confirm what this item is first, then we can tell you if it can be collected.' };
   }
   return evaluateEligibility(label, condition, ruleSet);
 }

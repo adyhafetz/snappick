@@ -19,6 +19,11 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
   },
 }));
 
+vi.mock('./model-files', () => ({
+  downloadVerifiedModel: vi.fn().mockResolvedValue('file:///data/models/waste_detector_v1.tflite'),
+  deleteDownloadedModels: vi.fn(),
+}));
+
 vi.mock('@/lib/supabase', () => ({
   supabase: {
     rpc: vi.fn(),
@@ -130,6 +135,19 @@ describe('detector/manager', () => {
 
     expect(success).toBe(true);
     expect(AsyncStorage.setItem).toHaveBeenCalledWith('snappick_active_model_version', 'v1');
+    const stored = vi.mocked(AsyncStorage.setItem).mock.calls.find(([k]) => k === 'snappick_active_model_config');
+    expect(JSON.parse(String(stored?.[1])).localUri).toBe('file:///data/models/waste_detector_v1.tflite');
+  });
+
+  it('keeps the current detector when the download or checksum fails', async () => {
+    const files = await import('./model-files');
+    vi.mocked(files.downloadVerifiedModel).mockRejectedValueOnce(new Error('does not match its checksum'));
+    const success = await activateRemoteModel({
+      version: 'v2', role: 'champion', status: 'stable', sha256: 'bad', size_bytes: 1, storage_path: 'models/v2.tflite',
+      thresholds: {}, min_app_version: '1.0.0', rollout_percent: 100, user_bucket: 10, is_eligible: true,
+    });
+    expect(success).toBe(false);
+    expect(AsyncStorage.setItem).not.toHaveBeenCalledWith('snappick_active_model_version', 'v2');
   });
 
   it('retrieves active model config from AsyncStorage', async () => {
