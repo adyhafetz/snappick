@@ -327,7 +327,7 @@ export function PickupCollect({ onCreateRequest }: { onCreateRequest?: () => voi
               >
                 <PackageCheck size={18} color="#ffffff" />
                 <Text className="text-base font-bold text-white">
-                  {online ? 'Claim Task' : 'Offline'}
+                  {online ? 'Claim Pickup' : 'Offline'}
                 </Text>
               </Button>
             )}
@@ -366,7 +366,7 @@ async function claim(requestId: string, refresh: () => Promise<void>) {
   if (error) {
     const message = error.message.toLowerCase();
     Alert.alert('Could not claim pickup', message.includes('active_claim_limit')
-      ? 'You already have three active pickups.'
+      ? 'You are already collecting 3 pickups. Finish one before claiming another.'
       : message.includes('cannot_claim_own')
         ? 'You cannot claim your own request.'
         : message.includes('request_') || message.includes('unavailable')

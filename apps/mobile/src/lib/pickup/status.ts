@@ -18,6 +18,13 @@ export function isStatusActive(status: string): boolean {
   return ACTIVE_STATUSES.has(status);
 }
 
+/** What to show for the collector when there is no collector name. */
+export function collectorPlaceholder(status: string): string {
+  if (status === 'pending') return 'Looking for Collector';
+  if (status === 'cancelled' || status === 'expired' || status === 'not_collected') return 'No collector';
+  return 'Assigned Collector';
+}
+
 export function getStatusLabel(status: string, role: PickupRole = 'requester'): string {
   switch (status) {
     case 'pending':
@@ -27,15 +34,18 @@ export function getStatusLabel(status: string, role: PickupRole = 'requester'): 
     case 'in_progress':
       return 'In Progress';
     case 'awaiting_confirmation':
-      return 'Review';
+      return role === 'requester' ? 'Confirm Pickup' : 'Waiting for Confirmation';
     case 'confirmed':
     case 'completed':
       return 'Completed';
     case 'cancelled':
       return 'Cancelled';
     case 'disputed':
-    case 'not_collected':
       return 'Disputed';
+    case 'not_collected':
+      return 'Not Collected';
+    case 'expired':
+      return 'Expired';
     default:
       return status ? status.replaceAll('_', ' ') : 'Unknown';
   }
@@ -82,14 +92,21 @@ export function getStatusConfig(status: string, role: PickupRole = 'requester'):
         textClass: 'text-emerald-800 dark:text-emerald-300',
       };
     case 'cancelled':
+    case 'expired':
       return {
         label,
         containerClass: 'bg-zinc-500/10 border-zinc-500/20',
         dotClass: 'bg-zinc-400',
         textClass: 'text-zinc-600 dark:text-zinc-400',
       };
-    case 'disputed':
     case 'not_collected':
+      return {
+        label,
+        containerClass: 'bg-amber-500/10 border-amber-500/25',
+        dotClass: 'bg-amber-500',
+        textClass: 'text-amber-800 dark:text-amber-300',
+      };
+    case 'disputed':
       return {
         label,
         containerClass: 'bg-rose-500/10 border-rose-500/25',

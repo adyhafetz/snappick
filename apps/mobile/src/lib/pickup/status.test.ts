@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getStatusConfig, getStatusLabel, isStatusActive } from './status';
+import { collectorPlaceholder, getStatusConfig, getStatusLabel, isStatusActive } from './status';
 
 describe('Pickup Status Utilities', () => {
   it('correctly identifies active statuses', () => {
@@ -25,14 +25,24 @@ describe('Pickup Status Utilities', () => {
     expect(getStatusLabel('in_progress', 'requester')).toBe('In Progress');
     expect(getStatusLabel('in_progress', 'collector')).toBe('In Progress');
 
-    expect(getStatusLabel('awaiting_confirmation', 'requester')).toBe('Review');
-    expect(getStatusLabel('awaiting_confirmation', 'collector')).toBe('Review');
+    expect(getStatusLabel('awaiting_confirmation', 'requester')).toBe('Confirm Pickup');
+    expect(getStatusLabel('awaiting_confirmation', 'collector')).toBe('Waiting for Confirmation');
 
     expect(getStatusLabel('completed')).toBe('Completed');
     expect(getStatusLabel('confirmed')).toBe('Completed');
     expect(getStatusLabel('cancelled')).toBe('Cancelled');
     expect(getStatusLabel('disputed')).toBe('Disputed');
-    expect(getStatusLabel('not_collected')).toBe('Disputed');
+    expect(getStatusLabel('not_collected')).toBe('Not Collected');
+    expect(getStatusLabel('expired')).toBe('Expired');
+    expect(getStatusConfig('not_collected').containerClass).toContain('amber');
+    expect(getStatusConfig('disputed').containerClass).toContain('rose');
+    expect(getStatusConfig('expired').containerClass).toContain('zinc');
+  });
+
+  it('says there is no collector once a request ended without one', () => {
+    expect(collectorPlaceholder('pending')).toBe('Looking for Collector');
+    expect(collectorPlaceholder('expired')).toBe('No collector');
+    expect(collectorPlaceholder('accepted')).toBe('Assigned Collector');
   });
 
   it('provides color configuration for each status', () => {

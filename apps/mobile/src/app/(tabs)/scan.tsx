@@ -69,6 +69,8 @@ import {
 } from '@/lib/detector/persistence';
 import { queuePendingScanSession } from '@/lib/detector/pending-sessions';
 import { enqueueScanUpload, flushOfflineUploadQueue } from '@/lib/detector/upload-queue';
+import Animated from 'react-native-reanimated';
+import { appear } from '@/lib/motion';
 
 function generateUUID(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -326,10 +328,11 @@ export default function ScanScreen() {
               feedbackType: 'confirm',
             });
           }
-          if (!item.removed && item.condition !== 'unknown') {
+          // Only a condition the person actually changed is feedback (every item starts as clean and dry).
+          if (!item.removed && item.condition !== 'clean_dry') {
             corrections.push({
               originalModelLabel: item.detection.label,
-              originalCondition: 'unknown',
+              originalCondition: 'clean_dry',
               correctedCondition: item.condition,
               feedbackType: 'condition_change',
             });
@@ -464,7 +467,7 @@ export default function ScanScreen() {
           Camera Access Needed
         </Text>
         <Text className="text-sm text-muted-foreground text-center mt-2 mb-6 max-w-xs leading-relaxed">
-          SnapPick scans recyclable materials on-device.
+          SnapPick needs the camera to check your waste. The check happens on your phone.
         </Text>
         <Button onPress={() => void requestPermission()} className="w-full h-12 rounded-2xl bg-primary mb-3">
           <Text className="text-base font-bold text-white">Enable Camera</Text>
@@ -672,7 +675,7 @@ export default function ScanScreen() {
             {busy && (
               <View className="flex-row items-center gap-2">
                 <ActivityIndicator color="#19806d" size="small" />
-                <Text className="text-xs font-medium text-muted-foreground">Analyzing...</Text>
+                <Text className="text-xs font-medium text-muted-foreground">Checking your photo...</Text>
               </View>
             )}
           </View>
@@ -693,7 +696,7 @@ export default function ScanScreen() {
           >
             {/* Header with status pill */}
             <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-2xl font-black tracking-tight text-foreground">Detected Materials</Text>
+              <Text className="text-2xl font-black tracking-tight text-foreground">What We Found</Text>
               <Badge variant={eligibleCount > 0 ? 'success' : 'secondary'} className="px-3 py-1 rounded-full">
                 <Text className={`text-[11px] font-bold ${eligibleCount > 0 ? 'text-primary' : 'text-muted-foreground'}`}>
                   {eligibleCount} eligible
@@ -706,14 +709,14 @@ export default function ScanScreen() {
             {items.length === 0 && (
               <View className="py-6 items-center">
                 <Text className="text-xs font-medium text-muted-foreground text-center">
-                  No items detected. Add one below if visible.
+                  Nothing found. If you can see an item, add it below.
                 </Text>
               </View>
             )}
 
             {/* Review Items List */}
             <View className="mt-4 space-y-3">
-              {items.map((item) => {
+              {items.map((item, index) => {
                 const decision = itemDecision(item, activeRuleSet);
                 const presentation = itemPresentation(item, activeRuleSet);
                 const isSelected = item.id === selectedId;
@@ -735,11 +738,14 @@ export default function ScanScreen() {
                   : 'Non-recyclable';
 
                 return (
-                  <Card
+                  <Animated.View
                     key={item.id}
+                    entering={appear(index)}
                     onLayout={(event) => {
                       rows.current[item.id] = sheetTop.current + event.nativeEvent.layout.y;
                     }}
+                  >
+                  <Card
                     style={{
                       borderColor: isSelected ? boxColor : 'rgba(203, 213, 225, 0.8)',
                       borderWidth: isSelected ? 2 : 1,
@@ -868,6 +874,7 @@ export default function ScanScreen() {
                       </View>
                     </View>
                   </Card>
+                  </Animated.View>
                 );
               })}
             </View>
@@ -952,10 +959,10 @@ export default function ScanScreen() {
                     </View>
                     <View className="flex-1">
                       <Text className="text-sm font-bold text-foreground">
-                        Non-Recyclable Materials
+                        Not Recyclable
                       </Text>
                       <Text className="text-xs text-muted-foreground mt-0.5 leading-snug">
-                        Items cannot be collected. Proceed to view safe disposal guidance.
+                        These items can't be collected. See how to throw them away safely.
                       </Text>
                     </View>
                   </View>
@@ -1193,7 +1200,7 @@ export default function ScanScreen() {
                     !hasViewedAll ? 'opacity-50' : ''
                   }`}
                 >
-                  <Text className="text-base font-bold text-white">Continue to Schedule</Text>
+                  <Text className="text-base font-bold text-white">Choose a Pickup Time</Text>
                   <ArrowRight size={18} color="#ffffff" />
                 </Button>
                 <Button

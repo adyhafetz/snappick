@@ -56,7 +56,7 @@ export default function ImageStorageConsentScreen() {
           </View>
 
           <Text className="text-3xl font-black tracking-tight text-foreground leading-tight">
-            Cloud Storage
+            Photo Backup
           </Text>
           <Text className="text-sm text-muted-foreground mt-2 leading-relaxed">
             Choose how your waste photos are stored.
@@ -80,7 +80,7 @@ export default function ImageStorageConsentScreen() {
               </View>
               <View className="flex-1">
                 <Text className="text-sm font-bold text-foreground">No faces or identities</Text>
-                <Text className="text-xs text-muted-foreground mt-0.5">Locations & tags stripped before upload</Text>
+                <Text className="text-xs text-muted-foreground mt-0.5">Location and hidden photo details removed before upload</Text>
               </View>
             </Card>
 
@@ -116,7 +116,7 @@ export default function ImageStorageConsentScreen() {
             ) : (
               <>
                 <Cloud size={18} color="#ffffff" />
-                <Text className="text-base font-bold text-white">Enable Sync</Text>
+                <Text className="text-base font-bold text-white">Turn On Photo Backup</Text>
               </>
             )}
           </Button>
@@ -128,7 +128,7 @@ export default function ImageStorageConsentScreen() {
             className="w-full h-11 rounded-2xl mt-2 flex-row items-center justify-center gap-2"
           >
             <Smartphone size={16} color="#5b7072" />
-            <Text className="text-sm font-semibold text-muted-foreground">Keep Offline</Text>
+            <Text className="text-sm font-semibold text-muted-foreground">Keep Photos on My Phone</Text>
           </Button>
         </View>
       </ScrollView>

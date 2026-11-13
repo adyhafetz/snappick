@@ -24,18 +24,13 @@ import {
   type PickupForm,
 } from '@/lib/pickup/pickup';
 import { supabase } from '@/lib/supabase';
+import { buildPickupWindow, DATE_CHOICES, dayLabel, TIME_CHOICES, type TimeChoice } from '@/lib/pickup/window';
 
 const DEFAULT_MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 const INITIAL_POINT: [number, number] = [101.0901, 4.5975];
 const LAST_ADDRESS_STORAGE_KEY = 'snappick:last-pickup-address';
-const DATE_CHOICES = [1, 2, 3] as const;
-const TIME_CHOICES = [
-  { id: 'morning', label: 'Morning (9am - 12pm)', startHour: 9, endHour: 12 },
-  { id: 'afternoon', label: 'Afternoon (1pm - 4pm)', startHour: 13, endHour: 16 },
-] as const;
 
 type AreaResolution = { districtId: string; districtName: string; ruleSet: RuleSet };
-type TimeChoice = typeof TIME_CHOICES[number]['id'];
 
 export interface PickupRequestSectionProps {
   items: PickupItemDraft[];
@@ -206,31 +201,23 @@ export function PickupRequestSection({
     }
   };
 
-  const pickupWindow = useMemo(() => {
-    const start = new Date();
-    start.setDate(start.getDate() + pickupDay);
-    const choice = TIME_CHOICES.find((item) => item.id === pickupTime) ?? TIME_CHOICES[0];
-    start.setHours(choice.startHour, 0, 0, 0);
-    const end = new Date(start);
-    end.setHours(choice.endHour, 0, 0, 0);
-    return { start: start.toISOString(), end: end.toISOString(), choice };
-  }, [pickupDay, pickupTime]);
+  const pickupWindow = useMemo(() => buildPickupWindow(pickupDay, pickupTime), [pickupDay, pickupTime]);
 
   const submit = async () => {
     setError('');
     if (!online) return setError('Connect to submit pickup.');
     if (!profile?.image_storage_consent) {
       Alert.alert(
-        'Cloud Storage Required',
-        'Community pickups require cloud photo storage so collectors can verify recyclable items. Turn on "Save Scan Photos to Cloud" in Profile settings to continue.',
+        'Photo Backup Needed',
+        'Collectors check your item photo before a pickup. Turn on Photo Backup in Profile to request pickups.',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Settings', onPress: () => router.push('/(tabs)/profile') },
+          { text: 'Open Profile', onPress: () => router.push('/(tabs)/profile') },
         ]
       );
       return;
     }
-    if (eligibleItems.length === 0) return setError('At least one reviewed item must be eligible for pickup.');
+    if (eligibleItems.length === 0) return setError('Add at least one clean, recyclable item to request a pickup.');
     const formError = validatePickupForm(form);
     if (formError) return setError(formError);
     if (!safetyConfirmed) return setError('Confirm that restricted and hazardous items have been removed or handled separately.');
@@ -288,6 +275,21 @@ export function PickupRequestSection({
 
   return (
     <View className="px-6 pt-3 pb-12">
+      {/* Said before the form is filled in, not only when submitting */}
+      {profile && !profile.image_storage_consent && (
+        <View className="mb-4 p-4 rounded-3xl border border-amber-500/30 bg-amber-500/10 flex-row items-start gap-3">
+          <CircleAlert size={18} color="#b45309" />
+          <View className="flex-1">
+            <Text className="text-sm font-bold text-foreground">Photo Backup is off</Text>
+            <Text className="text-xs text-muted-foreground mt-0.5 leading-snug">
+              Collectors check your item photo before a pickup. Turn on Photo Backup in Profile to request one.
+            </Text>
+            <AnimatedPressable onPress={() => router.push('/(tabs)/profile')} className="mt-2 self-start">
+              <Text className="text-xs font-bold text-primary">Open Profile</Text>
+            </AnimatedPressable>
+          </View>
+        </View>
+      )}
       {/* Unified Map & Address Details Card */}
       <Card className="p-5 rounded-3xl border-border/80 bg-card shadow-xs mb-4">
         {/* Header with icon in box */}
@@ -370,7 +372,7 @@ export function PickupRequestSection({
         <View className="mt-3.5 flex-row items-center gap-1.5 pt-2.5 border-t border-border/50">
           <ShieldCheck size={14} color="#19806d" />
           <Text className="flex-1 text-[11px] text-muted-foreground">
-            Address is kept private until assigned to a collector.
+            Only the collector who accepts your pickup sees your address.
           </Text>
         </View>
       </Card>
@@ -382,7 +384,7 @@ export function PickupRequestSection({
           <View className="h-9 w-9 rounded-2xl bg-primary/10 border border-primary/20 items-center justify-center">
             <Calendar size={18} color="#19806d" strokeWidth={2.2} />
           </View>
-          <Text className="text-base font-bold text-foreground">Collection Window</Text>
+          <Text className="text-base font-bold text-foreground">Pickup Time</Text>
         </View>
         <Text className="text-xs text-muted-foreground mb-1.5 font-medium">Select day:</Text>
         <View className="flex-row gap-2 mb-3">
@@ -441,7 +443,7 @@ export function PickupRequestSection({
             {isSubmitDisabled && !submitting && (
               <Text className="mt-2.5 text-center text-xs text-muted-foreground font-medium">
                 {eligibleItems.length === 0
-                  ? 'At least one item must be eligible for pickup'
+                  ? 'Add at least one clean, recyclable item'
                   : !safetyConfirmed
                   ? 'Please confirm the safety declaration above'
                   : !allAddressValid
@@ -526,17 +528,13 @@ function TimeWindowChoice(props: {
   );
 }
 
-function dayLabel(days: number): string {
-  return days === 1 ? 'Tomorrow' : `In ${days} days`;
-}
-
 function safeCreateError(message: string): string {
   const lower = message.toLowerCase();
   if (lower.includes('authentication_required')) return 'Sign in again before submitting your pickup.';
   if (lower.includes('outside_supported_service_area')) return 'This point is outside the supported Perak service area.';
   if (lower.includes('service_area_unavailable')) return 'Perak service-area data is unavailable. Try again later.';
   if (lower.includes('restricted_item_confirmation_required')) return 'Confirm that restricted items are handled separately.';
-  if (lower.includes('no_eligible_items')) return 'At least one reviewed item must be eligible for pickup.';
+  if (lower.includes('no_eligible_items')) return 'Add at least one clean, recyclable item to request a pickup.';
   if (lower.includes('invalid_coordinates')) return 'The selected map point is invalid. Move the pin and try again.';
   if (lower.includes('invalid_pickup_window')) return 'Choose a valid future pickup window.';
   if (lower.includes('open_request_limit')) return 'You already have 5 open pickups. Cancel one or wait until one is collected.';

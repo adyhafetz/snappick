@@ -17,7 +17,10 @@ import {
   ChevronRight,
 } from 'lucide-react-native';
 
+import Animated from 'react-native-reanimated';
 import { AnimatedPressable } from '@/components/ui/animated-pressable';
+import { CountUp } from '@/components/ui/count-up';
+import { appear } from '@/lib/motion';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { SnapBotModal } from '@/components/guidance/SnapBotModal';
@@ -120,265 +123,273 @@ export default function HomeScreen() {
 
 
 
-        {/* Primary Scan Card (Without Footer) */}
-        <AnimatedPressable
-          accessibilityRole="button"
-          onPress={() => router.push('/(tabs)/scan')}
-        >
-          <View className="rounded-3xl overflow-hidden bg-primary shadow-md shadow-primary/25 relative">
-            {/* Subtle ambient glowing background orbs */}
-            <View
-              style={{
-                position: 'absolute',
-                right: -25,
-                top: -25,
-                width: 130,
-                height: 130,
-                borderRadius: 65,
-                backgroundColor: 'rgba(255, 255, 255, 0.08)',
-              }}
-            />
-            <View
-              style={{
-                position: 'absolute',
-                right: 45,
-                bottom: -35,
-                width: 110,
-                height: 110,
-                borderRadius: 55,
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-              }}
-            />
-            <View
-              style={{
-                position: 'absolute',
-                left: -15,
-                bottom: -15,
-                width: 80,
-                height: 80,
-                borderRadius: 40,
-                backgroundColor: 'rgba(255, 255, 255, 0.04)',
-              }}
-            />
-
-            <View className="p-4 flex-row items-center gap-3.5">
-              <View style={{ width: 58, height: 58, flexShrink: 0 }} className="items-center justify-center">
-                <ExpoImage
-                  source={require('../../../assets/images/camera-icon.svg')}
-                  style={{ width: 52, height: 52 }}
-                  contentFit="contain"
-                  accessibilityLabel="Scan Waste"
-                />
-              </View>
-
-              <View className="flex-1 justify-center">
-                <Text className="text-xl font-black text-white leading-tight">
-                  Scan Waste
-                </Text>
-                <Text className="text-xs font-medium text-white/80 mt-1">
-                  {"Instantly check if it's recyclable"}
-                </Text>
-              </View>
-
-              <View
-                style={{ backgroundColor: '#359d8a' }}
-                className="h-10 w-10 rounded-full items-center justify-center border border-white/20 shadow-sm"
-              >
-                <ArrowRight size={18} color="#ffffff" />
-              </View>
-            </View>
-          </View>
-        </AnimatedPressable>
-
-        {/* SnapBot Card (Same design & size as Scan Waste, Light Color Scheme) */}
-        <AnimatedPressable
-          accessibilityRole="button"
-          accessibilityLabel="Ask SnapBot for instant sorting advice"
-          onPress={() => setSnapBotVisible(true)}
-          className="mt-3.5"
-        >
-          <View
-            style={{ backgroundColor: '#eaf6f2' }}
-            className="rounded-3xl overflow-hidden border border-primary/20 shadow-xs relative"
+        <Animated.View entering={appear(0)}>
+          {/* Primary Scan Card (Without Footer) */}
+          <AnimatedPressable
+            accessibilityRole="button"
+            onPress={() => router.push('/(tabs)/scan')}
           >
-            {/* Subtle ambient glowing background orbs */}
-            <View
-              style={{
-                position: 'absolute',
-                right: -25,
-                top: -25,
-                width: 130,
-                height: 130,
-                borderRadius: 65,
-                backgroundColor: 'rgba(25, 128, 109, 0.08)',
-              }}
-            />
-            <View
-              style={{
-                position: 'absolute',
-                right: 45,
-                bottom: -35,
-                width: 110,
-                height: 110,
-                borderRadius: 55,
-                backgroundColor: 'rgba(25, 128, 109, 0.05)',
-              }}
-            />
-            <View
-              style={{
-                position: 'absolute',
-                left: -15,
-                bottom: -15,
-                width: 80,
-                height: 80,
-                borderRadius: 40,
-                backgroundColor: 'rgba(255, 255, 255, 0.7)',
-              }}
-            />
-
-            <View className="p-4 flex-row items-center gap-3.5">
-              <View style={{ width: 58, height: 58, flexShrink: 0 }} className="items-center justify-center">
-                <ExpoImage
-                  source={require('../../../assets/images/snapbot-icon.svg')}
-                  style={{ width: 52, height: 52 }}
-                  contentFit="contain"
-                  accessibilityLabel="SnapBot"
-                />
-              </View>
-
-              <View className="flex-1 justify-center">
-                <Text className="text-xl font-black text-foreground leading-tight">
-                  Ask SnapBot
-                </Text>
-                <Text className="text-xs font-medium text-muted-foreground mt-1">
-                  Instant recycling & sorting advice
-                </Text>
-              </View>
-
+            <View className="rounded-3xl overflow-hidden bg-primary shadow-md shadow-primary/25 relative">
+              {/* Subtle ambient glowing background orbs */}
               <View
-                style={{ backgroundColor: '#ffffff' }}
-                className="h-10 w-10 rounded-full items-center justify-center border border-primary/20 shadow-xs"
-              >
-                <ArrowRight size={18} color="#19806d" />
-              </View>
-            </View>
-          </View>
-        </AnimatedPressable>
+                style={{
+                  position: 'absolute',
+                  right: -25,
+                  top: -25,
+                  width: 130,
+                  height: 130,
+                  borderRadius: 65,
+                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                }}
+              />
+              <View
+                style={{
+                  position: 'absolute',
+                  right: 45,
+                  bottom: -35,
+                  width: 110,
+                  height: 110,
+                  borderRadius: 55,
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                }}
+              />
+              <View
+                style={{
+                  position: 'absolute',
+                  left: -15,
+                  bottom: -15,
+                  width: 80,
+                  height: 80,
+                  borderRadius: 40,
+                  backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                }}
+              />
 
-        {/* Real Statistics Section */}
-        <View className="mt-8 mb-3 flex-row items-center gap-1.5">
-          <TrendingUp size={14} color="#5b7072" />
-          <Text className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Your Impact
-          </Text>
-        </View>
-
-        <View className="flex-row gap-2.5">
-          {/* Total Scans Card */}
-          <Card className="flex-1 p-3.5 rounded-3xl bg-card border border-primary/20 shadow-xs justify-between">
-            <View className="h-9 w-9 rounded-2xl bg-primary/10 border border-primary/20 items-center justify-center mb-2.5">
-              <Layers size={17} color="#19806d" />
-            </View>
-            <View>
-              <Text className="text-2xl font-black text-foreground tracking-tight">
-                {stats.total_scans}
-              </Text>
-              <Text className="text-[11px] font-bold text-muted-foreground mt-0.5">
-                Total Scans
-              </Text>
-            </View>
-          </Card>
-
-          {/* Verified Items Card */}
-          <Card className="flex-1 p-3.5 rounded-3xl bg-card border border-emerald-500/20 shadow-xs justify-between">
-            <View className="h-9 w-9 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 items-center justify-center mb-2.5">
-              <CheckCircle2 size={17} color="#16a34a" />
-            </View>
-            <View>
-              <Text className="text-2xl font-black text-foreground tracking-tight">
-                {stats.verified_recyclable_items}
-              </Text>
-              <Text className="text-[11px] font-bold text-muted-foreground mt-0.5">
-                Verified Items
-              </Text>
-            </View>
-          </Card>
-
-          {/* Active Pickups Card */}
-          <Card className="flex-1 p-3.5 rounded-3xl bg-card border border-blue-500/20 shadow-xs justify-between">
-            <View className="h-9 w-9 rounded-2xl bg-blue-500/10 border border-blue-500/20 items-center justify-center mb-2.5">
-              <PackageCheck size={17} color="#2563eb" />
-            </View>
-            <View>
-              <Text className="text-2xl font-black text-foreground tracking-tight">
-                {stats.active_requests}
-              </Text>
-              <Text className="text-[11px] font-bold text-muted-foreground mt-0.5">
-                Active Pickups
-              </Text>
-            </View>
-          </Card>
-        </View>
-
-        {/* Latest News (Real News Carousel) */}
-        <View className="mt-8 mb-3 flex-row items-center gap-1.5">
-          <Newspaper size={14} color="#5b7072" />
-          <Text className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Latest News
-          </Text>
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingRight: 24 }}
-          className="-mx-6 px-6"
-        >
-          {PERAK_ECO_NEWS.map((item) => (
-            <AnimatedPressable
-              key={item.id}
-              accessibilityRole="link"
-              accessibilityLabel={`Read article: ${item.title}`}
-              onPress={() => {
-                Linking.openURL(item.url).catch(() => {
-                  Alert.alert('Unable to open link', item.url);
-                });
-              }}
-              style={{ width: 265 }}
-              className="mr-3.5 rounded-3xl overflow-hidden bg-card border border-border/80 shadow-sm"
-            >
-              <View className="relative w-full h-36 bg-muted/60">
-                <ExpoImage
-                  source={{ uri: item.imageUrl }}
-                  style={{ width: '100%', height: '100%' }}
-                  contentFit="cover"
-                  transition={250}
-                />
-                <View className="absolute top-2.5 right-2.5 h-6 w-6 rounded-full bg-black/55 items-center justify-center">
-                  <ArrowUpRight size={13} color="#ffffff" />
+              <View className="p-4 flex-row items-center gap-3.5">
+                <View style={{ width: 58, height: 58, flexShrink: 0 }} className="items-center justify-center">
+                  <ExpoImage
+                    source={require('../../../assets/images/camera-icon.svg')}
+                    style={{ width: 52, height: 52 }}
+                    contentFit="contain"
+                    accessibilityLabel="Scan Waste"
+                  />
                 </View>
-              </View>
 
-              <View className="p-3.5 flex-1 justify-between">
-                <Text
-                  className="text-xs font-black text-foreground leading-snug"
-                  numberOfLines={2}
+                <View className="flex-1 justify-center">
+                  <Text className="text-xl font-black text-white leading-tight">
+                    Scan Waste
+                  </Text>
+                  <Text className="text-xs font-medium text-white/80 mt-1">
+                    {"Instantly check if it's recyclable"}
+                  </Text>
+                </View>
+
+                <View
+                  style={{ backgroundColor: '#359d8a' }}
+                  className="h-10 w-10 rounded-full items-center justify-center border border-white/20 shadow-sm"
                 >
-                  {item.title}
-                </Text>
-
-                <View className="mt-3 flex-row items-center justify-between pt-2.5 border-t border-border/50">
-                  <Text className="text-[11px] font-black text-primary">
-                    {item.source}
-                  </Text>
-                  <Text className="text-[10px] font-medium text-muted-foreground">
-                    {item.publishedDate}
-                  </Text>
+                  <ArrowRight size={18} color="#ffffff" />
                 </View>
               </View>
-            </AnimatedPressable>
-          ))}
-        </ScrollView>
+            </View>
+          </AnimatedPressable>
+        </Animated.View>
+
+        <Animated.View entering={appear(1)}>
+          {/* SnapBot Card (Same design & size as Scan Waste, Light Color Scheme) */}
+          <AnimatedPressable
+            accessibilityRole="button"
+            accessibilityLabel="Ask SnapBot for instant sorting advice"
+            onPress={() => setSnapBotVisible(true)}
+            className="mt-3.5"
+          >
+            <View
+              style={{ backgroundColor: '#eaf6f2' }}
+              className="rounded-3xl overflow-hidden border border-primary/20 shadow-xs relative"
+            >
+              {/* Subtle ambient glowing background orbs */}
+              <View
+                style={{
+                  position: 'absolute',
+                  right: -25,
+                  top: -25,
+                  width: 130,
+                  height: 130,
+                  borderRadius: 65,
+                  backgroundColor: 'rgba(25, 128, 109, 0.08)',
+                }}
+              />
+              <View
+                style={{
+                  position: 'absolute',
+                  right: 45,
+                  bottom: -35,
+                  width: 110,
+                  height: 110,
+                  borderRadius: 55,
+                  backgroundColor: 'rgba(25, 128, 109, 0.05)',
+                }}
+              />
+              <View
+                style={{
+                  position: 'absolute',
+                  left: -15,
+                  bottom: -15,
+                  width: 80,
+                  height: 80,
+                  borderRadius: 40,
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                }}
+              />
+
+              <View className="p-4 flex-row items-center gap-3.5">
+                <View style={{ width: 58, height: 58, flexShrink: 0 }} className="items-center justify-center">
+                  <ExpoImage
+                    source={require('../../../assets/images/snapbot-icon.svg')}
+                    style={{ width: 52, height: 52 }}
+                    contentFit="contain"
+                    accessibilityLabel="SnapBot"
+                  />
+                </View>
+
+                <View className="flex-1 justify-center">
+                  <Text className="text-xl font-black text-foreground leading-tight">
+                    Ask SnapBot
+                  </Text>
+                  <Text className="text-xs font-medium text-muted-foreground mt-1">
+                    Instant recycling & sorting advice
+                  </Text>
+                </View>
+
+                <View
+                  style={{ backgroundColor: '#ffffff' }}
+                  className="h-10 w-10 rounded-full items-center justify-center border border-primary/20 shadow-xs"
+                >
+                  <ArrowRight size={18} color="#19806d" />
+                </View>
+              </View>
+            </View>
+          </AnimatedPressable>
+        </Animated.View>
+
+        <Animated.View entering={appear(2)}>
+          {/* Real Statistics Section */}
+          <View className="mt-8 mb-3 flex-row items-center gap-1.5">
+            <TrendingUp size={14} color="#5b7072" />
+            <Text className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Your Impact
+            </Text>
+          </View>
+
+          <View className="flex-row gap-2.5">
+            {/* Total Scans Card */}
+            <Card className="flex-1 p-3.5 rounded-3xl bg-card border border-primary/20 shadow-xs justify-between">
+              <View className="h-9 w-9 rounded-2xl bg-primary/10 border border-primary/20 items-center justify-center mb-2.5">
+                <Layers size={17} color="#19806d" />
+              </View>
+              <View>
+                <Text className="text-2xl font-black text-foreground tracking-tight">
+                  <CountUp value={stats.total_scans} />
+                </Text>
+                <Text className="text-[11px] font-bold text-muted-foreground mt-0.5">
+                  Scans
+                </Text>
+              </View>
+            </Card>
+
+            {/* Verified Items Card */}
+            <Card className="flex-1 p-3.5 rounded-3xl bg-card border border-emerald-500/20 shadow-xs justify-between">
+              <View className="h-9 w-9 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 items-center justify-center mb-2.5">
+                <CheckCircle2 size={17} color="#16a34a" />
+              </View>
+              <View>
+                <Text className="text-2xl font-black text-foreground tracking-tight">
+                  <CountUp value={stats.verified_recyclable_items} />
+                </Text>
+                <Text className="text-[11px] font-bold text-muted-foreground mt-0.5">
+                  Recyclables
+                </Text>
+              </View>
+            </Card>
+
+            {/* Active Pickups Card */}
+            <Card className="flex-1 p-3.5 rounded-3xl bg-card border border-blue-500/20 shadow-xs justify-between">
+              <View className="h-9 w-9 rounded-2xl bg-blue-500/10 border border-blue-500/20 items-center justify-center mb-2.5">
+                <PackageCheck size={17} color="#2563eb" />
+              </View>
+              <View>
+                <Text className="text-2xl font-black text-foreground tracking-tight">
+                  <CountUp value={stats.active_requests} />
+                </Text>
+                <Text className="text-[11px] font-bold text-muted-foreground mt-0.5">
+                  Open Pickups
+                </Text>
+              </View>
+            </Card>
+          </View>
+        </Animated.View>
+
+        <Animated.View entering={appear(3)}>
+          {/* Latest News (Real News Carousel) */}
+          <View className="mt-8 mb-3 flex-row items-center gap-1.5">
+            <Newspaper size={14} color="#5b7072" />
+            <Text className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Latest News
+            </Text>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingRight: 24 }}
+            className="-mx-6 px-6"
+          >
+            {PERAK_ECO_NEWS.map((item) => (
+              <AnimatedPressable
+                key={item.id}
+                accessibilityRole="link"
+                accessibilityLabel={`Read article: ${item.title}`}
+                onPress={() => {
+                  Linking.openURL(item.url).catch(() => {
+                    Alert.alert('Unable to open link', item.url);
+                  });
+                }}
+                style={{ width: 265 }}
+                className="mr-3.5 rounded-3xl overflow-hidden bg-card border border-border/80 shadow-sm"
+              >
+                <View className="relative w-full h-36 bg-muted/60">
+                  <ExpoImage
+                    source={{ uri: item.imageUrl }}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="cover"
+                    transition={250}
+                  />
+                  <View className="absolute top-2.5 right-2.5 h-6 w-6 rounded-full bg-black/55 items-center justify-center">
+                    <ArrowUpRight size={13} color="#ffffff" />
+                  </View>
+                </View>
+
+                <View className="p-3.5 flex-1 justify-between">
+                  <Text
+                    className="text-xs font-black text-foreground leading-snug"
+                    numberOfLines={2}
+                  >
+                    {item.title}
+                  </Text>
+
+                  <View className="mt-3 flex-row items-center justify-between pt-2.5 border-t border-border/50">
+                    <Text className="text-[11px] font-black text-primary">
+                      {item.source}
+                    </Text>
+                    <Text className="text-[10px] font-medium text-muted-foreground">
+                      {item.publishedDate}
+                    </Text>
+                  </View>
+                </View>
+              </AnimatedPressable>
+            ))}
+          </ScrollView>
+        </Animated.View>
 
         {/* Recent Activity Section */}
         <View className="mt-8 mb-3 flex-row items-center justify-between">
@@ -395,9 +406,9 @@ export default function HomeScreen() {
 
         {recentScans.length > 0 ? (
           <View className="space-y-2.5">
-            {recentScans.map((scan) => (
+            {recentScans.map((scan, i) => (
+              <Animated.View key={scan.id} entering={appear(i + 4)}>
               <AnimatedPressable
-                key={scan.id}
                 accessibilityRole="button"
                 accessibilityLabel={`View scan from ${formatRecentDate(scan.created_at)}`}
                 onPress={() => router.push('/(tabs)/activity')}
@@ -427,12 +438,13 @@ export default function HomeScreen() {
                   </View>
                 </Card>
               </AnimatedPressable>
+              </Animated.View>
             ))}
           </View>
         ) : (
           <Card className="p-4 rounded-3xl border border-dashed border-border/80 bg-card/60 items-center">
             <Text className="text-xs font-medium text-muted-foreground text-center">
-              No scans recorded yet. Tap Scan Waste above to begin!
+              No scans yet. Tap Scan Waste to check your first item.
             </Text>
           </Card>
         )}

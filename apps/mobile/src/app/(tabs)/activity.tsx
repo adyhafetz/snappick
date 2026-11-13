@@ -18,7 +18,9 @@ import {
   Truck,
 } from 'lucide-react-native';
 
+import Animated from 'react-native-reanimated';
 import { Button } from '@/components/ui/button';
+import { appear } from '@/lib/motion';
 import { Text } from '@/components/ui/text';
 import { ProofPhotoModal } from '@/components/pickup/ProofPhotoModal';
 import { PickupRatingModal } from '@/components/pickup/PickupRatingModal';
@@ -387,7 +389,7 @@ export default function ActivityScreen() {
                   : 'font-semibold text-muted-foreground'
               }`}
             >
-              Claimed Tasks
+              Claimed Pickups
             </Text>
             <View
               className={`px-2 py-0.5 rounded-full ${
@@ -410,7 +412,7 @@ export default function ActivityScreen() {
           {(['all', 'active', 'completed'] as FilterType[]).map((tabFilter) => {
             const isActive = filter === tabFilter;
             const count = tabFilter === 'all' ? currentTotal : tabFilter === 'active' ? currentActive : currentCompleted;
-            const label = tabFilter === 'all' ? 'All' : tabFilter === 'active' ? 'Active' : 'Completed';
+            const label = tabFilter === 'all' ? 'All' : tabFilter === 'active' ? 'Active' : 'Past';
             return (
               <TouchableOpacity
                 key={tabFilter}
@@ -517,10 +519,10 @@ export default function ActivityScreen() {
               </View>
               <Text className="text-base font-bold text-foreground text-center">
                 {filter === 'active'
-                  ? 'No active claimed tasks'
+                  ? 'No pickups in progress'
                   : filter === 'completed'
-                    ? 'No past claimed tasks'
-                    : 'No Claimed Tasks'}
+                    ? 'No finished pickups yet'
+                    : 'No Claimed Pickups'}
               </Text>
               <Text className="text-xs text-muted-foreground text-center mt-1 max-w-[260px] leading-relaxed">
                 {filter === 'active' || filter === 'all'
@@ -539,7 +541,10 @@ export default function ActivityScreen() {
             </View>
           )
         }
-        renderItem={renderItem}
+        // Rows fade in and rise as they appear; only the first screenful is staggered.
+        renderItem={(info) => (
+          <Animated.View entering={appear(info.index < 6 ? info.index : 0)}>{renderItem(info)}</Animated.View>
+        )}
       />
 
       <MyRequestDetailsModal

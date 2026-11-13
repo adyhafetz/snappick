@@ -23,7 +23,7 @@ export function ProofPhotoModal({
   visible,
   photoUrl,
   onClose,
-  title = 'Collection Proof',
+  title = 'Proof Photo',
 }: ProofPhotoModalProps) {
   const [loading, setLoading] = useState(true);
 
@@ -83,7 +83,7 @@ export function ProofPhotoModal({
           {/* Footer */}
           <View className="p-3 bg-secondary/30 border-t border-border/50 items-center">
             <Text className="text-[11px] font-medium text-muted-foreground text-center">
-              Metadata and location tags stripped for privacy
+              Location and hidden photo details removed for privacy
             </Text>
           </View>
         </Pressable>

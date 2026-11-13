@@ -36,6 +36,8 @@ import { formatRating } from '@/lib/pickup/rating';
 import { isProofFresh, proofCapturedAt , stripJpegMetadata } from '@/lib/pickup/proof-metadata';
 import { PickupDisputeModal } from '@/components/pickup/PickupDisputeModal';
 import { PickupStatusPill } from '@/components/pickup/PickupStatusPill';
+import { collectorPlaceholder } from '@/lib/pickup/status';
+import { RequestAgain } from '@/components/pickup/RequestAgain';
 import { prepareProofImage } from '@/lib/pickup/proof';
 import {
   type ChecklistCondition,
@@ -150,7 +152,7 @@ export default function PickupDetailsScreen() {
         activePickup = requestData as SafePickup;
         setRole('requester');
         setPartner({
-          name: requestData.collector_name ?? (requestData.status === 'pending' ? 'Looking for Collector' : 'Assigned Collector'),
+          name: requestData.collector_name ?? collectorPlaceholder(requestData.status),
           rating: requestData.collector_rating,
           ratingCount: requestData.collector_rating_count,
           roleLabel: 'Collector',
@@ -258,13 +260,24 @@ export default function PickupDetailsScreen() {
     await load();
   };
 
-  const relist = async () => {
+  const relist = async (window: { start: string; end: string } | null) => {
     if (!id) return;
     setBusy(true);
-    const { error: relistError } = await supabase.rpc('relist_pickup', { request_id: id });
+    const { error: relistError } = await supabase.rpc('relist_pickup', {
+      request_id: id,
+      ...(window ? { p_window_start: window.start, p_window_end: window.end } : {}),
+    });
     setBusy(false);
     if (relistError) {
-      Alert.alert('Could not relist pickup', 'This request can no longer be relisted. Refresh and try again.');
+      const code = relistError.message.toLowerCase();
+      Alert.alert(
+        'Could not request again',
+        code.includes('open_request_limit')
+          ? 'You already have 5 open pickups. Cancel one or wait until one is collected.'
+          : code.includes('invalid_pickup_window')
+            ? 'That pickup time has passed. Choose a new time.'
+            : 'This pickup changed. Refresh and try again.'
+      );
     }
     await load();
   };
@@ -372,13 +385,13 @@ export default function PickupDetailsScreen() {
 
   const handleUnableToCollect = () => {
     Alert.alert(
-      'Report issue collecting items?',
-      'If items are missing or hazardous, record proof and report.',
+      "Couldn't collect this pickup?",
+      'Add a proof photo first. Then tell us why, and the requester can ask for another collector.',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Items Missing', onPress: () => void submitCollection('missing') },
-        { text: 'Contaminated / Unsafe', onPress: () => void submitCollection('unsafe') },
-        { text: 'Access Issue', onPress: () => void submitCollection('access_issue') },
+        { text: 'Dirty or Unsafe', onPress: () => void submitCollection('unsafe') },
+        { text: "Couldn't Reach the Place", onPress: () => void submitCollection('access_issue') },
       ]
     );
   };
@@ -423,7 +436,7 @@ export default function PickupDetailsScreen() {
                 </View>
                 <View className="flex-1">
                   <Text className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                    Schedule Window
+                    Pickup Time
                   </Text>
                   <Text className="text-sm font-bold text-foreground mt-0.5" numberOfLines={1}>
                     {formatWindow(pickup.pickup_window_start, pickup.pickup_window_end)}
@@ -496,7 +509,7 @@ export default function PickupDetailsScreen() {
                       </View>
                       <View className="flex-1">
                         <Text className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                          Destination Area
+                          Pickup Area
                         </Text>
                         <Text className="text-sm font-bold text-foreground mt-0.5" numberOfLines={1}>
                           {pickup.district_name ?? 'Service Area'}
@@ -511,7 +524,7 @@ export default function PickupDetailsScreen() {
                   <View className="p-3.5 rounded-2xl bg-secondary/40 border border-border/60 flex-row items-start gap-2.5">
                     <Navigation size={15} color="#19806d" style={{ marginTop: 2 }} />
                     <Text className="text-xs text-muted-foreground flex-1 leading-5">
-                      Full street address unlocks upon starting.
+                      You'll see the full address when you start the pickup.
                     </Text>
                   </View>
                 </View>
@@ -550,10 +563,10 @@ export default function PickupDetailsScreen() {
                 </View>
                 <View className="flex-1">
                   <Text className="text-[10px] font-bold text-blue-700 uppercase tracking-wider">
-                    Collection In Progress
+                    On the Way
                   </Text>
                   <Text className="text-xs font-semibold text-foreground mt-0.5">
-                    Collector is on the way to collect your recyclables.
+                    Your collector is on the way.
                   </Text>
                 </View>
               </View>
@@ -568,7 +581,7 @@ export default function PickupDetailsScreen() {
                   </View>
                   <View className="flex-1">
                     <Text className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                      Collection Proof
+                      Proof Photo
                     </Text>
                     <Text className="text-sm font-bold text-foreground mt-0.5" numberOfLines={1}>
                       {proof ? 'Photo Attached' : 'Required'}
@@ -644,7 +657,7 @@ export default function PickupDetailsScreen() {
                     <View className="h-8 w-8 rounded-xl bg-primary/10 border border-primary/20 items-center justify-center">
                       <Camera size={16} color="#19806d" />
                     </View>
-                    <Text className="text-sm font-bold text-foreground">Collection Proof</Text>
+                    <Text className="text-sm font-bold text-foreground">Proof Photo</Text>
                   </View>
                   <Badge
                     variant={pickup.status === 'completed' ? 'success' : 'secondary'}
@@ -701,7 +714,22 @@ export default function PickupDetailsScreen() {
               <View className="gap-2.5 mt-1">
                 <Button
                   disabled={busy}
-                  onPress={() => void transition('start_pickup')}
+                  onPress={() => {
+                    // Starting long before the pickup time is allowed, but asked first.
+                    const start = pickup.pickup_window_start ? new Date(pickup.pickup_window_start).getTime() : 0;
+                    if (start - Date.now() > 2 * 60 * 60 * 1000) {
+                      Alert.alert(
+                        'Start before the pickup time?',
+                        `This pickup is set for ${formatWindow(pickup.pickup_window_start, pickup.pickup_window_end)}. Only start if the requester expects you now.`,
+                        [
+                          { text: 'Not Yet', style: 'cancel' },
+                          { text: 'Start Now', onPress: () => void transition('start_pickup') },
+                        ]
+                      );
+                      return;
+                    }
+                    void transition('start_pickup');
+                  }}
                   className="w-full h-12 rounded-2xl bg-primary flex-row items-center justify-center gap-2 shadow-xs"
                 >
                   <Play size={16} color="#ffffff" />
@@ -712,7 +740,7 @@ export default function PickupDetailsScreen() {
                   disabled={busy}
                   variant="outline"
                   onPress={() =>
-                    Alert.alert('Release pickup task?', 'This pickup will return to the map for other collectors.', [
+                    Alert.alert('Release this pickup?', 'It goes back on the map so another collector can claim it.', [
                       { text: 'Keep Task', style: 'cancel' },
                       { text: 'Release', style: 'destructive', onPress: () => void transition('release_pickup_request') },
                     ])
@@ -720,7 +748,7 @@ export default function PickupDetailsScreen() {
                   className="w-full h-12 rounded-2xl border-border/80 bg-card flex-row items-center justify-center gap-2"
                 >
                   <RotateCcw size={15} color="#5b7072" />
-                  <Text className="text-base font-bold text-foreground">Release Task</Text>
+                  <Text className="text-base font-bold text-foreground">Release Pickup</Text>
                 </Button>
               </View>
             )}
@@ -750,7 +778,7 @@ export default function PickupDetailsScreen() {
                   className="w-full h-12 rounded-2xl border-amber-600/30 bg-card flex-row items-center justify-center gap-2"
                 >
                   <AlertTriangle size={15} color="#b45309" />
-                  <Text className="text-sm font-bold text-amber-800">Report Issue</Text>
+                  <Text className="text-sm font-bold text-amber-800">Couldn't Collect</Text>
                 </Button>
               </View>
             )}
@@ -779,20 +807,14 @@ export default function PickupDetailsScreen() {
               </View>
             )}
 
-            {/* Requester: pickup was not collected (e.g. dispute upheld) -> offer a new collector */}
-            {role === 'requester' && pickup.status === 'not_collected' && (
-              <View className="gap-2.5 mt-2 mb-4">
-                <Text className="text-xs font-semibold text-muted-foreground">
-                  This pickup was not collected.
-                </Text>
-                <Button
-                  disabled={busy}
-                  onPress={() => void relist()}
-                  className="w-full h-12 rounded-2xl bg-primary flex-row items-center justify-center gap-2 shadow-xs"
-                >
-                  <Text className="text-base font-bold text-white">Find another collector</Text>
-                </Button>
-              </View>
+            {/* Requester: pickup was not collected or expired -> ask again, with a new time when needed */}
+            {role === 'requester' && (pickup.status === 'not_collected' || pickup.status === 'expired') && (
+              <RequestAgain
+                status={pickup.status}
+                windowStart={pickup.pickup_window_start}
+                busy={busy}
+                onRequest={(window) => void relist(window)}
+              />
             )}
 
             {/* Status Notices */}
@@ -806,7 +828,7 @@ export default function PickupDetailsScreen() {
                     Disputed
                   </Text>
                   <Text className="text-xs font-semibold text-foreground mt-0.5 leading-snug">
-                    Dispute in progress. Admin is investigating the collection proof.
+                    An admin is checking the proof photo. You'll be told the outcome.
                   </Text>
                 </View>
               </View>
@@ -822,7 +844,7 @@ export default function PickupDetailsScreen() {
                     Completed
                   </Text>
                   <Text className="text-xs font-semibold text-foreground mt-0.5">
-                    Pickup successfully collected and verified.
+                    Collected and confirmed.
                   </Text>
                 </View>
               </View>

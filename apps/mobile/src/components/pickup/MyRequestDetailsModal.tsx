@@ -21,6 +21,7 @@ import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { formatRating } from '@/lib/pickup/rating';
+import { collectorPlaceholder } from '@/lib/pickup/status';
 
 export type MyRequestItem = {
   id: string;
@@ -183,7 +184,7 @@ export function MyRequestDetailsModal({
                       Collector
                     </Text>
                     <Text className="text-xs font-bold text-foreground" numberOfLines={1}>
-                      {request.collector_name ?? (request.status === 'pending' ? 'Looking for Collector' : 'Assigned Collector')}
+                      {request.collector_name ?? collectorPlaceholder(request.status)}
                     </Text>
                   </View>
                 </View>
@@ -316,7 +317,7 @@ export function MyRequestDetailsModal({
             {!isClaimed && request.status === 'disputed' && (
               <View className="mb-3 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20">
                 <Text className="text-xs font-semibold text-amber-800 leading-tight">
-                  Dispute in progress. Admin is investigating the collection proof.
+                  An admin is checking the proof photo. You'll be told the outcome.
                 </Text>
               </View>
             )}
@@ -336,7 +337,7 @@ export function MyRequestDetailsModal({
                         className="flex-1 h-11 rounded-2xl border-border/80 bg-secondary/30 flex-row items-center justify-center gap-1.5"
                       >
                         <RotateCcw size={15} color="#5b7072" />
-                        <Text className="text-xs font-bold text-foreground">Release Task</Text>
+                        <Text className="text-xs font-bold text-foreground">Release Pickup</Text>
                       </Button>
                     )}
                     {onStartPickup && (

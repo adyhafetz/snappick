@@ -107,8 +107,8 @@ export default function ProfileScreen() {
       });
       setNotice(
         value
-          ? 'Cloud photo backup enabled.'
-          : 'Cloud photo backup disabled. Scans stay on-device only.'
+          ? 'Photo Backup turned on.'
+          : 'Photo Backup turned off. Your scans stay on this phone.'
       );
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Could not save privacy choice.');
@@ -126,8 +126,8 @@ export default function ProfileScreen() {
       if (result.hasUpdate && result.remoteModel) {
         const targetVersion = result.remoteModel.version;
         Alert.alert(
-          'Model Update Available',
-          `A new waste detection model (${targetVersion}) is ready. Would you like to activate it now?`,
+          'Better detector available',
+          `A newer version of the waste detector (${targetVersion}) is ready. Use it now?`,
           [
             { text: 'Later', style: 'cancel' },
             {
@@ -149,7 +149,7 @@ export default function ProfileScreen() {
       } else {
         Alert.alert(
           'Up to Date',
-          'Your AI waste detector is currently running the latest version.'
+          'You have the newest detector.'
         );
       }
     } catch (updateErr) {
@@ -423,19 +423,19 @@ export default function ProfileScreen() {
           PRIVACY & STORAGE
         </Text>
         <Card className="p-4 border-border/70 bg-card rounded-2xl shadow-sm mb-6">
-          {/* Cloud Storage Toggle */}
+          {/* Photo Backup Toggle */}
           <View className="flex-row items-center justify-between pb-3.5 border-b border-border/40">
             <View className="flex-1 pr-4">
               <View className="flex-row items-center gap-1.5">
                 <Shield size={15} color="#19806d" />
-                <Text className="text-sm font-bold text-foreground">Cloud Photo Sync</Text>
+                <Text className="text-sm font-bold text-foreground">Photo Backup</Text>
               </View>
               <Text className="text-xs text-muted-foreground mt-0.5">
-                Store scan photos securely for pickups.
+                Keep scan photos safely online. Needed for pickups.
               </Text>
             </View>
             <Switch
-              accessibilityLabel="Sync scan photos"
+              accessibilityLabel="Photo backup"
               disabled={storageSaving}
               checked={profile.image_storage_consent}
               onCheckedChange={(value) => void toggleImageStorage(value)}
@@ -450,7 +450,7 @@ export default function ProfileScreen() {
                 <Text className="text-sm font-bold text-foreground">AI Model Training</Text>
               </View>
               <Text className="text-xs text-muted-foreground mt-0.5">
-                Share anonymous scans to improve local AI.
+                Let your scan photos, without your name or location, help SnapPick recognise waste better.
               </Text>
             </View>
             <Switch
@@ -475,7 +475,7 @@ export default function ProfileScreen() {
                 <RefreshCw size={15} color="#19806d" />
               )}
               <Text className="text-xs font-bold text-primary">
-                {checkingModel ? 'Checking Updates...' : 'Check Updates'}
+                {checkingModel ? 'Checking...' : 'Check for Detector Update'}
               </Text>
             </Button>
           </View>
