@@ -43,7 +43,7 @@ The home page news is the same three Perak recycling articles as the app's Home 
 A sticky bar holds the filters, then the page shows:
 
 1. **Filters:** period (30 days, 90 days, all time, or a **custom range**), a district dropdown, the data date, and **Preview report**.
-2. **Four key numbers:** pickups completed, households taking part, items recycled, completion rate (with the median hours to claim).
+2. **Four key numbers:** pickups completed, households taking part, items recycled, completion rate (with the median hours to claim). The completion rate appears once, on its own card.
 3. **Map and side panel:** districts shaded from light (few completed pickups) to dark (many); a panel with the top districts, or the chosen district's summary. A "Show as table" option gives the same facts as a table.
 4. **Four charts:** pickups per month, what is recycled, pickups completed by district, requests not collected.
 5. **SnapBot:** a round icon bottom-right that bounces gently. It opens a chat styled like the mobile app's SnapBot.
@@ -53,7 +53,7 @@ A sticky bar holds the filters, then the page shows:
 
 **"?" on every card.** SnapBot flies to the card, the page dims (still visible), a thinking indicator shows, and a square bubble types an explanation. The text is written by the page from the published figures (`src/lib/cardHelp.ts`), with no AI call. Escape, the close button or a click outside ends it. Reduced motion skips the animations.
 
-**Report.** Preview report opens a window where SnapBot shows progress steps while `/api/report` builds the PDF (at least about 4 seconds so the steps can be read), then shows it with Download and Open. A browser with a PDF viewer is needed for the preview; Download works anywhere. The PDF (PDFKit, Helvetica, A4, about 4 pages) has: cover, summary, method and data notes, participation, materials, districts table, service gaps, recommendations, appendix, and a footer on every page saying the insights are generated from real data. It has no logo or map.
+**Report.** Preview report opens a window where SnapBot shows progress steps while `/api/report` builds the PDF (at least about 4 seconds so the steps can be read), then shows it with Download and Open. `/api/report` allows 10 reports per visitor per 10 minutes, `/api/snapbot` 20 questions and `/api/range` 60 requests (`src/lib/rate-limit.ts`; counted per server instance, so a shared limiter belongs in front in production). A browser with a PDF viewer is needed for the preview; Download works anywhere. The PDF (PDFKit, Helvetica, A4, about 4 pages) has: cover, summary, method and data notes, participation, materials, districts table, service gaps, recommendations, appendix, and a footer on every page saying the insights are generated from real data. It has no logo or map.
 
 ## 5. Data and privacy
 

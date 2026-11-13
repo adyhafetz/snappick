@@ -9,7 +9,6 @@ SnapPick is a community recycling app for Perak, Malaysia (Android only). Reside
 | Admin dashboard (Next.js) | `apps/admin` | Done |
 | Public website and dashboard (Next.js) | `apps/web` | Built; reads only the `public_*` snapshot tables (migration `20261107000100`) |
 | Model retraining (Kaggle notebook) | `ml/` | Done |
-| Public website and community dashboard | (not started) | Planned |
 
 ```
  Phone (Expo app) ───────────────┐
@@ -36,15 +35,15 @@ Five tabs:
 | Tab | What it does |
 |---|---|
 | Home | Impact stats (cached offline), news, scan and SnapBot shortcuts. Syncs offline scans and checks for a new detector model when opened. |
-| Activity | **My Requests** (cancel, view proof, confirm and rate, dispute) and **Claimed Tasks** (start, release, route, submit proof). |
+| Activity | **My Requests** (cancel, view proof, confirm and rate, dispute) and **Claimed Pickups** (start, release, route, submit proof). |
 | Scan | Pick or take a photo, review detections, add or remove items, read the preparation guide, then schedule a pickup. |
 | Collect | Live map of pending pickups (grid-snapped pins), one-tap claim, at most 3 active claims. |
-| Profile | Name and phone, privacy toggles, **Check Updates** for the detector model, sign out, delete account. |
+| Profile | Name and phone, privacy toggles, **Check for Detector Update**, sign out, delete account. |
 
 Key behaviour:
 
 - **Detection runs on the phone.** The model, labels, input size and thresholds come from `assets/models/model_manifest.json`, checked against the loaded model's tensor shapes. The labels, in fixed order, are `metal, trash, glass, paper, cardboard, plastic, biological`.
-- **Detector model updates.** The bundled model (`v0`) is never overwritten. When the admin makes a newer model live, the phone offers it: automatically when Home opens (checked at most every 6 hours, "Later" is remembered for 24 hours) or via Profile, Check Updates. Any load failure falls back to the bundled model.
+- **Detector model updates.** The bundled model (`v0`) is never overwritten. When the admin makes a newer model live, the phone offers it: automatically when Home opens (checked at most every 6 hours, "Later" is remembered for 24 hours) or via Profile, **Check for Detector Update**. The model is downloaded once to the phone and checked against its SHA-256 before use. Any load or scan failure falls back to the bundled model.
 - **Offline scans.** If saving a scan fails (no network), the whole scan session is kept on the phone and saved on the next Home visit. Photos upload through a second queue, only for users who consented.
 - **Low confidence is shown.** Detections under 80% show "Low confidence" and need a tap to confirm.
 - **Proof photos** must be taken within 12 hours (camera, or a gallery photo with a readable capture time), are downsized to 800 px and stripped of EXIF/GPS before upload.
@@ -65,8 +64,9 @@ All schema changes are files in `supabase/migrations/` (applied to the linked re
 - At most 5 open requests per requester, at most 3 active claims per collector.
 - A submitted proof must exist in storage (at least 1 KB), be a JPEG and have been captured within the last 12 hours.
 - A requester can only confirm by rating (`rate_and_confirm_pickup`). Ratings are readable only by the two people involved and admins.
-- An admin who **upholds** a dispute sets the request to `not_collected` and records a 1-star rating for the collector. The requester can relist the pickup. Every dispute resolution is written to `audit_log`.
-- `pg_cron` jobs: unstarted claims return to `pending` after 24 hours, unconfirmed pickups complete automatically 48 hours after submission (unless disputed).
+- An admin who **upholds** a dispute sets the request to `not_collected` and records a 1-star rating for the collector.
+- **Request Again** (`relist_pickup`): a `not_collected` or `expired` request goes back to `pending`. If its pickup time has passed, the requester picks a new one; the previous collector's checklist results are cleared and the 5 open requests limit applies. Every dispute resolution is written to `audit_log`.
+- `pg_cron` jobs (every 15 minutes): unstarted claims return to `pending` after 24 hours; unconfirmed pickups complete automatically 48 hours after submission (unless disputed); `expire_overdue_pickups` sets `pending` and `accepted` requests whose pickup time has ended to `expired`, and an `in_progress` pickup still open 12 hours after its pickup time ended to `not_collected` (reason `collector_timeout`).
 
 **Main tables:** `profiles`, `scans`, `detections`, `label_feedback`, `feedback_samples`, `scan_upload_queue`, `pickup_requests_public`, `pickup_request_private_details`, `pickup_waste_items`, `pickup_proofs`, `pickup_ratings`, `disputes`, `perak_districts`, `pbt_rule_sets`, `model_versions`, `push_tokens`, `audit_log`, `llm_usage`, `instruction_cache`, `reports`.
 
@@ -76,7 +76,7 @@ All schema changes are files in `supabase/migrations/` (applied to the linked re
 
 ## Admin dashboard (`apps/admin`)
 
-Next.js 15 (App Router) on port 3001. Sign-in requires an account with `profiles.is_admin = true`; the middleware protects every page and API route, and the API routes run with the signed-in admin's session.
+Next.js 15 (App Router) on port 3001. Sign-in requires an account with `profiles.is_admin = true`; the middleware protects every page and API route (and serves nothing if the Supabase settings are missing), and the API routes run with the signed-in admin's session.
 
 | Page | What the admin does |
 |---|---|

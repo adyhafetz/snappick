@@ -20,7 +20,7 @@ Users scan waste ──► consented, verified images ──► admin reviews la
 
 A scan image reaches the training pool only when all of these are true:
 
-- the user turned on **Cloud Photo Sync** (`image_storage_consent`) **and** **AI Model Training** (`training_opt_in`) in Profile;
+- the user turned on **Photo Backup** (`image_storage_consent`) **and** **AI Model Training** (`training_opt_in`) in Profile;
 - the scan was selected for upload (low-confidence detections, user corrections and a small random sample are preferred, with a daily cap per user);
 - the photo reached storage (offline scans are saved and uploaded when the phone is back online).
 
@@ -63,7 +63,7 @@ Any earlier version can be made live again with **Use**, which is the rollback p
 
 ## 5. Phones update
 
-The bundled `v0` model is never overwritten. When a phone opens Home it checks (at most every 6 hours) whether a newer model is live and asks "Better detector available. Update now?". "Later" is remembered for 24 hours. Users can also go to **Profile → Check Updates**. The phone downloads the model through a signed link and stores which version is active. If a model cannot be loaded, the app falls back to the bundled `v0`.
+The bundled `v0` model is never overwritten. When a phone opens Home it checks (at most every 6 hours) whether a newer model is live and asks "Better detector available. Update now?". "Later" is remembered for 24 hours. Users can also go to **Profile → Check for Detector Update**. The phone downloads the model once into its own storage, checks it against the SHA-256 registered for that version (a mismatch is deleted and the current detector stays), then stores which version is active, so it works offline and never depends on a link that expires. Switching versions takes effect on the next scan. If a downloaded model cannot be loaded, or fails while scanning, the app falls back to the bundled `v0` (and retries that scan with it).
 
 ## Model contract
 

@@ -84,7 +84,7 @@ SnapPick uses **Roboto** across mobile and web interfaces. It combines geometric
 | **Title** | `24 / 30 · Bold 700` | *"Your next pickup is on its way."* | `text-2xl font-bold tracking-tight text-foreground` |
 | **Body** | `18 / 27 · Regular 400` | *"Snap a photo. Sort it right. We'll take care of the rest."* | `text-base text-foreground leading-relaxed` |
 | **Label** | `12 / 16 · Bold 700` | *"PICKUP CONFIRMED"* | `text-xs font-bold uppercase tracking-wider text-muted-foreground` |
-| **Status Pill** | `11 / 14 · Bold 700` | Status badges (`Pending`, `Review`) | `text-[11px] font-bold tracking-tight` |
+| **Status Pill** | `11 / 14 · Bold 700` | Status badges (`Pending`, `Confirm Pickup`) | `text-[11px] font-bold tracking-tight` |
 
 ---
 
@@ -144,10 +144,22 @@ SnapPick uses **Lucide icons** exclusively for crisp geometric alignment.
 | Issue Resolution | **Dispute** | Complaint, Report Abuse, Ticket | Standard mutual verification terminology |
 | AI Assistant | **Ask SnapBot** | AI Chatbot, LLM Prompt, Robot | Warm, approachable character |
 | Personal Stats | **Your Impact** | Metrics, KPIs, Analytics | Inspiring personal connection to civic progress |
-| Awaiting Step | **Review** / **Awaiting Confirmation** | Pending Requester, On Hold | Clean, immediate status label |
+| Awaiting Step | **Confirm Pickup** (requester) / **Waiting for Confirmation** (collector) | Review, Pending Requester, On Hold | Says who acts next |
+| Ended without pickup | **Not Collected** (amber), **Expired** (grey), button **Request Again** | Disputed, Relist, Find another collector | Red is only for **Disputed** |
+| Collector can't finish | **Couldn't Collect** | Report Issue, Unable to collect | Plain reason choices: Items Missing, Dirty or Unsafe, Couldn't Reach the Place |
 | Safety Warning | **Safety Declaration** | Banned Items, Prohibited Waste | Proactive safety guidance over punitive restriction |
+| Collector's list | **Claimed Pickups** | Claimed Tasks, Jobs | Same word as the Collect tab and the Claim button |
+| When a pickup happens | **Pickup Time** | Schedule Window, Collection Window | Says what the user chooses |
+| Home impact numbers | **Scans**, **Recyclables**, **Open Pickups** | Total Scans, Verified Items, Active Pickups | Short and literal |
+| The waste model | **Detector** ("the built-in detector", "a newer detector") | Model, AI model, base model, candidate | Used in the app and admin; "AI Model Training" stays as the name of the consent switch |
+| Model quality (admin) | **Accuracy** (and "points compared with the one in use") | mAP, pts vs live | mAP50 appears only in the upload field, as the technical name |
+| Photo storage | **Photo Backup** (the same name on the consent screen, Profile and every message) | Cloud Storage, Cloud Photo Sync, Sync | Name the place: "stay on this phone" |
+| Privacy of photos | **Location and hidden photo details removed** | Metadata, EXIF, tags stripped | Says what it means for the user |
+| Dashboard rate | **Requests collected**, "usually claimed within N hours" | Completion rate, median | The PDF report keeps "median" with a definition, because it is a formal document |
 
 ---
+
+Version names are always lowercase (`v0`, `v1`), never `V0`. Empty states say what is missing and when it will appear, in one or two plain sentences, instead of a bare "No data".
 
 ## 7. Platform Specifics (Mobile & Admin)
 
@@ -167,3 +179,25 @@ SnapPick uses **Lucide icons** exclusively for crisp geometric alignment.
 - The product is always written **SnapPick** (capital S and P, one word). The Android app name is "SnapPick".
 - **Website** page titles use `SnapPick | <Page>`, for example "SnapPick | Dashboard"; the home page is just "SnapPick". The tab icon is the emblem (`/brand/logo.svg`).
 - **Admin** page titles use `SnapPick Admin | <Page>`, for example "SnapPick Admin | Models" (pages: Overview, Dataset, Models, Disputes, Sign in). The tab icon is the emblem (`apps/admin/public/logo.svg`), the sidebar shows the horizontal lockup, and the sign-in and access-denied screens show the emblem.
+
+## 9. Motion
+
+One small motion system, the same in the website, admin and mobile app. Motion explains what changed; it never decorates. Every animation is switched off when the person prefers reduced motion (website and admin: a global CSS rule plus checks in the counters; mobile: Reanimated's default `ReduceMotion.System` and `useReducedMotion`).
+
+| Token | Duration | Easing | Used for |
+|---|---|---|---|
+| **Press** | 150 ms | `cubic-bezier(.2,.7,.2,1)` | A slight shrink (to 97 to 98%) while a button or card is pressed |
+| **Appear** | 250 ms | same | Content fades in and rises 8 px; list rows follow one another 70 ms apart (at most 5 steps, so long lists do not drag) |
+| **Moment** | 500 ms | ease-out | Only for things that matter: a key number counting to its new value, a bar growing to its new length |
+
+Rules:
+- No new looping animations. The only loop is SnapBot's calm idle bounce on the dashboard.
+- Animate when something changes or first appears, not on every render. Content already on screen at page load is not re-animated.
+- Numbers always land on the real value, even if the animation is interrupted or the window is in the background.
+
+Tools: **CSS (Tailwind)** for press, appear on load and bars, because they are short single transitions. **GSAP** (website and admin, pinned to 3.15.0) for anything sequenced or scroll-driven: number count-ups, scroll reveals (ScrollTrigger) and SnapBot's flight on the dashboard (one timeline: fly, think, type). **React Native Reanimated** for all mobile motion. Do not add another animation library.
+
+Where it lives:
+- **Website** (`apps/web`): `src/lib/motion.ts` (tokens, `setupGsap()` which registers ScrollTrigger and the `brand` ease, `useCountUp`), `src/components/CountUp.tsx`, `src/components/RevealOnScroll.tsx` (GSAP ScrollTrigger for elements marked `data-reveal`), `src/components/CardGuide.tsx` (SnapBot timeline), the `animate-appear` and `ease-brand` Tailwind tokens and the `.press` class in `globals.css`.
+- **Admin** (`apps/admin`): `motion.ts` (GSAP `useCountUp`), `CountUp.tsx` and the same Tailwind tokens; the `Button` component already shrinks on press.
+- **Mobile** (`apps/mobile`): `src/lib/motion.ts` (`appear(index)` entering animation, `useCountUp`), `src/components/ui/count-up.tsx`; `AnimatedPressable` is the press feedback.
